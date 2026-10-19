@@ -136,7 +136,7 @@ pub struct Unit {
     #[cfg_attr(not(test), allow(dead_code))]
     pub name: &'static str,
     /// The short name in the "About equal to" results.
-    abbreviation: &'static str,
+    pub abbreviation: &'static str,
     /// The unit's size in the category's base unit. Temperature uses `TEMPERATURE`.
     factor: f64,
 }
@@ -1186,10 +1186,11 @@ mod tests {
     /// are the ones in the tables.
     #[test]
     fn units_have_windows_resource_keys() {
-        let english: std::collections::HashMap<&str, &str> = include_str!("../locales/en-US.txt")
-            .lines()
-            .filter_map(|line| line.split_once('='))
-            .collect();
+        let english: std::collections::HashMap<&str, &str> =
+            include_str!("../../../locales/en-US.txt")
+                .lines()
+                .filter_map(|line| line.split_once('='))
+                .collect();
         let string = |kind: &str, key: &str| english.get(format!("{kind}_{key}").as_str()).copied();
         for category in Category::ALL {
             for unit in category.all_units() {

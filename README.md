@@ -364,6 +364,21 @@ goes to that unit, as in Windows.
   (`1,5` pastes as `15` with German formats).
 - `Esc` leaves the Settings page; in Windows only the back button does.
 
+## For AI agents (MCP)
+
+CalcCraft's calculators also come as an [MCP](https://modelcontextprotocol.io) server,
+`calccraft-mcp`, so that AI agents such as Claude, VS Code Copilot or Cursor calculate exactly
+instead of guessing. Its tools cover exact arithmetic with 32 digits, programmer integers, unit
+conversion, dates and function analysis, offline and read-only. Build it with
+`cargo build --release -p calccraft-mcp` and connect it, for example to Claude Code:
+
+```bash
+claude mcp add calccraft -- /path/to/calccraft-mcp
+```
+
+[`crates/mcp/README.md`](crates/mcp/README.md) lists its tools and how to connect other
+clients.
+
 ## For developers
 
 CalcCraft is written in Rust with [eframe/egui](https://github.com/emilk/egui). Contributors
@@ -396,13 +411,15 @@ takes Segoe UI's place where it's missing. The app was developed and tested on W
 ### Checks
 
 ```bash
-cargo test                                  # unit tests
-cargo fmt --check                           # formatting
-cargo clippy --all-targets -- -D warnings   # lints
+cargo test --workspace                                  # unit tests
+cargo fmt --all --check                                 # formatting
+cargo clippy --workspace --all-targets -- -D warnings   # lints
 ```
 
 All three must pass before a change is merged, and so must the web build's lints
-(`cargo clippy --target wasm32-unknown-unknown -- -D warnings`).
+(`cargo clippy --target wasm32-unknown-unknown --workspace --exclude calccraft-mcp -- -D warnings`).
+The repository is a Cargo workspace: the app is the root package, `crates/core` holds the
+engines without UI, and `crates/mcp` the MCP server; `--workspace` takes in all three.
 [GitHub Actions](.github/workflows/ci.yml) runs them on Windows, Linux and macOS, and builds the
 web version and the Android app, for every push and pull request.
 
@@ -492,6 +509,8 @@ with a suffix, such as `v1.0.0-beta.1`, are published as pre-releases.
 | Path | Contents |
 | --- | --- |
 | `src/main.rs`, `src/lib.rs` | Entry points: `main.rs` starts the app; `lib.rs` has the window options, the web version's start on the page's canvas and the Android app's `android_main` |
+| `crates/core/` | `calccraft-core`: the engines below, without UI, shared by the app and the MCP server |
+| `crates/mcp/` | `calccraft-mcp`: the MCP server that lets AI agents use the calculators (see its README) |
 | `index.html`, `Trunk.toml` | The web version's page and its Trunk build |
 | `android/` | The Android app: its manifest, launcher icons and themes, and `build-apk.ps1`, which builds the APK |
 | `src/app/web.rs` | The web version's ties to the browser: languages and regional formats (`Intl`), clipboard, downloads, browser shortcuts |
@@ -499,13 +518,14 @@ with a suffix, such as `v1.0.0-beta.1`, are published as pre-releases.
 | `assets/web/` | The web version's icons (rendered from `src/icon.rs` by `cargo test write_web_icons -- --ignored`), its app manifest and its service worker |
 | `src/icon.rs` | The app icon, drawn in code: the window icon and the icon embedded in the executable |
 | `build.rs` | Embeds the icon and the version information (CalcCraft, version from `Cargo.toml`) into `calculator.exe` |
-| `src/engine.rs` | Calculator logic: a port of the Windows engine (immediate execution, plus operator precedence and parentheses for the Scientific and Programmer modes), exact arithmetic, number formatting, exponent entry, paste, memory, history, unit tests. No UI code. |
-| `src/engine/math.rs` | The Scientific mode's functions: powers, roots, logarithms, trigonometry, hyperbolic functions, the gamma function, computed with a few hundred bits and Windows' domain rules; unit tests. No UI code. |
-| `src/engine/integer.rs` | The Programmer mode's integer mode: radixes, word sizes, two's complement, bitwise operators, shifts and rotations, digit limits and paste rules; unit tests. No UI code. |
-| `src/dates.rs` | Date logic: difference in years, months, weeks and days; adding and subtracting; date formats; unit tests. No UI code. |
-| `src/converter.rs` | Unit converter logic: a port of the Windows converter with its units, factors, rounding and region defaults; paste; unit tests. No UI code. |
-| `src/locale.rs` | Regional number formats (decimal separator, digit grouping) and date patterns; unit tests. No UI code. |
-| `src/graphing.rs`, `src/graphing/` | The graphing mode's math: the equation parser (`parse.rs`), expressions and their derivatives (`expr.rs`), plotting, best fit and tracing (`plot.rs`), the function analysis (`analysis.rs`) and exact values (`exact.rs`); unit tests. No UI code. |
+| `crates/core/src/engine.rs` | Calculator logic: a port of the Windows engine (immediate execution, plus operator precedence and parentheses for the Scientific and Programmer modes), exact arithmetic, number formatting, exponent entry, paste, memory, history, unit tests. No UI code. |
+| `crates/core/src/engine/math.rs` | The Scientific mode's functions: powers, roots, logarithms, trigonometry, hyperbolic functions, the gamma function, computed with a few hundred bits and Windows' domain rules; unit tests. No UI code. |
+| `crates/core/src/engine/integer.rs` | The Programmer mode's integer mode: radixes, word sizes, two's complement, bitwise operators, shifts and rotations, digit limits and paste rules; unit tests. No UI code. |
+| `crates/core/src/engine/expression.rs` | Formulas as text (`sin(30) + 2^10`), evaluated exactly with the Scientific mode's arithmetic, functions and errors, for the MCP server; unit tests. No UI code. |
+| `crates/core/src/dates.rs` | Date logic: difference in years, months, weeks and days; adding and subtracting; date formats; unit tests. No UI code. |
+| `crates/core/src/converter.rs` | Unit converter logic: a port of the Windows converter with its units, factors, rounding and region defaults; paste; unit tests. No UI code. |
+| `crates/core/src/locale.rs` | Regional number formats (decimal separator, digit grouping) and date patterns; unit tests. No UI code. |
+| `crates/core/src/graphing.rs`, `crates/core/src/graphing/` | The graphing mode's math: the equation parser (`parse.rs`), expressions and their derivatives (`expr.rs`), plotting, best fit and tracing (`plot.rs`), the function analysis (`analysis.rs`) and exact values (`exact.rs`); unit tests. No UI code. |
 | `src/app.rs` | User interface: custom-painted buttons, display, memory row, history and memory panels (flyouts or docked) with their context menus, menu, Settings, keyboard handling, fonts, title bar tint |
 | `src/app/access.rs` | Keyboard focus, focus rectangles and screen reader names for the custom-painted controls |
 | `src/app/strings.rs` | The interface's text in the user's language, from `locales/` |

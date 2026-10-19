@@ -1,8 +1,22 @@
-[package]
-name = "calculator"
+# The app is the workspace's root package. `crates/core` holds the engines without a user
+# interface, and `crates/mcp` the MCP server for AI agents (docs/mcp-server-plan.md).
+# Commands run in the root build and test the app only; add `--workspace` for all three.
+[workspace]
+members = ["crates/core", "crates/mcp"]
+
+# One version for the app, the core and the MCP server: a release bumps it here.
+[workspace.package]
 version = "1.3.0"
 edition = "2024"
 rust-version = "1.95"
+license = "MIT"
+
+[package]
+name = "calculator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 description = "A clone of the Windows 11 Calculator (Standard, Scientific, Graphing, Programmer, Date calculation and unit converters) built with egui"
 readme = "README.md"
 publish = false
@@ -14,6 +28,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+calccraft-core = { path = "crates/core" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 num-bigint = "0.4"
 num-rational = "0.4.2"

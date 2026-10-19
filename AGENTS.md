@@ -18,18 +18,24 @@ and the user-facing changes that are welcome are the ones that bring the app clo
 | Build | `cargo build` |
 | Run (with a console for logs) | `cargo run` |
 | Run (like an end user) | `cargo run --release` |
-| Tests | `cargo test` |
-| Format | `cargo fmt` |
-| Lint | `cargo clippy --all-targets -- -D warnings` |
-| Lint the web version | `cargo clippy --target wasm32-unknown-unknown -- -D warnings` |
+| Tests | `cargo test --workspace` |
+| Format | `cargo fmt --all` |
+| Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| Lint the web version | `cargo clippy --target wasm32-unknown-unknown --workspace --exclude calccraft-mcp -- -D warnings` |
 | Run the web version | `trunk serve` (http://127.0.0.1:8080; `trunk build --release` writes `dist/`) |
+| Run the MCP server | `cargo run -p calccraft-mcp` (it speaks MCP over stdin and stdout; see `crates/mcp/README.md`) |
 
-**Definition of done:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
-`cargo test` and the web version's `cargo clippy --target wasm32-unknown-unknown -- -D warnings`
-all pass, and UI changes have been checked by actually running the app (see "Verifying UI
-changes"). CI (`.github/workflows/ci.yml`) runs the first three on Windows, Linux and macOS
-for every push and pull request and builds the web version with Trunk, and a pull request
-isn't done until all of that passes. Code for Windows alone goes under `#[cfg(windows)]`, and
+The repository is a Cargo workspace: the app is the root package (`calculator`), the engines
+without UI are `crates/core` (`calccraft-core`), and the MCP server for AI agents is
+`crates/mcp` (`calccraft-mcp`). Commands in the root build the app only unless they say
+`--workspace` (or `-p`).
+
+**Definition of done:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --
+-D warnings`, `cargo test --workspace` and the web version's lint (above) all pass, and UI
+changes have been checked by actually running the app (see "Verifying UI changes"). CI
+(`.github/workflows/ci.yml`) runs the first three on Windows, Linux and macOS for every push
+and pull request and builds the web version with Trunk, and a pull request isn't done until
+all of that passes. Code for Windows alone goes under `#[cfg(windows)]`, and
 what only it uses gets `#[cfg_attr(not(windows), allow(dead_code))]`, or clippy fails on the
 others; code for the browser alone goes under `#[cfg(target_arch = "wasm32")]` the same way, and
 code for the Android app alone under `#[cfg(target_os = "android")]` (see `android/README.md`).
@@ -45,18 +51,26 @@ android/                 the Android app (prototype): manifest, icons, themes, b
 assets/web/              the web version's icons, app manifest and service worker (sw.js): a PWA
 src/icon.rs              the app icon, drawn in code with std only (also compiled into build.rs)
 build.rs                 embeds the icon and version info into calculator.exe (Windows only)
-src/engine.rs            calculator logic, no UI dependencies, unit tests at the bottom
-src/engine/math.rs       the Scientific mode's functions (a child module of engine.rs), unit tests
-src/engine/integer.rs    the Programmer mode's integer mode (a child module of engine.rs), unit tests
-src/dates.rs             date calculation logic (chrono), no UI dependencies, unit tests
-src/converter.rs         unit converter logic and unit data, no UI dependencies, unit tests
-src/locale.rs            regional number formats and date patterns, no UI dependencies, unit tests
-src/graphing.rs          the Graphing mode's equations (y = f(x), x = g(y), implicit), no UI, tests
-src/graphing/parse.rs    the equation parser and Windows' syntax errors
-src/graphing/expr.rs     expressions: f64 evaluation, angle units, symbolic derivative
-src/graphing/plot.rs     views, grid steps, plotting, inequality regions, best fit, tracing
-src/graphing/analysis.rs the key graph features (function analysis)
-src/graphing/exact.rs    exact values (fractions, multiples of π, square roots) for the analysis
+crates/core/src/         calccraft-core, the engines without UI; the app re-exports them in lib.rs,
+                         so app code keeps `crate::engine`, `crate::dates`, …:
+  engine.rs              calculator logic, no UI dependencies, unit tests at the bottom
+  engine/math.rs         the Scientific mode's functions (a child module of engine.rs), unit tests
+  engine/integer.rs      the Programmer mode's integer mode (a child module of engine.rs), unit tests
+  engine/expression.rs   formulas as text (`sin(30) + 2^10`), evaluated exactly with the Scientific
+                         mode's arithmetic and errors (the MCP server's `calculate`), unit tests
+  dates.rs               date calculation logic (chrono), no UI dependencies, unit tests
+  converter.rs           unit converter logic and unit data, no UI dependencies, unit tests
+  locale.rs              regional number formats and date patterns, no UI dependencies, unit tests
+  graphing.rs            the Graphing mode's equations (y = f(x), x = g(y), implicit), no UI, tests
+  graphing/parse.rs      the equation parser and Windows' syntax errors
+  graphing/expr.rs       expressions: f64 evaluation, angle units, symbolic derivative
+  graphing/plot.rs       views, grid steps, plotting, inequality regions, best fit, tracing
+  graphing/analysis.rs   the key graph features (function analysis)
+  graphing/exact.rs      exact values (fractions, multiples of π, square roots) for the analysis
+  monkey.rs              random key sequences checked against invariants (tests)
+crates/mcp/              calccraft-mcp, the MCP server for AI agents (docs/mcp-server-plan.md):
+                         src/tools.rs (the tools' work, unit tests), src/server.rs (rmcp: schemas,
+                         annotations, a time budget), tests/stdio.rs (the built server over stdio)
 src/app.rs               egui user interface (custom painting), modes, menu, keyboard, fonts, title bar
 src/app/access.rs        keyboard focus, focus visuals and screen reader names of every control
 src/app/icons.rs         the icons: code points of the embedded icon font, and a test that it has them
@@ -647,8 +661,9 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
 ## Conventions
 
 - **English everywhere:** code, comments, docs, UI strings, commit messages and PR text.
-- Keep `engine.rs`, `dates.rs`, `converter.rs` and `graphing.rs` (with `graphing/`) free of
-  egui and other UI code. Any new calculator, date, converter or graphing behavior needs a test.
+- Keep `crates/core` (`engine.rs`, `dates.rs`, `converter.rs`, `graphing.rs` and the rest) free of
+  egui and other UI code: the MCP server builds on it without a UI. Any new calculator, date,
+  converter or graphing behavior needs a test.
 - Comments explain *why*, especially Windows quirks. Public items get `///` doc comments.
 - Code is formatted with `rustfmt` (default settings). The keypad table `KEYS` is marked
   `#[rustfmt::skip]` so it keeps its 4-column grid.
@@ -658,6 +673,8 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
 
 - **`num-bigint` must stay on 0.4.x.** `num-rational` 0.4 depends on it, and `BigRational`'s
   integer type has to match ours. `cargo add num-bigint` without a version picks 0.5 and breaks the build.
+- **The MCP server writes only MCP to stdout.** stdin and stdout are its protocol: anything it
+  prints there breaks the client. Logs and messages go to stderr (`eprintln!`).
 - **egui 0.36 API:** the app implements `App::ui(&mut self, ui, frame)` (not `update`).
 - **Focus:** egui presses a focused widget on `Space` *and* `Enter`. `handle_key` consumes
   `Enter` when it means `=`, so the focused key isn't pressed on top of it. Don't call

@@ -1,7 +1,9 @@
 # An MCP server for CalcCraft: pros, cons, use cases and an implementation plan
 
 Branch: `research/mcp-server` · Written: 2026-10-18 · Starting point: `main` at `1567714`
-(v1.3.0) · Status: draft for discussion, no code changed.
+(v1.3.0) · Status: phases 1–3 (the core crate, the expression front-end and the server with
+six tools) are built and tested on `feature/mcp-server`: see `crates/core`, `crates/mcp` and
+`crates/mcp/README.md`. Phase 4 (packaging) and later are still to do.
 
 ## Summary
 
