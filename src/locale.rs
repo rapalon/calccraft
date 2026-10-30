@@ -144,7 +144,7 @@ fn group_digits(digits: &str, separator: &str, grouping: &[u32]) -> String {
 
 /// The date pickers' pattern ("day month year", like `October 15, 2026` in en-US) from
 /// the region's long date pattern (`LOCALE_SLONGDATE`, like `dddd, MMMM d, yyyy`):
-/// the long date without the day of the week and the separators next to it.
+/// the long date without the day of the week and the separators and words that go with it.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn without_weekday(pattern: &str) -> String {
     // Find `ddd` or `dddd` outside quoted text.
@@ -171,17 +171,15 @@ pub fn without_weekday(pattern: &str) -> String {
     let Some((start, end)) = found else {
         return pattern.to_string();
     };
-    let is_separator = |c: char| c == ',' || c == ' ' || c == '\u{060C}' || c == '、';
-    let mut after = end;
-    while after < chars.len() && is_separator(chars[after]) {
-        after += 1;
+    let quotes = quoted_texts(&chars);
+    let mut after = skip_separators(&chars, &quotes, end);
+    if let Some(next) = weekday_word(&chars, &quotes, after) {
+        after = skip_separators(&chars, &quotes, next);
     }
     let mut before = start;
     if after == chars.len() {
         // The day of the week ends the pattern: drop the separators before it.
-        while before > 0 && is_separator(chars[before - 1]) {
-            before -= 1;
-        }
+        before = skip_separators_back(&chars, &quotes, before);
     } else if before > 0 && chars[before - 1] == '\'' && chars[after] == '\'' {
         // Quoted text on both sides (th-TH's `'วัน'dddd'ที่'`) becomes one quote: the two
         // quotes left in a row would be an apostrophe.
@@ -189,6 +187,123 @@ pub fn without_weekday(pattern: &str) -> String {
         after += 1;
     }
     chars[..before].iter().chain(&chars[after..]).collect()
+}
+
+/// Separators between the day of the week and the rest of a long date: the comma and the
+/// space, and the commas and word separators of other scripts: Arabic `،`, ideographic `、`,
+/// Ethiopic `፡` `፣` `፥` (byn, ti, tig, wal), Mongolian `᠂` and Myanmar `၊`.
+fn is_separator(c: char) -> bool {
+    matches!(
+        c,
+        ',' | ' '
+            | '\u{060C}'
+            | '、'
+            | '\u{1361}'
+            | '\u{1363}'
+            | '\u{1365}'
+            | '\u{1802}'
+            | '\u{104A}'
+    )
+}
+
+/// Quoted text in a pattern: where its opening quote is, the index after its closing quote,
+/// and the text, in which two quotes in a row are an apostrophe.
+struct Quoted {
+    start: usize,
+    end: usize,
+    text: String,
+}
+
+impl Quoted {
+    /// Quoted separators, like se-FI's `dddd', 'MMMM`.
+    fn is_separator(&self) -> bool {
+        !self.text.is_empty() && self.text.chars().all(is_separator)
+    }
+}
+
+/// The quoted texts of a pattern.
+fn quoted_texts(chars: &[char]) -> Vec<Quoted> {
+    let mut quotes = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] != '\'' {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        let mut text = String::new();
+        i += 1;
+        while i < chars.len() {
+            if chars[i] == '\'' {
+                if chars.get(i + 1) == Some(&'\'') {
+                    text.push('\'');
+                    i += 2;
+                    continue;
+                }
+                i += 1;
+                break;
+            }
+            text.push(chars[i]);
+            i += 1;
+        }
+        quotes.push(Quoted {
+            start,
+            end: i,
+            text,
+        });
+    }
+    quotes
+}
+
+/// The index after the separators that start at `i`, quoted ones too.
+fn skip_separators(chars: &[char], quotes: &[Quoted], mut i: usize) -> usize {
+    loop {
+        if i < chars.len() && is_separator(chars[i]) {
+            i += 1;
+        } else if let Some(quoted) = quotes.iter().find(|q| q.start == i && q.is_separator()) {
+            i = quoted.end;
+        } else {
+            return i;
+        }
+    }
+}
+
+/// The index where the separators that end at `i` start, quoted ones too.
+fn skip_separators_back(chars: &[char], quotes: &[Quoted], mut i: usize) -> usize {
+    loop {
+        if i > 0 && is_separator(chars[i - 1]) {
+            i -= 1;
+        } else if let Some(quoted) = quotes.iter().find(|q| q.end == i && q.is_separator()) {
+            i = quoted.start;
+        } else {
+            return i;
+        }
+    }
+}
+
+/// Words that go with the day of the week: before the day of the month, like `den` in Danish
+/// "onsdag den 15. oktober 2026", or after the day of the week, like Mongolian `гараг`
+/// ("Лхагва гараг", Wednesday). CLDR's long dates, the same dates without the day of the
+/// week, drop them: `d. MMMM y` for Danish, Low German (`de`) and Colognian (`dä`),
+/// `d MMMM y` for Romansh (`ils`) and Lao (`ທີ`), `d 'de' MMMM y` for Interlingua (`le`),
+/// `y 'оны' MMMM'ын' d` for Mongolian. Latin's `die` stays in CLDR's (`'die' d MMMM y G`), so
+/// it isn't here.
+const WEEKDAY_WORDS: [&str; 7] = ["den", "ils", "de", "dä", "le", "ທີ", "гараг"];
+
+/// The index after a word of `WEEKDAY_WORDS` that starts at `i`, quoted or not (letters
+/// outside the ASCII range need no quotes, like Lao `dddd ທີ d MMMM`).
+fn weekday_word(chars: &[char], quotes: &[Quoted], i: usize) -> Option<usize> {
+    let (word, next) = match quotes.iter().find(|q| q.start == i) {
+        Some(quoted) => (quoted.text.clone(), quoted.end),
+        None => {
+            let length = chars[i..]
+                .iter()
+                .take_while(|&&c| !c.is_ascii() && !is_separator(c))
+                .count();
+            (chars[i..i + length].iter().collect(), i + length)
+        }
+    };
+    WEEKDAY_WORDS.contains(&word.as_str()).then_some(next)
 }
 
 #[cfg(test)]
@@ -305,5 +420,52 @@ mod tests {
         // A quoted "ddd" is text, not the day of the week.
         assert_eq!(without_weekday("'dddd' d MMMM"), "'dddd' d MMMM");
         assert_eq!(without_weekday("d MMMM yyyy"), "d MMMM yyyy");
+    }
+
+    /// Windows' long dates (microsoft/globe's `WindowsRegionalSettingsPerLocale`) lose the
+    /// words and separators that go with the day of the week, as CLDR's long dates (the same
+    /// dates without the day of the week) show.
+    #[test]
+    fn date_picker_patterns_drop_weekday_words() {
+        // mn-MN, se-FI, rm-CH and da-GL.
+        assert_eq!(
+            without_weekday("yyyy 'оны' MMMM'ын' d, dddd 'гараг'"),
+            "yyyy 'оны' MMMM'ын' d"
+        );
+        assert_eq!(
+            without_weekday("dddd', 'MMMM d'. b. 'yyyy"),
+            "MMMM d'. b. 'yyyy"
+        );
+        assert_eq!(without_weekday("dddd, 'ils' d MMMM yyyy"), "d MMMM yyyy");
+        assert_eq!(without_weekday("dddd 'den' d. MMMM yyyy"), "d. MMMM yyyy");
+        // lo-LA, and the separators of ti-ER, mn-Mong-CN and my-MM.
+        assert_eq!(without_weekday("dddd ທີ d MMMM gg yyyy"), "d MMMM gg yyyy");
+        assert_eq!(
+            without_weekday("dddd፣ dd MMMM መዓልቲ yyyy gg"),
+            "dd MMMM መዓልቲ yyyy gg"
+        );
+        assert_eq!(
+            without_weekday("yyyyᠣᠨ MMMM dᠡᠳᠦᠷ᠂ dddd"),
+            "yyyyᠣᠨ MMMM dᠡᠳᠦᠷ"
+        );
+        assert_eq!(without_weekday("yyyy၊ MMMM d၊ dddd"), "yyyy၊ MMMM d");
+        // Words that CLDR keeps without the day of the week (la-VA, nnh-CM, ps-PK).
+        assert_eq!(
+            without_weekday("dddd, 'die' d MMMM yyyy gg"),
+            "'die' d MMMM yyyy gg"
+        );
+        assert_eq!(
+            without_weekday("dddd , 'lyɛ'̌ʼ d 'na' MMMM, yyyy"),
+            "'lyɛ'̌ʼ d 'na' MMMM, yyyy"
+        );
+        assert_eq!(without_weekday("dddd د yyyy د MMMM d"), "د yyyy د MMMM d");
+        // Other text stays: "den's" is no weekday word, and nor is text after the day of the
+        // week that isn't one. Quoted separators before a final weekday go.
+        assert_eq!(
+            without_weekday("dddd 'den''s' d MMMM yyyy"),
+            "'den''s' d MMMM yyyy"
+        );
+        assert_eq!(without_weekday("MMMM d yyyy dddd 'AD'"), "MMMM d yyyy 'AD'");
+        assert_eq!(without_weekday("MMMM d', 'dddd"), "MMMM d");
     }
 }

@@ -638,9 +638,10 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   `GroupDigits`: grouping `3;0` gives `1,234,567`, India's `3;2;0` gives `12,34,56,789`, and
   `3` groups only the last three digits. The expression line has the decimal separator but no
   grouping, and `Ctrl+C` copies without group separators.
-- The date pickers show the region's long date without the day of the week (`15. Oktober 2026`),
-  the add/subtract result the long date, and the calendar the region's month and weekday names,
-  starting on its first day of the week.
+- The date pickers show the region's long date without the day of the week (`15. Oktober 2026`)
+  and the words and separators that go with it (Danish `dddd 'den' d. MMMM yyyy` gives
+  `d. MMMM yyyy`, as in CLDR's long date), the add/subtract result the long date, and the
+  calendar the region's month and weekday names, starting on its first day of the week.
 - The date difference joins its units with the region's list separator and a space (`; ` in
   Germany), with the unit words in the interface language.
 
