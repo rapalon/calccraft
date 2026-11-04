@@ -198,7 +198,8 @@ UI code and is covered by unit tests.*
 - **Rust:** `src/engine.rs` (`HistoryLine`, `history`, `recall_history`, `delete_history_item`, `clear_history`)
 - **Description:** The last 20 calculations, newest first, as an expression and a result.
 - **Acceptance Criteria:**
-  - Clicking an entry restores its result and expression line.
+  - Clicking an entry restores its result and expression line. The display shows the result
+    as the entry does, in the notation it was logged in, and the next operation uses its value.
   - The trash button clears the history; an entry's context menu deletes it.
   - Entries look like `12 + 5 =` above the result `17`. In Standard mode every completed binary
     operation is recorded, including the intermediate ones of a chain (`1 + 2 +` records

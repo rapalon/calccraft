@@ -104,7 +104,8 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   digits). A finished number whose exponent goes beyond ±9999 is `Overflow`, and the command
   goes on, as in Windows.
 - `HistoryEntry::text` keeps the result as the display showed it (digits and F-E), like Windows'
-  history string; the lists show it.
+  history string; the lists show it, and so does the display when the entry is recalled
+  (`recalled`), until a command shows the number again.
 - The expression line is a token list (`HistoryLine`). As in Windows, the text shown
   (`shown`) only refreshes at certain steps, which is why `1 ÷ 0 =` keeps showing `1 ÷`.
 - `paste` checks the text with the rules of Windows' `CopyPasteManager` (`paste_is_valid`),
