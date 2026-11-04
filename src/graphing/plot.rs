@@ -4,7 +4,7 @@
 //! Pixel coordinates are relative to the graph's top-left corner, with y down.
 
 use super::analysis;
-use super::expr::Env;
+use super::expr::{BinOp, Env, Expr, Func};
 use super::{Equation, Relation, Shape};
 
 /// The ranges shown, in graph units.
@@ -198,8 +198,12 @@ pub fn plot(equation: &Equation, env: &Env, view: &View, w: f32, h: f32) -> Plot
             out.lines = sample(&curve, view.y_min, view.y_max, h, &map, w, h);
         }
         Shape::Implicit(f) => {
-            let field = |x: f64, y: f64| f.eval(x, y, env);
-            out.lines = contour(&field, view, w, h);
+            if let Some(g) = crossing_zeros(f, equation.relation) {
+                let field = |x: f64, y: f64| g.eval(x, y, env);
+                let difference = |x: f64, y: f64| f.eval(x, y, env);
+                let original = (g != *f).then_some(&difference as &dyn Fn(f64, f64) -> f64);
+                out.lines = contour(&field, view, w, h, original);
+            }
         }
     }
     if equation.is_inequality() {
@@ -342,8 +346,119 @@ fn flush(line: &mut Vec<[f32; 2]>, lines: &mut Vec<Vec<[f32; 2]>>) {
 /// The size of the cells implicit curves are traced in, in pixels.
 const CELL: f32 = 4.0;
 
-/// The curve F(x, y) = 0 by marching squares, joined into polylines.
-fn contour(f: &dyn Fn(f64, f64) -> f64, view: &View, w: f32, h: f32) -> Vec<Vec<[f32; 2]>> {
+/// `left − right` of an implicit equation, made to change sign where it only touches zero,
+/// or `None` when its relation holds on no curve: marching squares finds sign changes, and
+/// (x² + y² − 25)² = 0 or x² = 0 has none. When one side is 0 and the other keeps one sign
+/// off G = 0, as c · Gⁿ with n even or c · |G| do (c a nonzero number), and G is
+/// `continuous`, G has the same zeros and changes sign only through them. An inequality's
+/// line is then drawn only where the relation holds on the curve alone ((x − 1)² ≤ 0) or
+/// everywhere else ((x − 1)² > 0): (x − 1)² < 0 holds nowhere and (x − 1)² ≥ 0 everywhere.
+/// Anything else stays as it is: (x² + y² − 25)² = −0.0001 has no curve, an odd power
+/// already changes sign, and floor(x) + 0.5 would change sign at a jump, where its square
+/// isn't 0.
+fn crossing_zeros(f: &Expr, relation: Relation) -> Option<Expr> {
+    let zero = |e: &Expr| matches!(e, Expr::Num(z) if *z == 0.0);
+    let (side, flip) = match f {
+        Expr::Bin(BinOp::Sub, a, b) if zero(b) => (a, 1.0),
+        Expr::Bin(BinOp::Sub, a, b) if zero(a) => (b, -1.0),
+        _ => return Some(f.clone()),
+    };
+    match base_of_power(side) {
+        (g, Some(s)) if continuous(&g) => {
+            (relation.holds(flip * s, 0.0) == is_dashed(relation)).then_some(g)
+        }
+        _ => Some(f.clone()),
+    }
+}
+
+/// The sign of a nonzero number: 2, −π, …
+fn constant(e: &Expr) -> Option<f64> {
+    match e {
+        Expr::Num(c) if *c != 0.0 && c.is_finite() => Some(c.signum()),
+        Expr::Pi | Expr::E => Some(1.0),
+        Expr::Neg(a) => constant(a).map(|s| -s),
+        _ => None,
+    }
+}
+
+/// Whether `e` is defined and continuous on the whole plane, so that it changes sign only
+/// through zeros: x, y, numbers and sliders with +, −, ×, division by a number, positive
+/// integer powers, powers of a positive number, and functions without jumps, poles or domain
+/// edges (sin, |x|, ∛x, …; not floor, sign, tan, 1/x, √x or ln).
+fn continuous(e: &Expr) -> bool {
+    match e {
+        Expr::Num(c) => c.is_finite(),
+        Expr::Pi | Expr::E | Expr::X | Expr::Y | Expr::Var(_) => true,
+        Expr::Neg(a) => continuous(a),
+        Expr::Bin(BinOp::Add | BinOp::Sub | BinOp::Mul, a, b) => continuous(a) && continuous(b),
+        Expr::Bin(BinOp::Div, a, b) => continuous(a) && constant(b).is_some(),
+        Expr::Bin(BinOp::Pow, a, n) => match **n {
+            Expr::Num(k) if k >= 1.0 && k.fract() == 0.0 => continuous(a),
+            _ => constant(a) == Some(1.0) && continuous(n),
+        },
+        Expr::Call(func, a) => {
+            let total = matches!(
+                func,
+                Func::Sin
+                    | Func::Cos
+                    | Func::Atan
+                    | Func::Sinh
+                    | Func::Cosh
+                    | Func::Tanh
+                    | Func::Sech
+                    | Func::Asinh
+                    | Func::Abs
+                    | Func::Cbrt
+                    | Func::Exp
+            );
+            total && continuous(a)
+        }
+        _ => false,
+    }
+}
+
+/// G for c · Gⁿ and c · |G| (or −Gⁿ, Gⁿ / c, …), else `e` itself; and the sign `e` keeps
+/// off G = 0 when an even power or an absolute value makes it keep one.
+fn base_of_power(e: &Expr) -> (Expr, Option<f64>) {
+    match e {
+        Expr::Neg(a) => {
+            let (g, sign) = base_of_power(a);
+            (g, sign.map(|s| -s))
+        }
+        Expr::Call(Func::Abs, a) => (base_of_power(a).0, Some(1.0)),
+        Expr::Bin(BinOp::Pow, a, n) => match **n {
+            Expr::Num(k) if k >= 1.0 && k.fract() == 0.0 => {
+                let (g, sign) = base_of_power(a);
+                (g, if k % 2.0 == 0.0 { Some(1.0) } else { sign })
+            }
+            _ => (e.clone(), None),
+        },
+        Expr::Bin(op @ (BinOp::Mul | BinOp::Div), a, b) => {
+            let (factor, rest) = match (constant(a), constant(b)) {
+                (Some(k), _) if *op == BinOp::Mul => (k, b),
+                (_, Some(k)) => (k, a),
+                _ => return (e.clone(), None),
+            };
+            let (g, sign) = base_of_power(rest);
+            (g, sign.map(|s| s * factor))
+        }
+        other => (other.clone(), None),
+    }
+}
+
+/// The curve F(x, y) = 0 by marching squares, joined into polylines. When F is the base G
+/// that `crossing_zeros` made of the `original` field, only G's normal numbers have a sign
+/// to trust: a node where G is 0 or subnormal (an underflow: sech(x + 710.5) is 0 from
+/// x = −0.02 on; a few bits left: e^(x − 750) − 2e^(x − 751) > 0 is −5e-324 at x = 5.9; a
+/// zero that only touches) gets the edges the original field has there, unless G changes
+/// sign through it.
+fn contour(
+    f: &dyn Fn(f64, f64) -> f64,
+    view: &View,
+    w: f32,
+    h: f32,
+    original: Option<&dyn Fn(f64, f64) -> f64>,
+) -> Vec<Vec<[f32; 2]>> {
     let nx = ((w / CELL).ceil() as usize).max(1);
     let ny = ((h / CELL).ceil() as usize).max(1);
     let gx = |i: usize| view.x_min + view.width() * i as f64 / nx as f64;
@@ -353,6 +468,31 @@ fn contour(f: &dyn Fn(f64, f64) -> f64, view: &View, w: f32, h: f32) -> Vec<Vec<
         .map(|(i, j)| f(gx(i), gy(j)))
         .collect();
     let v = |i: usize, j: usize| values[j * (nx + 1) + i];
+    let unsigned = |g: f64| g.abs() < f64::MIN_POSITIVE;
+    // The original field at the nodes, where G has values without a sign to settle.
+    let has_unsigned = values.iter().any(|&g| unsigned(g));
+    let originals: Option<Vec<f64>> = original.filter(|_| has_unsigned).map(|o| {
+        (0..=ny)
+            .flat_map(|j| (0..=nx).map(move |i| (i, j)))
+            .map(|(i, j)| o(gx(i), gy(j)))
+            .collect()
+    });
+    // Whether G changes sign through node (i, j): it is normal and negative at one neighbor,
+    // normal and positive at another.
+    let through = |(i, j): (usize, usize)| {
+        let near = [
+            (i.wrapping_sub(1), j),
+            (i + 1, j),
+            (i, j.wrapping_sub(1)),
+            (i, j + 1),
+        ];
+        let (mut below, mut above) = (false, false);
+        for (a, b) in near.into_iter().filter(|&(a, b)| a <= nx && b <= ny) {
+            below |= v(a, b) <= -f64::MIN_POSITIVE;
+            above |= v(a, b) >= f64::MIN_POSITIVE;
+        }
+        below && above
+    };
 
     // A crossing on the edge from node (i, j) to the node right of it (horizontal) or
     // below it, or `None` if the sign change there is a pole, not a root.
@@ -404,7 +544,8 @@ fn contour(f: &dyn Fn(f64, f64) -> f64, view: &View, w: f32, h: f32) -> Vec<Vec<
     let mut segments: Vec<(Edge, [f32; 2], Edge, [f32; 2])> = Vec::new();
     for j in 0..ny {
         for i in 0..nx {
-            let corners = [v(i, j), v(i + 1, j), v(i + 1, j + 1), v(i, j + 1)];
+            let nodes = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)];
+            let corners = nodes.map(|(a, b)| v(a, b));
             if corners.iter().any(|c| !c.is_finite()) {
                 continue;
             }
@@ -416,8 +557,24 @@ fn contour(f: &dyn Fn(f64, f64) -> f64, view: &View, w: f32, h: f32) -> Vec<Vec<
                 (i, j + 1, true),
                 (i, j, false),
             ];
+            // At a node where G has no sign and doesn't change sign through, an edge crosses
+            // where the original field's does, and only in a cell where that field is finite,
+            // as when it's traced.
+            let unsettled = |k: usize| unsigned(corners[k]) && !through(nodes[k]);
+            let original_positive = originals
+                .as_ref()
+                .map(|o| nodes.map(|(a, b)| o[b * (nx + 1) + a]))
+                .filter(|values| values.iter().all(|c| c.is_finite()))
+                .map(|values| values.map(|c| c > 0.0));
             let crosses: Vec<usize> = (0..4)
-                .filter(|&k| positive[k] != positive[(k + 1) % 4])
+                .filter(|&k| {
+                    let k2 = (k + 1) % 4;
+                    if originals.is_some() && (unsettled(k) || unsettled(k2)) {
+                        original_positive.is_some_and(|p| p[k] != p[k2])
+                    } else {
+                        positive[k] != positive[k2]
+                    }
+                })
                 .collect();
             let pairs: Vec<(usize, usize)> = match crosses.len() {
                 2 => vec![(crosses[0], crosses[1])],
@@ -703,7 +860,13 @@ fn fit(equations: &[(&Equation, Env)], w: f32, h: f32) -> View {
                 }
             }
             Shape::Implicit(f) => {
-                if let Some((x0, x1, y0, y1)) = implicit_box(&|x, y| f.eval(x, y, env)) {
+                let difference = |x: f64, y: f64| f.eval(x, y, env);
+                if let Some(g) = crossing_zeros(f, equation.relation)
+                    && let Some((x0, x1, y0, y1)) = implicit_box(
+                        &|x, y| g.eval(x, y, env),
+                        (g != *f).then_some(&difference as &dyn Fn(f64, f64) -> f64),
+                    )
+                {
                     let pad = |a: f64, b: f64| {
                         let m = ((b - a) * 0.1).max(0.5);
                         (a - m, b + m)
@@ -867,20 +1030,35 @@ fn interest(
     (lo - pad, hi + pad, focus)
 }
 
-/// The bounding box of the curve F(x, y) = 0, searched in ever larger squares.
-fn implicit_box(f: &dyn Fn(f64, f64) -> f64) -> Option<(f64, f64, f64, f64)> {
+/// The bounding box of the curve F(x, y) = 0, searched in ever larger squares. When F is the
+/// base G that `crossing_zeros` made of the `original` field, the cells are those the
+/// original field gives and those where G changes sign between normal numbers.
+fn implicit_box(
+    f: &dyn Fn(f64, f64) -> f64,
+    original: Option<&dyn Fn(f64, f64) -> f64>,
+) -> Option<(f64, f64, f64, f64)> {
     for size in [10.0, 100.0, 1000.0] {
         const N: usize = 200;
         let at = |k: usize| -size + 2.0 * size * k as f64 / N as f64;
+        // The original field and G at node (i, j).
+        let node = |i: usize, j: usize| {
+            let g = f(at(i), at(j));
+            (original.map_or(g, |o| o(at(i), at(j))), g)
+        };
         let mut found: Option<(f64, f64, f64, f64)> = None;
-        let mut prev_row: Vec<f64> = (0..=N).map(|i| f(at(i), at(0))).collect();
+        let mut prev_row: Vec<(f64, f64)> = (0..=N).map(|i| node(i, 0)).collect();
         for j in 1..=N {
-            let row: Vec<f64> = (0..=N).map(|i| f(at(i), at(j))).collect();
+            let row: Vec<(f64, f64)> = (0..=N).map(|i| node(i, j)).collect();
             for i in 1..=N {
-                let corners = [prev_row[i - 1], prev_row[i], row[i - 1], row[i]];
+                let cell = [prev_row[i - 1], prev_row[i], row[i - 1], row[i]];
+                let corners = cell.map(|(c, _)| c);
+                let bases = cell.map(|(_, g)| g);
                 if corners.iter().all(|c| c.is_finite())
                     && corners.iter().any(|&c| c > 0.0) != corners.iter().all(|&c| c > 0.0)
                     || corners.contains(&0.0)
+                    || (bases.iter().all(|g| g.is_finite())
+                        && bases.iter().any(|&g| g >= f64::MIN_POSITIVE)
+                        && bases.iter().any(|&g| g <= -f64::MIN_POSITIVE))
                 {
                     let (x0, x1, y0, y1) = (at(i - 1), at(i), at(j - 1), at(j));
                     found = Some(match found {
@@ -1051,6 +1229,84 @@ mod tests {
                 let on_curve = y.atan() + ((x - y.atan()) / pi).round() * pi;
                 assert!((x - on_curve).abs() < 0.05, "({x}, {y})");
             }
+        }
+    }
+
+    #[test]
+    fn implicit_curves_that_touch_zero() {
+        // A squared (or absolute) left side never changes sign, but its zeros are the
+        // curve: (x² + y² − 25)² = 0 is the circle, x² = 0 the y-axis at any graph size.
+        let (w, h) = (804.0, 600.0);
+        let lines = |text: &str| plot(&equation(text), &Env::RADIANS, &View::DEFAULT, w, h).lines;
+        let circle = lines("(x^2+y^2-25)^2=0");
+        assert_eq!(circle.len(), 1);
+        for p in &circle[0] {
+            let (x, y) = View::DEFAULT.point_at(p[0] as f64, p[1] as f64, w, h);
+            assert!(((x * x + y * y).sqrt() - 5.0).abs() < 0.01, "({x}, {y})");
+        }
+        let axis = lines("x^2=0");
+        assert_eq!(axis.len(), 1);
+        assert!(axis[0].iter().all(|p| (p[0] - 402.0).abs() < 0.01));
+        assert_eq!(lines("0=2|x-y|").len(), 1);
+        assert_eq!(lines("-2(x^2+y^2-25)^2=0").len(), 1);
+        // A product keeps its own sign changes: x² · x is x³.
+        assert_eq!(lines("x^2*x=0").len(), 1);
+        // The automatic view frames them like the curves they are.
+        let fit = |text: &str| best_fit(&[(&equation(text), Env::RADIANS)], w, h);
+        assert_eq!(fit("(x-0.123)^2=0"), fit("x-0.123=0"));
+        // Without zeros there's still nothing to draw.
+        assert!(lines("(x^2+y^2-25)^2=-0.0001").is_empty());
+        assert!(lines("(x^2+y^2-25)^2+1=0").is_empty());
+        // Nor where the base underflows to 0 without a zero: in doubles, sech(x + 710.5) is
+        // 0 from x = −0.02 on and e^(x − 750) up to x = 4.87.
+        assert!(lines("(sech(x+710.5))^2=0").is_empty());
+        assert!(lines("(e^(x-750))^2=0").is_empty());
+        // Or where it's subnormal, with a few bits left: e^(x − 750) − 2e^(x − 751) is
+        // (e − 2) e^(x − 751) > 0, but flips between ±5e-324 near x = 5.9.
+        assert!(lines("(exp(x-750)-2*exp(x-751))^2=0").is_empty());
+        // An inequality's line: all it holds on, or all it leaves out of the plane. It
+        // holds nowhere for (x − 1)² < 0 and everywhere for (x − 1)² ≥ 0: no line.
+        assert_eq!(lines("(x-1)^2<=0").len(), 1);
+        assert_eq!(lines("(x-1)^2>0").len(), 1);
+        assert_eq!(lines("-(x-1)^2<0").len(), 1);
+        assert!(lines("(x-1)^2<0").is_empty());
+        assert!(lines("(x-1)^2>=0").is_empty());
+        assert_eq!(fit("(x-1)^2<0"), View::DEFAULT);
+        // A base with a jump, a pole or a domain edge stays as it is: floor(x) + 0.5 and
+        // sign(x) · (|x| + 0.01) + 0.005 change sign at x = 0 without a zero, so their
+        // squares have no line, and > 0 holds everywhere.
+        assert!(lines("(floor(x)+0.5)^2=0").is_empty());
+        assert!(lines("(floor(x)+0.5)^2>0").is_empty());
+        assert!(lines("(sign(x)*(abs(x)+0.01)+0.005)^2=0").is_empty());
+        assert!(lines("(sign(x)*(abs(x)+0.01)+0.005)^2>0").is_empty());
+        assert!(lines("(x/|x|+0.5)^2=0").is_empty());
+        assert_eq!(fit("(floor(x)+0.5)^2=0"), View::DEFAULT);
+        // A continuous base is traced however steep or flat it is at its zero. At 800 px
+        // nodes lie on x = 0, where x³ − 0.000001 is −0.000001; its zero is at x = 0.01.
+        assert_eq!(lines("cbrt(x)^2=0").len(), 1);
+        let on_nodes =
+            |text: &str| plot(&equation(text), &Env::RADIANS, &View::DEFAULT, 800.0, h).lines;
+        // At 800 px nodes lie on the y-axis and on the circle at (3, 4), where the base is 0
+        // and changes sign: they're on the curve, whatever the side's sign around them.
+        assert_eq!(on_nodes("x^2=0").len(), 1);
+        assert_eq!(on_nodes("-2(x^2+y^2-25)^2=0").len(), 1);
+        let flat = on_nodes("(x^3-0.000001)^2=0");
+        assert_eq!(flat.len(), 1);
+        assert!(flat[0].iter().all(|p| (p[0] - 400.4).abs() < 0.25));
+        let fit_on_nodes = |text: &str| best_fit(&[(&equation(text), Env::RADIANS)], 800.0, h);
+        assert_eq!(
+            fit_on_nodes("(x^3-0.000001)^2=0"),
+            fit_on_nodes("x^3-0.000001=0")
+        );
+        // √x isn't defined left of 0, so the y-axis bounds where these hold (x ≥ 0, x > 0,
+        // x = 0) and keeps its line, drawn where nodes lie on it.
+        for text in ["(sqrt(x))^2>=0", "(sqrt(x))^2>0", "(sqrt(x))^2<=0"] {
+            let edge = on_nodes(text);
+            assert_eq!(edge.len(), 1, "{text}");
+            assert!(
+                edge[0].iter().all(|p| (p[0] - 400.0).abs() < 0.01),
+                "{text}"
+            );
         }
     }
 

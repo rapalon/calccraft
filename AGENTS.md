@@ -344,9 +344,14 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   where they bend; a jump of more than a quarter of the height at the last subdivision breaks the
   line (tan's asymptotes), and a domain edge is found by bisection (√x starts at 0). Implicit
   curves are marching squares on 4 px cells, refined by a few Illinois steps, rejecting the sign
-  changes of poles. Inequalities fill Windows' 100 × 100 lattice of dots. `best_fit` is the
-  automatic view, `grid_step` the labeled and minor grid lines, `trace` the curve point nearest
-  the pointer with x rounded to `View::precision` (`RenderMain::GetPrecision`).
+  changes of poles; c · Gⁿ = 0 (n even) and c · |G| = 0 with G continuous on the whole plane (no
+  floor, 1/x or √x) are traced as G = 0, since they touch zero without changing sign
+  ((x² + y² − 25)² = 0), keeping the side's own edges where G is 0 or subnormal without changing
+  sign (an underflow), and their inequalities only where that line is all they hold on or all they
+  leave out ((x − 1)² ≤ 0, (x − 1)² > 0). Inequalities fill Windows' 100 × 100 lattice of dots.
+  `best_fit` is the automatic view, `grid_step` the labeled and minor grid lines, `trace` the
+  curve point nearest the pointer with x rounded to `View::precision`
+  (`RenderMain::GetPrecision`).
 - `analysis` finds the features numerically on a grid from −1000 to 1000 (`grid`), with
   `sign_changes` (bisection; through poles for cusps when asked), touching zeros from f′, the
   ends of flat pieces where f′ is exactly 0 (`flat_ends`: |x − 1| + |x + 1| on [−1, 1]),
