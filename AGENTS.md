@@ -342,7 +342,8 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   function otherwise. `derivative` is symbolic (the analysis needs f′ and f″); factorials have none.
 - `plot` works in pixels of the graph. Functions are sampled about once a pixel and subdivided
   where they bend; a jump of more than a quarter of the height at the last subdivision breaks the
-  line (tan's asymptotes), and a domain edge is found by bisection (√x starts at 0). Implicit
+  line (tan's asymptotes) unless halving it further finds the curve merely steep (y = 1000000x),
+  and a domain edge is found by bisection (√x starts at 0). Implicit
   curves are marching squares on 4 px cells, refined by a few Illinois steps, rejecting the sign
   changes of poles. Inequalities fill Windows' 100 × 100 lattice of dots. `best_fit` is the
   automatic view, `grid_step` the labeled and minor grid lines, `trace` the curve point nearest
