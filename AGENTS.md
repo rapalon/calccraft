@@ -109,9 +109,11 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   (`shown`) only refreshes at certain steps, which is why `1 ÷ 0 =` keeps showing `1 ÷`.
 - `paste` checks the text with the rules of Windows' `CopyPasteManager` (`paste_is_valid`),
   then types it in key by key.
-- Numbers are `BigRational` (`Number`). `normalize` checks every result for overflow and
-  rounds results with huge denominators to 40 significant digits. `sqrt` is exact for
-  perfect squares.
+- Numbers are `BigRational` (`Number`). `normalize` refuses every result that overflows
+  whatever the display's rounding, and rounds results with huge denominators to 40 significant
+  digits. `display_num` decides on the number as the display rounds it, like Windows'
+  `DisplayNum`: `9.99…9e+9999` shows as `1.e+10000`, an overflow, and `9.99…9e-10000` as
+  `1.e-9999`. `sqrt` is exact for perfect squares.
 - `format_with(v, grouping, digits, scientific)` ports `NumberToString`: display text with
   grouping, expression-line text without, with 16 or 32 digits, and with F-E always in
   scientific notation (`5.e+0`, `0.e+0`). `Calculator::format_value` uses the engine's settings;
@@ -462,7 +464,7 @@ All of these were checked against the real Windows 11 Calculator. Don't "fix" th
   - `Cannot divide by zero`: the expression shows `1 ÷` after `=`, and `8 ÷ 0 +` after an operator.
   - `Result is undefined`: `0 ÷ 0`.
   - `Invalid input`: the square root of a negative number.
-  - `Overflow`: the decimal exponent goes beyond ±9999.
+  - `Overflow`: the decimal exponent goes beyond ±9999, as the display rounds the number.
 
   In the error state only digits, `C`, `CE`, `⌫` and `=` work (`=` only clears the error);
   the number pad's `ErrorLayout` disables `.`.
