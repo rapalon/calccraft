@@ -83,8 +83,7 @@ Each one comes with a `.sha256` checksum.
 | Your system | File | How to start it |
 | --- | --- | --- |
 | **Windows 10 or 11** | `calculator-<version>-windows-x64.exe` | Just run it, there's no installer. The file isn't signed, so Windows may say it protected your PC: **More info → Run anyway**. |
-| **macOS** (Apple silicon) | `calculator-<version>-macos-arm64.zip` | Unzip it and move `CalcCraft.app` to Applications. It isn't notarized: open it the first time with right-click → **Open** (or run `xattr -dr com.apple.quarantine CalcCraft.app`). |
-| **macOS** (Intel) | `calculator-<version>-macos-x64.zip` | The same as on Apple silicon. |
+| **macOS** (Apple silicon & Intel) | `calculator-<version>-macos-universal.zip` | Unzip it and move `CalcCraft.app` to Applications. Universal 2 app for both Apple silicon and Intel Macs. It isn't notarized: open it the first time with right-click → **Open** (or run `xattr -dr com.apple.quarantine CalcCraft.app`). |
 | **Linux** (x64) | `calculator-<version>-linux-x64.tar.gz` | Unpack it and run `./calculator`. It needs X11 or Wayland and OpenGL, as any desktop has. |
 | **Android 7.0 or later** (64-bit ARM) | `calculator-<version>-android-arm64.apk` | Open it on your phone and allow installing apps from your browser or Files app. It's a preview: Copy, Paste, Share and regional formats are still missing. If it won't install over an earlier version, uninstall that one first. |
 
@@ -469,18 +468,17 @@ git push origin v1.0.0
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches `Cargo.toml`
 and creates a draft release with generated release notes. Then it runs the tests and builds the
-app on Windows and Linux (x64), macOS (Apple silicon and Intel) and Android (arm64), and uploads
+app on Windows and Linux (x64), macOS (Universal 2 for Apple silicon and Intel) and Android (arm64), and uploads
 each with its SHA-256 checksum:
 
 | Platform | File |
 | --- | --- |
 | Windows | `calculator-v1.0.0-windows-x64.exe` |
 | Linux | `calculator-v1.0.0-linux-x64.tar.gz` (the `calculator` executable) |
-| macOS (Apple silicon) | `calculator-v1.0.0-macos-arm64.zip` (`CalcCraft.app`, signed ad hoc) |
-| macOS (Intel) | `calculator-v1.0.0-macos-x64.zip` (`CalcCraft.app`, signed ad hoc, cross-compiled on Apple silicon) |
+| macOS | `calculator-v1.0.0-macos-universal.zip` (`CalcCraft.app`, Universal 2 binary for Apple silicon and Intel, signed ad hoc) |
 | Android | `calculator-v1.0.0-android-arm64.apk` (signed with the release key from the repository's secrets, see [`android/README.md`](android/README.md)) |
 
-The draft is published only when all five are there, and then the web version is deployed. Tags
+The draft is published only when all four are there, and then the web version is deployed. Tags
 with a suffix, such as `v1.0.0-beta.1`, are published as pre-releases.
 
 ### Project layout

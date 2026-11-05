@@ -1,7 +1,7 @@
 name: Release
 
-# Pushing a tag such as v1.0.0 builds the app for Windows and Linux (x64), macOS (Apple silicon
-# and Intel) and Android (arm64) and publishes them as a GitHub release. When it succeeds,
+# Pushing a tag such as v1.0.0 builds the app for Windows and Linux (x64), macOS (Universal 2
+# for Apple silicon and Intel) and Android (arm64) and publishes them as a GitHub release. When it succeeds,
 # pages.yml deploys the web version of the same commit.
 #
 # The Android APK is signed with the release key from the repository's secrets
@@ -62,14 +62,6 @@ jobs:
           - name: linux-x64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          # GitHub's macOS runners are Apple silicon: the arm64 build is native, the Intel build
-          # is cross-compiled.
-          - name: macos-arm64
-            os: macos-latest
-            target: aarch64-apple-darwin
-          - name: macos-x64
-            os: macos-latest
-            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -93,7 +85,7 @@ jobs:
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
       # CI runs on the same tag in parallel, but nothing stops it from publishing a failing
-      # build. The macOS tests run on the runner's own (Apple silicon) build.
+      # build.
       - name: Test
         run: cargo test --locked
 
@@ -116,13 +108,77 @@ jobs:
               asset="$asset.tar.gz"
               tar -czf "dist/$asset" -C "$release" calculator
               ;;
-            macos-*)
-              # An app bundle, so Finder and the Dock treat it as an app. It's signed ad hoc
-              # (not notarized), so macOS asks before opening it the first time.
-              app="dist/CalcCraft.app"
-              mkdir -p "$app/Contents/MacOS"
-              cp "$release/calculator" "$app/Contents/MacOS/calculator"
-              cat > "$app/Contents/Info.plist" <<EOF
+          esac
+          cd dist
+          # sha256sum's format, which `sha256sum -c` and `shasum -a 256 -c` check.
+          if command -v sha256sum > /dev/null; then
+            sha256sum "$asset" > "$asset.sha256"
+          else
+            shasum -a 256 "$asset" > "$asset.sha256"
+          fi
+
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+  macos:
+    name: Build (macos-universal)
+    needs: draft
+    # GitHub's macOS runners (macos-14 or newer) are Apple silicon M1 machines,
+    # free for public repositories.
+    runs-on: macos-14
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-universal
+
+      # Run tests on the runner's native architecture (Apple silicon).
+      - name: Test
+        run: cargo test --locked
+
+      # Build both Apple silicon (native) and Intel (cross-compiled).
+      - name: Build
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+
+      - name: Package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          app="dist/CalcCraft.app"
+          mkdir -p "$app/Contents/MacOS"
+
+          # Combine both architectures into a single Universal 2 executable.
+          lipo -create -output "$app/Contents/MacOS/calculator" \
+            target/aarch64-apple-darwin/release/calculator \
+            target/x86_64-apple-darwin/release/calculator
+
+          # Verify that both architectures are present, fail otherwise.
+          echo "Verifying universal binary architectures with lipo -info:"
+          lipo_info=$(lipo -info "$app/Contents/MacOS/calculator")
+          echo "$lipo_info"
+          if ! echo "$lipo_info" | grep -q "arm64"; then
+            echo "::error::Missing arm64 slice in universal binary"
+            exit 1
+          fi
+          if ! echo "$lipo_info" | grep -q "x86_64"; then
+            echo "::error::Missing x86_64 slice in universal binary"
+            exit 1
+          fi
+
+          # An app bundle, so Finder and the Dock treat it as an app.
+          cat > "$app/Contents/Info.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -138,12 +194,24 @@ jobs:
           </dict>
           </plist>
           EOF
-              codesign --force --deep --sign - "$app"
-              asset="$asset.zip"
-              ditto -c -k --keepParent "$app" "dist/$asset"
-              rm -rf "$app"
-              ;;
-          esac
+
+          # Code signing and notarization placeholder:
+          # Currently signed ad hoc (-). When an Apple Developer account is configured,
+          # replace ad-hoc signing with Apple Developer ID signing and notarization:
+          # 1. Import Developer ID Application certificate (.p12) from secrets:
+          #    APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD
+          # 2. Sign with hardened runtime and timestamp:
+          #    codesign --force --deep --options runtime --timestamp --sign "Developer ID Application: <Name> (<TeamID>)" "$app"
+          # 3. Zip or DMG package and submit to Apple notary service:
+          #    xcrun notarytool submit "$asset" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          # 4. Staple the notarization ticket:
+          #    xcrun stapler staple "$app"
+          codesign --force --deep --sign - "$app"
+
+          asset="calculator-$GITHUB_REF_NAME-macos-universal.zip"
+          ditto -c -k --keepParent "$app" "dist/$asset"
+          rm -rf "$app"
+
           cd dist
           # sha256sum's format, which `sha256sum -c` and `shasum -a 256 -c` check.
           if command -v sha256sum > /dev/null; then
@@ -216,7 +284,7 @@ jobs:
 
   publish:
     name: Publish the release
-    needs: [build, android]
+    needs: [build, macos, android]
     runs-on: ubuntu-latest
     steps:
       - name: Publish the draft
