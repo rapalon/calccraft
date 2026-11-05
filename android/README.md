@@ -17,7 +17,7 @@ adb install -r target/android/CalcCraft-1.2.0-arm64.apk
 ```
 
 The APK is signed with the debug key (`~/.android/debug.keystore`). A build signed with
-another key can't update it: uninstall first with `adb uninstall io.github.gavrilov.calccraft`.
+another key can't update it: uninstall first with `adb uninstall io.github.rapalon.calccraft`.
 Warnings and panics are in `adb logcat -s CalcCraft`.
 
 ## Build

@@ -86,8 +86,8 @@ const KEY_FLASH: f64 = 0.1;
 const NAVIGATION_OPEN: &str = "Open Navigation";
 const NAVIGATION_CLOSE: &str = "Close Navigation";
 
-const REPOSITORY_URL: &str = "https://github.com/gavrilov/calccraft";
-const FEEDBACK_URL: &str = "https://github.com/gavrilov/calccraft/issues";
+const REPOSITORY_URL: &str = "https://github.com/rapalon/calccraft";
+const FEEDBACK_URL: &str = "https://github.com/rapalon/calccraft/issues";
 /// Storage key and values of the theme choice, the same as Windows uses.
 const THEME_KEY: &str = "SelectedAppTheme";
 /// Storage key of the mode the app was closed in, the same as Windows uses

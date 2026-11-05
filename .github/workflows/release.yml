@@ -129,7 +129,7 @@ jobs:
           <dict>
             <key>CFBundleName</key><string>CalcCraft</string>
             <key>CFBundleDisplayName</key><string>CalcCraft</string>
-            <key>CFBundleIdentifier</key><string>com.github.gavrilov.calccraft</string>
+            <key>CFBundleIdentifier</key><string>com.github.rapalon.calccraft</string>
             <key>CFBundleExecutable</key><string>calculator</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>$version</string>
