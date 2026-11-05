@@ -8,11 +8,9 @@ Every mode you rely on is here: Standard, Scientific, Graphing, Programmer, Date
 and the error messages work, so there is nothing new to learn. Underneath, it's rebuilt in Rust
 with exact arithmetic: `0.1 + 0.2 − 0.3` is `0`, not `5.55e-17`.
 
-*CalcCraft is an independent project. It isn't made, endorsed or supported by Microsoft.*
+[![Latest release](https://img.shields.io/github/v/release/rapalon/calccraft)](https://github.com/rapalon/calccraft/releases/latest) [![CI](https://github.com/rapalon/calccraft/actions/workflows/ci.yml/badge.svg)](https://github.com/rapalon/calccraft/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[![Latest release](https://img.shields.io/github/v/release/gavrilov/calccraft)](https://github.com/gavrilov/calccraft/releases/latest) [![CI](https://github.com/gavrilov/calccraft/actions/workflows/ci.yml/badge.svg)](https://github.com/gavrilov/calccraft/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-
-### [▶ Try it now in your browser](https://gavrilov.github.io/calccraft/)
+### [▶ Try it now in your browser](https://rapalon.github.io/calccraft/)
 
 Nothing to install, and it works on phones and tablets too.
 
@@ -33,7 +31,7 @@ Nothing to install, and it works on phones and tablets too.
   the Scientific mode shows 32 correct digits.
 - **Runs everywhere.** In any current browser, on a phone too, where it installs like an app
   and works offline; or as an app for Windows, macOS, Linux and Android.
-- **Speaks your language.** 50 languages, with your own number and date formats.
+- **Speaks your language.** 60 languages, with your own number and date formats.
 - **For keyboards and screen readers.** Every control is reachable with the keyboard, and
   Narrator reads them all on Windows.
 - **Free and open.** MIT licensed, with no ads and no account, and the app collects no data.
@@ -42,7 +40,7 @@ Nothing to install, and it works on phones and tablets too.
 
 ### In your browser
 
-Open **<https://gavrilov.github.io/calccraft/>**. It works in current Chrome, Edge, Firefox and
+Open **<https://rapalon.github.io/calccraft/>**. It works in current Chrome, Edge, Firefox and
 Safari, on desktops, tablets and phones, and keeps your settings in the browser.
 
 It also installs as an app (a PWA) that starts from your home screen or Start menu, without the
@@ -79,7 +77,7 @@ The installed app updates itself: after each release, the next start loads the n
 
 ### Download
 
-Pick the file for your system from the **[latest release](https://github.com/gavrilov/calccraft/releases/latest)**.
+Pick the file for your system from the **[latest release](https://github.com/rapalon/calccraft/releases/latest)**.
 Each one comes with a `.sha256` checksum.
 
 | Your system | File | How to start it |
@@ -90,10 +88,11 @@ Each one comes with a `.sha256` checksum.
 | **Linux** (x64) | `calculator-<version>-linux-x64.tar.gz` | Unpack it and run `./calculator`. It needs X11 or Wayland and OpenGL, as any desktop has. |
 | **Android 7.0 or later** (64-bit ARM) | `calculator-<version>-android-arm64.apk` | Open it on your phone and allow installing apps from your browser or Files app. It's a preview: Copy, Paste, Share and regional formats are still missing. If it won't install over an earlier version, uninstall that one first. |
 
-Windows is the platform CalcCraft is made for: there it uses Segoe UI (from your Windows
-installation), tints its title bar to match the theme, and follows your Windows regional format.
-On Linux and macOS it uses [Inter](https://fonts.google.com/specimen/Inter), a plain title bar and
-en-US formats.
+CalcCraft is modeled on the Windows 11 Calculator, while fully supporting Windows, macOS, Linux,
+the web, and Android. On Windows, it uses Segoe UI (from your Windows installation), tints its
+title bar to match the theme, and follows your Windows regional format. On Linux and macOS it uses
+the bundled [Inter](https://fonts.google.com/specimen/Inter) font, standard window styling, and
+defaults to en-US formats (with language and regional format settings available in Settings).
 
 ## What it can do
 
@@ -212,7 +211,7 @@ Time, Power, Data, Pressure and Angle.
 - **Light and dark themes:** pick Light, Dark or Use system setting. With the system setting, the
   app follows the Windows app mode, even when it changes while the app is open, and the title bar
   switches with it. The choice is saved in `%APPDATA%\CalcCraft`.
-- **50 languages:** the interface uses the Windows Calculator's own translations and follows the
+- **60 languages:** the interface uses the Windows Calculator's own translations and follows the
   Windows display language. Numbers, dates and the first day of the week follow your regional
   format (`1.234,5` and `15. Oktober 2026` in Germany), as in Windows. Unlike Windows, Settings can
   also set the language and the regional format for CalcCraft alone: type the first letters of a

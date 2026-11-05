@@ -1240,8 +1240,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
     right of the text, or under it in cards narrower than 476 px.
-  - The lists start with "Use system setting", then the 50 languages or Windows' regional
-    formats (those egui can draw that use the Gregorian calendar) by their own names
+  - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
+    that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
     (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
     card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
   - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat`.
