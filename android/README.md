@@ -17,7 +17,7 @@ adb install -r target/android/CalcCraft-1.2.0-arm64.apk
 ```
 
 The APK is signed with the debug key (`~/.android/debug.keystore`). A build signed with
-another key can't update it: uninstall first with `adb uninstall io.github.rapalon.calccraft`.
+another key can't update it: uninstall first with `adb uninstall com.rapalon.calccraft`.
 Warnings and panics are in `adb logcat -s CalcCraft`.
 
 ## Build
@@ -36,6 +36,17 @@ It writes `target/android/CalcCraft-<version>-arm64.apk`, with the version from 
   `~/Library/Android/sdk` or `~/Android/Sdk`);
 - a JDK 17 or later for `apksigner` and `keytool` (`JAVA_HOME`, or by default
   `%LOCALAPPDATA%\Android\jdk-21` on Windows and the `PATH` elsewhere).
+
+The application ID (package name) defaults to `com.rapalon.calccraft`. To build with a different
+ID (for example, for a paid Google Play release):
+
+```bash
+pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.play
+```
+
+or by setting the `APPLICATION_ID` environment variable. Google Play never allows a free app to
+become paid and the package name is permanent after first upload, so the ID must be chosen before
+publishing.
 
 The script doesn't use Gradle. cargo-ndk builds the library (a `cdylib` only for Android: the
 desktop and web builds use the binary), `llvm-strip` drops its symbol table, `aapt2` links the

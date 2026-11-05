@@ -185,7 +185,7 @@ jobs:
           <dict>
             <key>CFBundleName</key><string>CalcCraft</string>
             <key>CFBundleDisplayName</key><string>CalcCraft</string>
-            <key>CFBundleIdentifier</key><string>com.github.rapalon.calccraft</string>
+            <key>CFBundleIdentifier</key><string>com.rapalon.calccraft</string>
             <key>CFBundleExecutable</key><string>calculator</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>$version</string>
@@ -255,6 +255,7 @@ jobs:
       - name: Build the APK
         shell: pwsh
         env:
+          APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -267,7 +268,7 @@ jobs:
           } else {
               '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key.'
           }
-          android/build-apk.ps1 -Ndk $env:NDK
+          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID
 
       - name: Package
         run: |

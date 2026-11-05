@@ -8,6 +8,9 @@ own tools, without Gradle: aapt2 (manifest and resources), zipalign (16 KB pages
 uncompressed library, as Google Play requires) and apksigner. Runs on Windows, Linux (as in
 GitHub Actions) and macOS. See android/README.md.
 
+The application ID defaults to com.rapalon.calccraft (or APPLICATION_ID in the environment)
+and can be overridden with -ApplicationId (e.g. for a paid Google Play release).
+
 The APK is signed with the release key when ANDROID_KEYSTORE names a keystore file, with its
 password in ANDROID_KEYSTORE_PASSWORD, the key's alias in ANDROID_KEY_ALIAS and the key's
 password in ANDROID_KEY_PASSWORD (the keystore's when empty). Otherwise it is signed with the
@@ -17,8 +20,12 @@ but can't update an APK signed with another key.
 .EXAMPLE
 pwsh android/build-apk.ps1
 adb install -r target/android/CalcCraft-1.2.0-arm64.apk
+
+.EXAMPLE
+pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.play
 #>
 param(
+    [string]$ApplicationId = $(if ($env:APPLICATION_ID) { $env:APPLICATION_ID } else { 'com.rapalon.calccraft' }),
     [string]$Sdk = $(if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
         elseif ($IsWindows) { Join-Path $env:LOCALAPPDATA 'Android/Sdk' }
         elseif ($IsMacOS) { Join-Path $HOME 'Library/Android/sdk' }
@@ -77,10 +84,16 @@ $strip = Join-Path $env:ANDROID_NDK_HOME "toolchains/llvm/prebuilt/$ndkHost/bin/
 # Manifest and resources (the launcher icon and the themes).
 $resources = Join-Path $out 'resources.zip'
 & (Join-Path $tools "aapt2$exe") compile --dir (Join-Path $PSScriptRoot 'res') -o $resources
+
+$manifestPath = Join-Path $staging 'AndroidManifest.xml'
+$manifestContent = Get-Content (Join-Path $PSScriptRoot 'AndroidManifest.xml') -Raw
+$manifestContent = $manifestContent -replace 'package="[^"]+"', "package=`"$ApplicationId`""
+[System.IO.File]::WriteAllText($manifestPath, $manifestContent, (New-Object System.Text.UTF8Encoding $false))
+
 $unaligned = Join-Path $out 'unaligned.apk'
 & (Join-Path $tools "aapt2$exe") link -o $unaligned `
     -I (Join-Path $Sdk "platforms/$Platform/android.jar") `
-    --manifest (Join-Path $PSScriptRoot 'AndroidManifest.xml') `
+    --manifest $manifestPath `
     --min-sdk-version $minSdk --target-sdk-version $targetSdk `
     --version-code $versionCode --version-name $version `
     $resources

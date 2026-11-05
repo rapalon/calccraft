@@ -3,7 +3,7 @@
      src/lib.rs) and its android_main runs the app. There is no Java code. build-apk.ps1 adds
      the version from Cargo.toml (see README.md). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="io.github.rapalon.calccraft">
+    package="com.rapalon.calccraft">
 
     <!-- enableOnBackInvokedCallback: without it, Android 16 and later handle the back button
          themselves (predictive back) and the app never sees it; android.rs makes it close

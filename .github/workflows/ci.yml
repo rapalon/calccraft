@@ -83,6 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865
+      APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
     steps:
       - uses: actions/checkout@v7
 
