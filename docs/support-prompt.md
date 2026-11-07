@@ -229,8 +229,20 @@ $env:CALCCRAFT_SUPPORT_FAST = "1"; .\target\release\calculator.exe
 - Each Donate prints the final URL to stderr (`support: donate URL …`).
 - Since the stored record is marked `fast`, normal runs start fresh afterwards (5.1).
 
-Developer-only extra variables kept from v1: `CALCCRAFT_SUPPORT_OPEN=1` opens the popup at start
-(screenshots), `CALCCRAFT_SUPPORT_LONG_TEXT=1` triples the body text (layout checks).
+To jump straight to a stage (fast mode only), `CALCCRAFT_SUPPORT_DEMO` makes the user eligible
+and starts in it: `dot`, `menu` (the menu open over the dot), `popup` (opened by itself),
+`popup-supported` (after a Donate click: with "I already supported") or `thanks`.
+
+Developer-only extra variables: `CALCCRAFT_SUPPORT_OPEN=1` opens the popup at start (v1),
+`CALCCRAFT_SUPPORT_LONG_TEXT=1` triples the body text (layout checks), and the app's
+`CALCCRAFT_THEME=Light|Dark`, `CALCCRAFT_WINDOW_SIZE=480x640` and `CALCCRAFT_SCREENSHOT_PATH`
+take screenshots, e.g.:
+
+```powershell
+$env:CALCCRAFT_SUPPORT_FAST = "1"; $env:CALCCRAFT_SUPPORT_DEMO = "popup"; $env:CALCCRAFT_THEME = "Dark"
+$env:CALCCRAFT_WINDOW_SIZE = "480x640"; $env:CALCCRAFT_SCREENSHOT_PATH = "$PWD\popup.png"
+.\target\release\calculator.exe
+```
 
 ---
 

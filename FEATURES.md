@@ -1300,15 +1300,24 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Depends On:** `FEAT-SHELL-001`
 - **Windows ref:** N/A (CalcCraft open-source support prompt)
 - **Rust:** `src/support/`, `docs/support-prompt.md`
-- **Description:** Non-modal floating "Please support us!" popup and an amber navigation header button.
-  Triggers automatically on every 5th successful calculation (`=` / Enter in Standard, Scientific, or
-  Programmer mode without error). Gated behind Cargo feature flag `support-prompt` (enabled by default).
+- **Description:** Non-modal floating "Please support us!" popup and an amber navigation header button,
+  with the staged v2 policy: silent for the first 3 launches; for regular users (4+ launches, 3+
+  active days) a red dot on the menu button; after 7 days unseen, a popup at a calm moment (3 s
+  after a successful `=` without input, app focused, calculator mode) under the display. Intervals
+  7/14/30/60/90 days, an extra step after a quick close, pauses after Donate (180 days) and
+  "I already supported" (365 days). Gated behind Cargo feature flag `support-prompt` (enabled by default).
 - **Acceptance Criteria:**
-  - Amber "Please Support!" button in the navigation drawer header opens the popup.
+  - Amber "Please Support!" button in the navigation drawer header opens the popup at any time.
+  - The red dot shows on the hamburger and, in the open menu, on the support button; opening the
+    menu counts as seen and starts the next interval. The dot has a screen reader description.
+  - The popup never opens at start, while typing, in converters, date calculation or graphing, or
+    more than once per session, and never covers the result or expression line.
   - Semi-transparent amber card floats over the calculator without blocking keyboard typing.
   - Dismissible via close button ("X") or Escape key.
-  - "Donate" button opens external donation URL in browser (`DONATE_URL`).
-  - Calculation counter persists in local storage without network/telemetry.
+  - "Donate" opens `DONATE_URL` with Stripe UTM parameters and a coarse `client_reference_id`.
+  - "I already supported" shows only after a Donate click, thanks, and pauses reminders.
+  - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
+  - `CALCCRAFT_SUPPORT_FAST=1` demo mode (a day is a minute).
   - Compiles cleanly and tests pass with `--no-default-features`.
 - **Differences:** Windows Calculator has no support prompt.
 
@@ -1348,3 +1357,4 @@ Windows source in `../win-calculator`.
 | 2026-10-17 | Claude Code | ALL | Added the web version (branch `feature/web-version`, `docs/web-version-plan.md`): the app compiles to WebAssembly and runs in the browser with eframe's `WebRunner` on a canvas (`index.html`, Trunk), with the browser's languages and `Intl` formats, `?lang=`/`?region=`, the async clipboard for Paste, Share as a `graph.png` download, browser shortcuts kept from the browser, keep on top hidden (`src/app/web.rs`). CI builds it, and `pages.yml` deploys it to GitHub Pages on release tags |
 | 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Implemented support prompt module (`src/support/`, `docs/support-prompt.md`) gated behind `support-prompt` Cargo feature: amber header button in navigation drawer, non-modal semi-transparent floating card, trigger on every 5th completed calculation, local persistence, keyboard accessibility, and fallback localization |
 | 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Polished support popup: wrapped body text inside inner area with horizontal padding, cohesive vertical block layout with dynamic card height, and replaced close button with Fluent 'X' dismiss glyph (`ICON_CLOSE`) |
+| 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
