@@ -230,6 +230,24 @@ mod tests {
     }
 
     #[test]
+    fn closing_the_thank_you_early_is_no_annoyed_close() {
+        let ctx = Context::default();
+        let mut state = escalated(&ctx);
+        state.stats.donate_clicked_ever = true;
+        state.after_command(Command::Equals, false);
+        set_time(&mut state, at(7, 3000));
+        frame(&ctx, &mut state, vec![], false);
+        assert!(state.is_open());
+        state.handle(&ctx, PopupAction::AlreadySupported);
+        let before = state.stats.clone();
+        set_time(&mut state, at(7, 3500));
+        frame(&ctx, &mut state, vec![key(Key::Escape)], false);
+        assert!(!state.is_open());
+        assert_eq!(state.stats, before);
+        assert_eq!(state.stats.pause_until_day, Some(7 + 365));
+    }
+
+    #[test]
     fn donate_from_the_menu_popup_pauses() {
         let ctx = Context::default();
         let mut state = regular();

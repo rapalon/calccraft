@@ -599,6 +599,12 @@ impl CalculatorApp {
             .and_then(|storage| storage.get_string(THEME_KEY))
             .and_then(|key| Theme::from_key(&key))
             .unwrap_or(Theme::System);
+        // For screenshots of both themes: `CALCCRAFT_THEME=Light` or `Dark` (Windows' keys).
+        #[cfg(not(target_arch = "wasm32"))]
+        let theme = std::env::var("CALCCRAFT_THEME")
+            .ok()
+            .and_then(|key| Theme::from_key(&key))
+            .unwrap_or(theme);
         cc.egui_ctx.set_theme(theme.preference());
         // A stored language or region, or `None` for the Windows setting.
         let choice = |key: &str| {
@@ -681,6 +687,10 @@ impl CalculatorApp {
         // way the menu switches to it: a calculator's engine takes the memory and becomes
         // the one `engine()` returns.
         app.set_mode(mode);
+        #[cfg(feature = "support-prompt")]
+        if app.support.demo_opens_menu() {
+            app.flyout = Flyout::Navigation;
+        }
         app
     }
 

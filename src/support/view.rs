@@ -85,6 +85,8 @@ pub struct SupportState {
     /// the open menu (on its button and the support button) until it closes.
     menu_open: bool,
     seen_in_menu: bool,
+    /// `CALCCRAFT_SUPPORT_DEMO=menu`.
+    demo_menu: bool,
 }
 
 impl SupportState {
@@ -111,14 +113,54 @@ impl SupportState {
             decision: SupportDecision::Nothing,
             menu_open: false,
             seen_in_menu: false,
+            demo_menu: false,
         };
         state.apply(SupportEvent::AppLaunched);
-        // Developer aid for screenshots: the popup open at start (as if from the menu).
+        // Developer aids for screenshots: the popup open at start (as if from the menu), and
+        // in fast mode a stage to start in.
         #[cfg(not(target_arch = "wasm32"))]
-        if std::env::var("CALCCRAFT_SUPPORT_OPEN").is_ok_and(|v| v == "1" || v == "true") {
-            state.open_on_demand();
+        {
+            if std::env::var("CALCCRAFT_SUPPORT_OPEN").is_ok_and(|v| v == "1" || v == "true") {
+                state.open_on_demand();
+            }
+            if state.clock.is_fast()
+                && let Ok(demo) = std::env::var("CALCCRAFT_SUPPORT_DEMO")
+            {
+                state.start_demo(&demo);
+            }
         }
         state
+    }
+
+    /// Starts in a stage of the flow (`CALCCRAFT_SUPPORT_DEMO`, fast mode only): `dot`,
+    /// `menu` (the menu open over the dot), `popup` (opened by itself), `popup-supported`
+    /// (after a Donate click, with "I already supported") or `thanks`.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn start_demo(&mut self, demo: &str) {
+        let stats = &mut self.stats;
+        stats.launches = stats.launches.max(self.cfg.min_launches);
+        stats.active_days = stats.active_days.max(self.cfg.min_active_days);
+        stats.next_cycle_day = None;
+        stats.pause_until_day = None;
+        stats.dot_since_day = None;
+        if matches!(demo, "popup-supported" | "thanks") {
+            stats.donate_clicked_ever = true;
+        }
+        self.demo_menu = demo == "menu";
+        if matches!(demo, "popup" | "popup-supported" | "thanks") {
+            let now = self.now().millis;
+            self.popup = Some(OpenPopup {
+                automatic: true,
+                opened_at_ms: now,
+                thank_you_since_ms: (demo == "thanks").then_some(now),
+            });
+            self.popup_shown_this_session = true;
+        }
+    }
+
+    /// The demo starts with the navigation menu open (`CALCCRAFT_SUPPORT_DEMO=menu`).
+    pub fn demo_opens_menu(&self) -> bool {
+        self.demo_menu
     }
 
     pub fn save(&self, storage: &mut dyn Storage) {
@@ -185,15 +227,15 @@ impl SupportState {
         }
 
         if let Some(popup) = self.popup {
-            if let Some(since) = popup.thank_you_since_ms {
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+                self.close_popup(now);
+            } else if let Some(since) = popup.thank_you_since_ms {
                 let left = (since + self.cfg.thank_you_ms).saturating_sub(now.millis);
                 if left == 0 {
                     self.popup = None;
                 } else {
                     ctx.request_repaint_after(std::time::Duration::from_millis(left));
                 }
-            } else if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
-                self.close_popup(now);
             }
         }
 
@@ -256,7 +298,10 @@ impl SupportState {
     }
 
     fn close_popup(&mut self, now: Timestamp) {
-        if let Some(popup) = self.popup.take() {
+        // Closing the thank-you text early is no reaction: "I already supported" was one.
+        if let Some(popup) = self.popup.take()
+            && popup.thank_you_since_ms.is_none()
+        {
             self.apply(SupportEvent::PopupClosed {
                 after_ms: now.millis.saturating_sub(popup.opened_at_ms),
                 automatic: popup.automatic,
