@@ -134,8 +134,9 @@ impl SupportState {
 
     /// Starts in a stage of the flow (`CALCCRAFT_SUPPORT_DEMO`, fast mode only): `dot`,
     /// `menu` (the menu open over the dot), `popup` (opened by itself), `popup-supported`
-    /// (after a Donate click, with "I already supported"), `thanks`, or `supporter` (the
-    /// supporter state, the menu open on its thank-you line).
+    /// (after a Donate click, with "I already supported"), `thanks`, `supporter` (the
+    /// supporter state, the menu open on its thank-you line) or `supporter-popup` (the popup
+    /// as the thank-you line opens it).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(crate) fn start_demo(&mut self, demo: &str) {
         let stats = &mut self.stats;
@@ -145,16 +146,16 @@ impl SupportState {
         stats.pause_until_day = None;
         stats.supporter_until_day = None;
         stats.dot_since_day = None;
-        if matches!(demo, "popup-supported" | "thanks" | "supporter") {
+        let supporter = matches!(demo, "supporter" | "supporter-popup");
+        if supporter || matches!(demo, "popup-supported" | "thanks") {
             stats.donate_clicked_ever = true;
         }
-        if demo == "supporter" {
-            self.stats = policy::on_event(
-                &self.stats,
-                &self.cfg,
-                SupportEvent::AlreadySupported,
-                self.clock.now(),
-            );
+        if supporter {
+            self.popup = None;
+            self.apply(SupportEvent::AlreadySupported);
+        }
+        if demo == "supporter-popup" {
+            self.open_on_demand();
         }
         self.demo_menu = matches!(demo, "menu" | "supporter");
         if matches!(demo, "popup" | "popup-supported" | "thanks") {

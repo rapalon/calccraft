@@ -379,6 +379,12 @@ mod tests {
         assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
         assert!(state.stats.donate_clicked_ever);
         assert!(!state.is_open());
+
+        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        state.start_demo("supporter-popup");
+        assert!(!state.demo_opens_menu());
+        assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+        assert!(state.is_open() && !state.popup.unwrap().automatic);
     }
 
     #[test]

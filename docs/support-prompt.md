@@ -266,8 +266,9 @@ $env:CALCCRAFT_SUPPORT_FAST = "1"; .\target\release\calculator.exe
 
 To jump straight to a stage (fast mode only), `CALCCRAFT_SUPPORT_DEMO` makes the user eligible
 and starts in it: `dot`, `menu` (the menu open over the dot), `popup` (opened by itself),
-`popup-supported` (after a Donate click: with "I already supported"), `thanks`, or `supporter`
-(the supporter state of 2.9, with the menu open on the thank-you line).
+`popup-supported` (after a Donate click: with "I already supported"), `thanks`, `supporter`
+(the supporter state of 2.9, with the menu open on the thank-you line) or `supporter-popup` (the
+supporter state with the popup as the thank-you line opens it).
 
 Developer-only extra variables: `CALCCRAFT_SUPPORT_OPEN=1` opens the popup at start (v1),
 `CALCCRAFT_SUPPORT_LONG_TEXT=1` triples the body text (layout checks), and the app's
