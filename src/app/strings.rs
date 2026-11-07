@@ -231,7 +231,7 @@ fn strings() -> &'static Strings {
 }
 
 /// The translation of `key`, from the Windows Calculator's resources.
-pub(super) fn tr(key: &str) -> &'static str {
+pub(crate) fn tr(key: &str) -> &'static str {
     strings().get(key)
 }
 
@@ -487,11 +487,15 @@ mod tests {
 
     #[test]
     fn every_language_has_calccraft_strings() {
-        let english = parse(own(ENGLISH));
-        assert_eq!(english.len(), 4);
+        let core_keys = [
+            "CalcCraft.Language",
+            "CalcCraft.LanguageDescription",
+            "CalcCraft.RegionalFormat",
+            "CalcCraft.Contribute",
+        ];
         for language in languages() {
             let table = parse(own(language));
-            for key in english.keys() {
+            for key in core_keys {
                 assert!(table.contains_key(key), "{language} has no {key}");
             }
         }
@@ -506,6 +510,16 @@ mod tests {
         }
         // Languages without their own section fall back to English.
         assert_eq!(load("ar-SA").get("CalcCraft.Language"), "Language");
+        // Support strings fall back to English for all languages without explicit translations.
+        assert_eq!(
+            load("de-DE").get("CalcCraft.Support.MenuButton"),
+            "Please Support!"
+        );
+        assert_eq!(
+            load("ja-JP").get("CalcCraft.Support.Title"),
+            "Please support us!"
+        );
+        assert_eq!(load("fr-FR").get("CalcCraft.Support.Donate"), "Donate");
         assert_eq!(languages().count(), LOCALES.len() - UNSUPPORTED.len());
     }
 

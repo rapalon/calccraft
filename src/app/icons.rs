@@ -33,7 +33,7 @@ pub(super) const ICON_VIEW: char = '\u{E890}';
 pub(super) const ICON_HIDE: char = '\u{ED1A}';
 pub(super) const ICON_CUT: char = '\u{E8C6}';
 pub(super) const ICON_COPY: char = '\u{E8C8}';
-pub(super) const ICON_REMOVE: char = '\u{ECC9}';
+pub(crate) const ICON_REMOVE: char = '\u{ECC9}';
 pub(super) const ICON_CALCULATOR: char = '\u{E8EF}';
 /// The Programmer mode in the menu, `</>`.
 pub(super) const ICON_CODE: char = '\u{E943}';
@@ -80,7 +80,7 @@ pub(super) fn family() -> FontFamily {
 }
 
 /// A label made of one icon.
-pub(super) fn icon_label(glyph: char, size: f32) -> LayoutJob {
+pub(crate) fn icon_label(glyph: char, size: f32) -> LayoutJob {
     super::text(&glyph.to_string(), size, family())
 }
 

@@ -10,6 +10,8 @@ mod icon;
 mod locale;
 #[cfg(test)]
 mod monkey;
+#[cfg(feature = "support-prompt")]
+pub mod support;
 
 /// Runs the app in a window until it is closed.
 #[cfg(not(target_arch = "wasm32"))]

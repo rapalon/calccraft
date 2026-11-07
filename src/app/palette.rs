@@ -8,7 +8,7 @@
 use eframe::egui::Color32;
 
 /// Every color the interface paints with, for one theme.
-pub(super) struct Palette {
+pub(crate) struct Palette {
     pub background: Color32,
     pub digit: Color32,
     pub digit_hover: Color32,
