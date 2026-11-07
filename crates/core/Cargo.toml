@@ -1,0 +1,20 @@
+[package]
+name = "calccraft-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "CalcCraft's engines without a user interface: the calculator (Standard, Scientific, Programmer), date calculation, the unit converters and the Graphing mode's math"
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+# `num-rational` 0.4 needs `num-bigint` 0.4: `BigRational`'s integer type has to match ours.
+num-bigint = "0.4"
+num-rational = "0.4.2"
+num-traits = "0.2.19"
+# `std::time::SystemTime::now()` panics in the browser; web-time's works everywhere.
+web-time = "1.1"

@@ -16,6 +16,7 @@
 //! engine with precedence, a radix and a word size (see `integer.rs`). The Scientific
 //! mode's functions are in `math.rs`.
 
+pub mod expression;
 mod integer;
 mod math;
 #[cfg(test)]
