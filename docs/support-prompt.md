@@ -27,21 +27,26 @@ The feature is fully gated behind a Cargo feature flag (`support-prompt`, enable
 ### 2.2 Floating Support Popup
 - **Position & Geometry:** Floating panel centered over the main calculator area.
   - Width: ~75% of window width (bounded between 280 px and 520 px to look great both at narrow 480 px mobile/docked sizes and wide desktop windows).
-  - Height: ~60% of window height (bounded between 220 px and 380 px).
+  - Height: dynamic, adapts to content (title, wrapped body text, Donate button) within sensible bounds (min ~180-200 px, max bounded by available window height), keeping the block vertically balanced.
 - **Panel Aesthetics:**
   - Semi-transparent amber panel with rounded corners (12 px corner radius) and a subtle Fluent border (1 px stroke).
   - **Light theme:** Translucent warm amber surface (`rgba(255, 245, 225, 0.90)` / `Color32::from_rgba_unmultiplied(255, 245, 225, 230)`), border `rgba(225, 195, 130, 0.8)`.
   - **Dark theme:** Translucent deep amber surface (`rgba(45, 30, 8, 0.88)` / `Color32::from_rgba_unmultiplied(45, 30, 8, 225)`), border `rgba(130, 90, 25, 0.8)`.
   - The calculator display and keypad remain faintly visible underneath the translucent panel.
 - **Header & Dismissal ("X"):**
-  - Top-right corner hosts a close button displaying the Fluent dismiss glyph (`ICON_REMOVE`, `\u{ECC9}`).
+  - Top-right corner hosts a close button displaying the Fluent dismiss / close "X" glyph (`ICON_CLOSE`, `\u{E947}`).
   - Accessible name: `CalcCraft.Support.Close` ("Close").
-  - Subtle hover state with red accent tint on hover (`#D13438` / `#E81123`), consistent with standard Windows close button behavior.
+  - Hit target size of at least 32x32 px.
+  - Neutral foreground color fitting both light and dark themes, with a subtle hover/pressed overlay background (consistent with standard Fluent button styling).
+  - Maintains full keyboard focus ring, Tab traversal, Enter/Space activation, and Escape dismiss.
   - Clicking closes the popup.
-- **Content:**
-  - Centered title in semibold font (18-20 pt): `CalcCraft.Support.Title` ("Please support us!").
+- **Content & Vertical Block Layout:**
+  - Laid out as a cohesive vertical block (title, body, Donate button) with consistent Fluent spacing (e.g. 12–16 px between title and body, 20–24 px before Donate button), vertically centered within the card.
+  - Centered title in semibold font (18-20 pt): `CalcCraft.Support.Title` ("Please support us!"), wrapping onto multiple lines if long.
   - Brief friendly description text (13-14 pt) in secondary text color:
     `CalcCraft.Support.Body` ("CalcCraft is free and ad-free. Your support helps keep development active.").
+  - Inner text area narrower than the card (inner horizontal padding of ~20–24 px on each side at 480 px window width) allowing text to wrap onto as many lines as needed with centered horizontal alignment.
+  - Text never overflows or clips outside the card; dynamic height accommodates longer translations (e.g. German, Finnish) gracefully.
 - **Action Button ("Donate"):**
   - Located in the lower portion of the panel, centered.
   - Styled as a rounded accent button with Fluent green:
