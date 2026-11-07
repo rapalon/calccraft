@@ -222,6 +222,41 @@ async fn errors_are_tool_results_the_agent_can_read() {
     client.cancel().await.unwrap();
 }
 
+/// The review's I3: unknown parameters were ignored, and their defaults used.
+#[tokio::test]
+async fn unknown_parameters_are_errors_that_name_them() {
+    let client = connect().await;
+    let tools = serde_json::to_value(client.list_all_tools().await.unwrap()).unwrap();
+    for tool in tools.as_array().unwrap() {
+        assert_eq!(
+            tool["inputSchema"]["additionalProperties"], false,
+            "{}",
+            tool["name"]
+        );
+    }
+    for (tool, arguments, message) in [
+        (
+            "programmer",
+            json!({ "expression": "-1", "word": "byte" }),
+            "unknown field `word`, expected one of `expression`, `radix`, `word_size`",
+        ),
+        (
+            "calculate",
+            json!({ "expression": "sin(90)", "angles": "radians" }),
+            "unknown field `angles`, expected one of `expression`, `angle`, `mode`",
+        ),
+        (
+            "calculate",
+            json!({ "expression": "1+1", "extra": true }),
+            "unknown field `extra`, expected one of `expression`, `angle`, `mode`",
+        ),
+    ] {
+        let text = error_text(&call(&client, tool, arguments).await);
+        assert_eq!(text, format!("failed to deserialize parameters: {message}"));
+    }
+    client.cancel().await.unwrap();
+}
+
 /// The review's I2: inputs that could be slow answer within the budget, and the server goes
 /// on answering.
 #[tokio::test]

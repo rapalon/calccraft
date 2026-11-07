@@ -51,8 +51,10 @@ pub enum CalcMode {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CalculateParams {
     /// The formula, such as `1234.56 / 7`, `sin(30) + 2^10` or `root(27, 3)`.
+    #[schemars(length(max = 512))]
     pub expression: String,
     /// The unit of trigonometric angles: degrees (the default, as in Windows), radians or
     /// gradians.
@@ -129,11 +131,13 @@ pub enum WordName {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ProgrammerParams {
     /// The expression, its numbers written in `radix`: digits, + - * / and % (the
     /// remainder), parentheses, AND OR XOR NAND NOR (or & | ^), NOT (or ~), LSH and RSH (or
     /// << >>, arithmetic shifts), and ROL(x) and ROR(x) (rotations by one bit). For example
     /// `FF AND 3C` in hex, or `-1` in dec.
+    #[schemars(length(max = 512))]
     pub expression: String,
     /// The radix of the numbers: hex, dec (the default), oct or bin.
     #[serde(default)]
@@ -439,6 +443,7 @@ fn type_number(
 // ------------------------------------------------------------------ convert_units
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ConvertParams {
     /// The kind of unit: volume, length, weight (or mass), temperature, energy, area,
     /// speed, time, power, data, pressure or angle.
@@ -848,6 +853,7 @@ fn edit_distance(a: &str, b: &str) -> usize {
 // ------------------------------------------------------------------ dates
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DateDifferenceParams {
     /// The first date, as YYYY-MM-DD (1601-01-01 to 9999-12-31).
     pub from: String,
@@ -867,17 +873,21 @@ pub struct DateDifferenceResult {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DateAddParams {
     /// The date, as YYYY-MM-DD.
     pub date: String,
     /// Years to add (0–999).
     #[serde(default)]
+    #[schemars(range(max = 999))]
     pub years: u32,
     /// Months to add (0–999).
     #[serde(default)]
+    #[schemars(range(max = 999))]
     pub months: u32,
     /// Days to add (0–999).
     #[serde(default)]
+    #[schemars(range(max = 999))]
     pub days: u32,
     /// Subtract instead of adding.
     #[serde(default)]
@@ -938,9 +948,11 @@ pub fn date_add(params: &DateAddParams) -> Result<DateAddResult, String> {
 // ------------------------------------------------------------------ analyze_function
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeParams {
     /// A function of x as the Graphing mode takes it, such as `y = 1/x`, `x^2 - 4x + 3` or
     /// `sin(x)`.
+    #[schemars(length(max = 2048))]
     pub equation: String,
     /// The unit of trigonometric angles: degrees (the default), radians or gradians.
     #[serde(default)]
@@ -1472,6 +1484,56 @@ mod tests {
                 .unwrap_err()
                 .starts_with("Invalid input")
         );
+    }
+
+    /// The review's I3: a mistyped parameter was ignored, and its default used instead.
+    #[test]
+    fn unknown_fields_are_refused() {
+        fn refused<T: serde::de::DeserializeOwned + JsonSchema + std::fmt::Debug>(
+            arguments: serde_json::Value,
+            message: &str,
+        ) {
+            let error = serde_json::from_value::<T>(arguments)
+                .unwrap_err()
+                .to_string();
+            assert!(error.starts_with(message), "{error}");
+            let schema = serde_json::to_value(schemars::schema_for!(T)).unwrap();
+            assert_eq!(schema["additionalProperties"], false);
+        }
+        use serde_json::json;
+        refused::<ProgrammerParams>(
+            json!({ "expression": "-1", "word": "byte" }),
+            "unknown field `word`, expected one of `expression`, `radix`, `word_size`",
+        );
+        refused::<CalculateParams>(
+            json!({ "expression": "sin(90)", "angles": "radians" }),
+            "unknown field `angles`, expected one of `expression`, `angle`, `mode`",
+        );
+        refused::<CalculateParams>(
+            json!({ "expression": "1+1", "extra": true }),
+            "unknown field `extra`",
+        );
+        refused::<ConvertParams>(
+            json!({ "category": "data", "value": "1", "from": "GB", "to": "MB", "unit": "x" }),
+            "unknown field `unit`, expected one of `category`, `value`, `from`, `to`",
+        );
+        refused::<DateDifferenceParams>(
+            json!({ "from": "2026-01-01", "to": "2026-01-02", "inclusive": true }),
+            "unknown field `inclusive`",
+        );
+        refused::<DateAddParams>(
+            json!({ "date": "2026-01-01", "weeks": 1 }),
+            "unknown field `weeks`, expected one of `date`, `years`, `months`, `days`, `subtract`",
+        );
+        refused::<AnalyzeParams>(
+            json!({ "equation": "x", "variable": "t" }),
+            "unknown field `variable`, expected `equation` or `angle`",
+        );
+        // The limits the code checks are in the schemas too.
+        let schema = serde_json::to_value(schemars::schema_for!(DateAddParams)).unwrap();
+        assert_eq!(schema["properties"]["days"]["maximum"], 999);
+        let schema = serde_json::to_value(schemars::schema_for!(CalculateParams)).unwrap();
+        assert_eq!(schema["properties"]["expression"]["maxLength"], 512);
     }
 
     /// The GUI's converter, driven directly with the units' indexes.
