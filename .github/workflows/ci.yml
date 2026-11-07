@@ -10,6 +10,13 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
 
+# The repository variable CI_RUNNER_LABELS switches CI to a self-hosted runner: set it to the
+# runner's labels as JSON (`["self-hosted","Windows","X64"]`), and `check` runs once on that
+# runner instead of the three hosted systems, `web` runs there too, and `android` (which needs
+# the hosted Ubuntu image's Android SDK) is skipped. Delete the variable to go back to the
+# GitHub-hosted runners. A self-hosted runner runs the code it checks out on its owner's
+# machine, so its jobs never run for pull requests from forks.
+
 jobs:
   check:
     name: fmt, clippy, test (${{ matrix.os }})
@@ -17,11 +24,14 @@ jobs:
     # releases are built for Linux and macOS too, so CI checks all three. `--workspace` takes
     # in the engines (crates/core) and the MCP server (crates/mcp), whose tests start the
     # server and talk MCP to it over stdio.
+    if: >-
+      !vars.CI_RUNNER_LABELS || github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        os: ${{ fromJSON(vars.CI_RUNNER_LABELS && '["self-hosted"]' || '["windows-latest","ubuntu-latest","macos-latest"]') }}
+    runs-on: ${{ vars.CI_RUNNER_LABELS && fromJSON(vars.CI_RUNNER_LABELS) || matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
@@ -32,9 +42,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # eframe's build dependencies on Linux (see egui's README).
+      # eframe's build dependencies on Linux (see egui's README). A self-hosted Linux runner
+      # has to have them already: sudo there may ask for a password.
       - name: Install the Linux build dependencies
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
@@ -52,8 +63,12 @@ jobs:
     name: web build (wasm32)
     # The web version (.github/workflows/pages.yml deploys it) builds from the same code, so
     # every push and pull request checks that it still compiles for the browser. Nothing is
-    # deployed here.
-    runs-on: ubuntu-latest
+    # deployed here. rustup's wasm32 target and the prebuilt Trunk install without admin
+    # rights, so this runs on a self-hosted runner too.
+    if: >-
+      !vars.CI_RUNNER_LABELS || github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ vars.CI_RUNNER_LABELS && fromJSON(vars.CI_RUNNER_LABELS) || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -81,7 +96,9 @@ jobs:
     name: Android build (arm64)
     # The Android app (android/README.md) builds from the same code, so every push and pull
     # request checks it and builds an APK, signed with a debug key, which the run keeps as an
-    # artifact for `adb install`.
+    # artifact for `adb install`. It needs the hosted Ubuntu image's Android SDK, so it's
+    # skipped on a self-hosted runner.
+    if: ${{ !vars.CI_RUNNER_LABELS }}
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865

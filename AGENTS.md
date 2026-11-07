@@ -35,7 +35,10 @@ without UI are `crates/core` (`calccraft-core`), and the MCP server for AI agent
 changes have been checked by actually running the app (see "Verifying UI changes"). CI
 (`.github/workflows/ci.yml`) runs the first three on Windows, Linux and macOS for every push
 and pull request and builds the web version with Trunk, and a pull request isn't done until
-all of that passes. Code for Windows alone goes under `#[cfg(windows)]`, and
+all of that passes. With the repository variable `CI_RUNNER_LABELS` set (a self-hosted
+runner's labels as JSON), the checks and the web build run once on that runner instead, the
+Android build is skipped, and pull requests from forks aren't checked; deleting the variable
+goes back to the GitHub-hosted runners. Code for Windows alone goes under `#[cfg(windows)]`, and
 what only it uses gets `#[cfg_attr(not(windows), allow(dead_code))]`, or clippy fails on the
 others; code for the browser alone goes under `#[cfg(target_arch = "wasm32")]` the same way, and
 code for the Android app alone under `#[cfg(target_os = "android")]` (see `android/README.md`).
