@@ -3,7 +3,7 @@
 //! Numbers are written with `.` and without digit groups, and dates as ISO 8601
 //! (`2026-10-18`), whatever the region.
 
-use calccraft_core::converter::{Category, Converter, Region};
+use calccraft_core::converter::{Category, Converter, Region, Unit};
 use calccraft_core::dates;
 use calccraft_core::engine::expression;
 use calccraft_core::engine::{Angle, Calculator, Command, Func, MAX_DEPTH, Op, Radix, WordSize};
@@ -447,7 +447,8 @@ pub struct ConvertParams {
     /// and angle).
     pub value: String,
     /// The unit to convert from: its English name (`kilometers`, `kilometer`) or
-    /// abbreviation (`km`).
+    /// abbreviation (`km`), case-sensitive where it matters (`GB` gigabytes, `Gb`
+    /// gigabits).
     pub from: String,
     /// The unit to convert to, written the same way.
     pub to: String,
@@ -496,37 +497,17 @@ pub fn convert_units(params: &ConvertParams) -> Result<ConvertResult, String> {
     if value.starts_with(['-', '−']) && !category.supports_negative() {
         return Err(format!(
             "{} values can't be negative (only temperature, power and angle can)",
-            CATEGORIES[category as usize].1[0]
+            category_name(category)
         ));
     }
 
     let mut converter = Converter::new(Region::new("US"));
     converter.set_category(category);
     let units = converter.units();
-    let find = |name: &str| {
-        let name = name.trim().trim_start_matches('°').to_lowercase();
-        units
-            .iter()
-            .position(|unit| {
-                let full = unit.name.to_lowercase();
-                full == name
-                    || full.strip_suffix('s') == Some(name.as_str())
-                    || unit.key.to_lowercase() == name
-                    || unit.abbreviation.trim_start_matches('°').to_lowercase() == name
-            })
-            .ok_or_else(|| {
-                let names: Vec<String> = units
-                    .iter()
-                    .map(|unit| format!("{} ({})", unit.name, unit.abbreviation))
-                    .collect();
-                format!(
-                    "Unknown unit '{}' for {wanted}: use one of {}",
-                    name,
-                    names.join(", ")
-                )
-            })
-    };
-    let (from, to) = (find(&params.from)?, find(&params.to)?);
+    let (from, to) = (
+        find_unit(category, units, &params.from)?,
+        find_unit(category, units, &params.to)?,
+    );
     converter.set_unit1(from);
     converter.set_unit2(to);
     converter.activate(true);
@@ -547,6 +528,321 @@ pub fn convert_units(params: &ConvertParams) -> Result<ConvertResult, String> {
             .map(|suggestion| format!("{} {}", plain(suggestion.value), suggestion.abbreviation))
             .collect(),
     })
+}
+
+fn category_name(category: Category) -> &'static str {
+    CATEGORIES
+        .iter()
+        .find(|(c, _)| *c == category)
+        .map_or("these", |(_, names)| names[0])
+}
+
+/// Other names for the converters' units, by the unit's key: common forms that aren't the
+/// converters' own names and abbreviations. Only units the converters have; a test checks
+/// that every key exists. The case matters as for the abbreviations (`kB` is a kilobyte,
+/// `Kib` a kibibit); without it, a name has to be unambiguous.
+const ALIASES: &[(Category, &str, &str)] = &[
+    // Volume: the US units, as the converter's US region defaults to; the UK ones go by
+    // their own names (`gal (UK)`, `Gallons (UK)`) or these.
+    (Category::Volume, "gallon", "GallonUS"),
+    (Category::Volume, "gal", "GallonUS"),
+    (Category::Volume, "us gallon", "GallonUS"),
+    (Category::Volume, "imperial gallon", "GallonUK"),
+    (Category::Volume, "uk gallon", "GallonUK"),
+    (Category::Volume, "cup", "CupUS"),
+    (Category::Volume, "pint", "PintUS"),
+    (Category::Volume, "pt", "PintUS"),
+    (Category::Volume, "imperial pint", "PintUK"),
+    (Category::Volume, "quart", "QuartUS"),
+    (Category::Volume, "qt", "QuartUS"),
+    (Category::Volume, "fluid ounce", "FluidOunceUS"),
+    (Category::Volume, "fl oz", "FluidOunceUS"),
+    (Category::Volume, "teaspoon", "TeaspoonUS"),
+    (Category::Volume, "tsp", "TeaspoonUS"),
+    (Category::Volume, "tablespoon", "TablespoonUS"),
+    (Category::Volume, "tbsp", "TablespoonUS"),
+    (Category::Volume, "l", "Liter"),
+    (Category::Volume, "ltr", "Liter"),
+    (Category::Volume, "cc", "CubicCentimeter"),
+    // Length.
+    (Category::Length, "um", "Micron"),
+    (Category::Length, "micrometer", "Micron"),
+    (Category::Length, "Å", "Angstrom"),
+    // Weight.
+    (Category::Weight, "lbs", "Pound"),
+    (Category::Weight, "ct", "Carat"),
+    (Category::Weight, "kilo", "Kilogram"),
+    (Category::Weight, "tonne", "Tonne"),
+    (Category::Weight, "metric ton", "Tonne"),
+    (Category::Weight, "short ton", "ShortTon"),
+    (Category::Weight, "us ton", "ShortTon"),
+    (Category::Weight, "long ton", "LongTon"),
+    (Category::Weight, "uk ton", "LongTon"),
+    (Category::Weight, "imperial ton", "LongTon"),
+    // Temperature.
+    (Category::Temperature, "degree celsius", "DegreesCelsius"),
+    (Category::Temperature, "centigrade", "DegreesCelsius"),
+    (
+        Category::Temperature,
+        "degree fahrenheit",
+        "DegreesFahrenheit",
+    ),
+    // Energy.
+    (Category::Energy, "electronvolt", "Electron-Volt"),
+    (Category::Energy, "ft lb", "Foot-Pound"),
+    (Category::Energy, "ft-lb", "Foot-Pound"),
+    (Category::Energy, "kilowatt hour", "Kilowatthour"),
+    // Speed.
+    (Category::Speed, "kph", "KilometersPerHour"),
+    (Category::Speed, "kmh", "KilometersPerHour"),
+    (Category::Speed, "km/hr", "KilometersPerHour"),
+    (Category::Speed, "kilometer per hour", "KilometersPerHour"),
+    (Category::Speed, "mi/h", "MilesPerHour"),
+    (Category::Speed, "mile per hour", "MilesPerHour"),
+    (Category::Speed, "m/sec", "MetersPerSecond"),
+    (Category::Speed, "meter per second", "MetersPerSecond"),
+    (Category::Speed, "fps", "FeetPerSecond"),
+    (Category::Speed, "ft/sec", "FeetPerSecond"),
+    (Category::Speed, "foot per second", "FeetPerSecond"),
+    (
+        Category::Speed,
+        "centimeter per second",
+        "CentimetersPerSecond",
+    ),
+    (Category::Speed, "kt", "Knot"),
+    // Time.
+    (Category::Time, "sec", "Second"),
+    (Category::Time, "h", "Hour"),
+    (Category::Time, "hrs", "Hour"),
+    (Category::Time, "mins", "Minute"),
+    (Category::Time, "us", "Microsecond"),
+    (Category::Time, "msec", "Millisecond"),
+    (Category::Time, "wks", "Week"),
+    (Category::Time, "yrs", "Year"),
+    // Power.
+    (Category::Power, "hp", "Horsepower"),
+    (Category::Power, "horsepower", "Horsepower"),
+    (Category::Power, "ft lb/min", "Foot-PoundPerMinute"),
+    (Category::Power, "ft-lb/min", "Foot-PoundPerMinute"),
+    (
+        Category::Power,
+        "foot-pound per minute",
+        "Foot-PoundPerMinute",
+    ),
+    (Category::Power, "btu per minute", "BTUPerMinute"),
+    (Category::Power, "btu/minute", "BTUPerMinute"),
+    // Data: the SI forms and bit abbreviations that the converter writes otherwise.
+    (Category::Data, "bit", "Bit"),
+    (Category::Data, "kB", "Kilobyte"),
+    (Category::Data, "kbit", "Kilobit"),
+    (Category::Data, "Kibit", "Kibibits"),
+    (Category::Data, "Kib", "Kibibits"),
+    (Category::Data, "Mbit", "Megabit"),
+    (Category::Data, "Mibit", "Mebibits"),
+    (Category::Data, "Mib", "Mebibits"),
+    (Category::Data, "Gbit", "Gigabit"),
+    (Category::Data, "Gibit", "Gibibits"),
+    (Category::Data, "Gib", "Gibibits"),
+    (Category::Data, "Tbit", "Terabit"),
+    (Category::Data, "Tibit", "Tebibits"),
+    (Category::Data, "Tib", "Tebibits"),
+    (Category::Data, "Pbit", "Petabit"),
+    (Category::Data, "Pibit", "Pebibits"),
+    (Category::Data, "Pib", "Pebibits"),
+    (Category::Data, "Ebit", "Exabits"),
+    (Category::Data, "Eb", "Exabits"),
+    (Category::Data, "Eibit", "Exbibits"),
+    (Category::Data, "Eib", "Exbibits"),
+    (Category::Data, "Zbit", "Zetabits"),
+    (Category::Data, "Zb", "Zetabits"),
+    (Category::Data, "zettabit", "Zetabits"),
+    (Category::Data, "zettabyte", "Zetabytes"),
+    (Category::Data, "Zibit", "Zebibits"),
+    (Category::Data, "Zib", "Zebibits"),
+    (Category::Data, "Ybit", "Yottabit"),
+    (Category::Data, "Yb", "Yottabit"),
+    (Category::Data, "Yibit", "Yobibits"),
+    (Category::Data, "Yib", "Yobibits"),
+    (Category::Data, "nybble", "Nibble"),
+    // Pressure.
+    (Category::Pressure, "bar", "Bar"),
+    (Category::Pressure, "pound per square inch", "PSI"),
+    // Angle.
+    (Category::Angle, "°", "Degree"),
+    (Category::Angle, "gon", "Gradian"),
+];
+
+/// A unit name as it's compared: British spellings as American ones (`metre`, `litre`),
+/// `m2`, `m^2` and `sq m` as `m²` (and the same with 3 and `cu`), Greek μ as the micro sign
+/// the converters write, and `°C` as `C`.
+fn spelled(name: &str) -> String {
+    let mut name = name
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace("metre", "meter")
+        .replace("Metre", "Meter")
+        .replace("litre", "liter")
+        .replace("Litre", "Liter")
+        .replace('μ', "µ")
+        .replace("^2", "²")
+        .replace("^3", "³");
+    for (prefix, power) in [
+        ("sq ", '²'),
+        ("square ", '²'),
+        ("cu ", '³'),
+        ("cubic ", '³'),
+    ] {
+        if let Some(rest) = name.strip_prefix(prefix)
+            && rest.len() <= 3
+        {
+            name = format!("{rest}{power}");
+        }
+    }
+    if let Some(stripped) = name.strip_suffix('2').or(name.strip_suffix('3'))
+        && stripped.ends_with(|c: char| c.is_alphabetic())
+    {
+        let power = if name.ends_with('2') { '²' } else { '³' };
+        name = format!("{stripped}{power}");
+    }
+    match name.strip_prefix('°') {
+        Some(rest) if !rest.is_empty() => rest.to_string(),
+        _ => name,
+    }
+}
+
+/// The form compared without case: lower case, without spaces, dots, hyphens and
+/// parentheses (`fl oz (US)` is `flozus`, `Foot-pounds` is `footpounds`).
+fn loose(name: &str) -> String {
+    spelled(name)
+        .to_lowercase()
+        .chars()
+        .filter(|c| !matches!(c, ' ' | '.' | '-' | '_' | '(' | ')'))
+        .collect()
+}
+
+/// Every text that names `units[i]`: its name, its name without the plural s, its key, its
+/// abbreviation and its aliases.
+fn unit_names(category: Category, units: &[Unit]) -> Vec<(String, usize)> {
+    let mut names = Vec::new();
+    for (i, unit) in units.iter().enumerate() {
+        names.push((spelled(unit.name), i));
+        if let Some(singular) = unit.name.strip_suffix('s') {
+            names.push((spelled(singular), i));
+        }
+        names.push((spelled(unit.key), i));
+        names.push((spelled(unit.abbreviation), i));
+        for (_, alias, _) in ALIASES
+            .iter()
+            .filter(|(c, _, key)| *c == category && *key == unit.key)
+        {
+            names.push((spelled(alias), i));
+        }
+    }
+    names
+}
+
+fn describe(unit: &Unit) -> String {
+    format!("{} ({})", unit.name, unit.abbreviation)
+}
+
+/// Finds a unit by name, abbreviation or alias. The case decides first, as in the
+/// converter's own abbreviations (`GB` is gigabytes, `Gb` gigabits); a name that only
+/// matches without case has to name one unit, or the agent gets the candidates.
+fn find_unit(category: Category, units: &[Unit], name: &str) -> Result<usize, String> {
+    let names = unit_names(category, units);
+    let matching = |matches: &dyn Fn(&str) -> bool| {
+        let mut found: Vec<usize> = names
+            .iter()
+            .filter(|(text, _)| matches(text))
+            .map(|&(_, i)| i)
+            .collect();
+        found.sort_unstable();
+        found.dedup();
+        found
+    };
+    let wanted = spelled(name);
+    let wanted_loose = loose(name);
+    let singular = wanted_loose
+        .strip_suffix('s')
+        .filter(|s| s.len() >= 3)
+        .map(str::to_string);
+    let steps: [&dyn Fn(&str) -> bool; 2] = [&|text| text == wanted, &|text| {
+        let text = loose(text);
+        text == wanted_loose || Some(&text) == singular.as_ref()
+    }];
+    for step in steps {
+        match matching(step)[..] {
+            [] => continue,
+            [i] => return Ok(i),
+            ref several => {
+                let candidates: Vec<String> =
+                    several.iter().map(|&i| describe(&units[i])).collect();
+                return Err(format!(
+                    "The unit '{}' is ambiguous for {}: it could be {}. Write the \
+                     abbreviation with its case (GB is gigabytes, Gb gigabits) or the full name",
+                    name.trim(),
+                    category_name(category),
+                    candidates.join(" or ")
+                ));
+            }
+        }
+    }
+
+    // Close matches: names that contain what was written or that it contains, then those
+    // within a few typos.
+    let mut scored: Vec<(usize, usize)> = Vec::new();
+    for (text, i) in &names {
+        let text = loose(text);
+        let distance = if wanted_loose.len() >= 3
+            && text.len() >= 3
+            && (text.contains(&wanted_loose) || wanted_loose.contains(&text))
+        {
+            0
+        } else {
+            edit_distance(&text, &wanted_loose)
+        };
+        if distance <= 2.max(wanted_loose.chars().count() / 3) {
+            scored.push((distance, *i));
+        }
+    }
+    scored.sort_unstable();
+    let mut close: Vec<usize> = Vec::new();
+    for (_, i) in scored {
+        if !close.contains(&i) && close.len() < 5 {
+            close.push(i);
+        }
+    }
+    let all: Vec<String> = units.iter().map(describe).collect();
+    let close = if close.is_empty() {
+        String::new()
+    } else {
+        let close: Vec<String> = close.iter().map(|&i| describe(&units[i])).collect();
+        format!(" Close matches: {}.", close.join(", "))
+    };
+    Err(format!(
+        "Unknown unit '{}' for {}.{close} All {} units: {}",
+        name.trim(),
+        category_name(category),
+        category_name(category),
+        all.join(", ")
+    ))
+}
+
+/// The Levenshtein distance, in characters.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = i + 1;
+        for (j, &cb) in b.iter().enumerate() {
+            let substituted = diagonal + usize::from(ca != cb);
+            diagonal = row[j + 1];
+            row[j + 1] = substituted.min(row[j] + 1).min(row[j + 1] + 1);
+        }
+    }
+    row[b.len()]
 }
 
 // ------------------------------------------------------------------ dates
@@ -1176,6 +1472,256 @@ mod tests {
                 .unwrap_err()
                 .starts_with("Invalid input")
         );
+    }
+
+    /// The GUI's converter, driven directly with the units' indexes.
+    fn gui_convert(category: Category, from: usize, to: usize, value: &str) -> String {
+        let mut converter = Converter::new(Region::new("US"));
+        converter.set_category(category);
+        converter.set_unit1(from);
+        converter.set_unit2(to);
+        converter.activate(true);
+        assert!(converter.paste(value));
+        converter.value2().replace(',', "")
+    }
+
+    fn gui_units(category: Category) -> &'static [Unit] {
+        let mut converter = Converter::new(Region::new("US"));
+        converter.set_category(category);
+        converter.units()
+    }
+
+    /// The review's B2: every Data unit, by its abbreviation and by its name, to every other
+    /// one, as the GUI's converter converts it.
+    #[test]
+    fn data_units_match_the_gui_converter() {
+        let units = gui_units(Category::Data);
+        assert_eq!(units.len(), 35);
+        for (i, from) in units.iter().enumerate() {
+            for (j, to) in units.iter().enumerate() {
+                for (a, b) in [(from.abbreviation, to.abbreviation), (from.name, to.name)] {
+                    let result = convert("data", "1.5", a, b).unwrap();
+                    assert_eq!(
+                        (result.from.as_str(), result.to.as_str()),
+                        (from.name, to.name),
+                        "{a} -> {b}"
+                    );
+                    assert_eq!(
+                        result.value,
+                        gui_convert(Category::Data, i, j, "1.5"),
+                        "{a} -> {b}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Every unit of every category, by its abbreviation, name and key, to the category's
+    /// first and last unit, as the GUI's converter converts it.
+    #[test]
+    fn every_category_matches_the_gui_converter() {
+        for (category, names) in CATEGORIES {
+            let units = gui_units(category);
+            let value = if category.supports_negative() {
+                "-2.5"
+            } else {
+                "2.5"
+            };
+            for (i, unit) in units.iter().enumerate() {
+                for j in [0, units.len() - 1] {
+                    for name in [unit.abbreviation, unit.name, unit.key] {
+                        let result = convert(names[0], value, name, units[j].abbreviation)
+                            .unwrap_or_else(|error| panic!("{name}: {error}"));
+                        assert_eq!(result.from, unit.name, "{name}");
+                        assert_eq!(result.to, units[j].name);
+                        assert_eq!(result.value, gui_convert(category, i, j, value), "{name}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn byte_and_bit_abbreviations() {
+        let data = |value: &str, from: &str, to: &str| {
+            let result = convert("data", value, from, to).unwrap();
+            (result.from, result.to, result.value)
+        };
+        let owned = |from: &str, to: &str, value: &str| (from.into(), to.into(), value.into());
+        assert_eq!(
+            data("1", "GB", "MiB"),
+            owned("Gigabytes", "Mebibytes", "953.6743")
+        );
+        assert_eq!(
+            data("1", "Gb", "MiB"),
+            owned("Gigabits", "Mebibytes", "119.2093")
+        );
+        assert_eq!(
+            data("1", "GB", "MB"),
+            owned("Gigabytes", "Megabytes", "1000")
+        );
+        assert_eq!(data("1", "Gb", "MB"), owned("Gigabits", "Megabytes", "125"));
+        assert_eq!(data("1", "Mb", "Kb"), owned("Megabits", "Kilobits", "1000"));
+        assert_eq!(data("1", "MB", "Mb"), owned("Megabytes", "Megabits", "8"));
+        assert_eq!(data("1", "KB", "B"), owned("Kilobytes", "Bytes", "1000"));
+        assert_eq!(data("1", "Kb", "b"), owned("Kilobits", "Bits", "1000"));
+        assert_eq!(data("1", "KiB", "B"), owned("Kibibytes", "Bytes", "1024"));
+        assert_eq!(
+            data("1", "TB", "GB"),
+            owned("Terabytes", "Gigabytes", "1000")
+        );
+        assert_eq!(
+            data("1", "Tb", "TB"),
+            owned("Terabits", "Terabytes", "0.125")
+        );
+        assert_eq!(
+            data("1", "TiB", "GiB"),
+            owned("Tebibytes", "Gibibytes", "1024")
+        );
+        assert_eq!(data("1", "kB", "B").2, "1000");
+        assert_eq!(data("1", "Kib", "b").2, "1024");
+        assert_eq!(data("1", "gigabytes", "MiB").2, "953.6743");
+        assert_eq!(data("1", "YB", "b").2, "8.000000e+24");
+        // Without its case, `gb` could be either.
+        let error = convert("data", "1", "gb", "MB").unwrap_err();
+        assert!(error.contains("ambiguous"), "{error}");
+        assert!(error.contains("Gigabits (Gb) or Gigabytes (GB)"), "{error}");
+        assert!(
+            convert("data", "1", "kib", "B")
+                .unwrap_err()
+                .contains("ambiguous")
+        );
+    }
+
+    #[test]
+    fn aliases_name_existing_units() {
+        for &(category, alias, key) in ALIASES {
+            let units = gui_units(category);
+            let i = units
+                .iter()
+                .position(|unit| unit.key == key)
+                .unwrap_or_else(|| panic!("{alias}: no unit {key}"));
+            assert_eq!(find_unit(category, units, alias), Ok(i), "{alias}");
+        }
+    }
+
+    /// The review's I4 (its I5): common names of units the converters have.
+    #[test]
+    fn unit_aliases() {
+        let value = |category: &str, from: &str, to: &str| {
+            let result = convert(category, "1", from, to).unwrap();
+            format!("{} {} = {}", result.from, result.to, result.value)
+        };
+        assert_eq!(
+            value("volume", "gallon", "liter"),
+            "Gallons (US) Liters = 3.785412"
+        );
+        assert_eq!(
+            value("volume", "gallons", "litres"),
+            "Gallons (US) Liters = 3.785412"
+        );
+        assert_eq!(
+            value("volume", "imperial gallon", "L"),
+            "Gallons (UK) Liters = 4.54609"
+        );
+        assert_eq!(
+            value("volume", "cup", "mL"),
+            "Cups (US) Milliliters = 236.5882"
+        );
+        assert_eq!(
+            value("volume", "cups", "ml"),
+            "Cups (US) Milliliters = 236.5882"
+        );
+        assert_eq!(
+            value("volume", "cu ft", "m3"),
+            "Cubic feet Cubic meters = 0.028317"
+        );
+        assert_eq!(
+            value("power", "hp", "W"),
+            "Horsepower (US) Watts = 745.6999"
+        );
+        assert_eq!(
+            value("power", "kw", "horsepower"),
+            "Kilowatts Horsepower (US) = 1.341022"
+        );
+        assert_eq!(
+            value("length", "kilometre", "mile"),
+            "Kilometers Miles = 0.621371"
+        );
+        assert_eq!(value("length", "um", "nm"), "Microns Nanometers = 1000");
+        assert_eq!(value("length", "μm", "nm"), "Microns Nanometers = 1000");
+        assert_eq!(
+            value("area", "m2", "sq ft"),
+            "Square meters Square feet = 10.76391"
+        );
+        assert_eq!(
+            value("area", "km^2", "acre"),
+            "Square kilometers Acres = 247.1054"
+        );
+        assert_eq!(
+            value("speed", "kph", "mph"),
+            "Kilometers per hour Miles per hour = 0.621427"
+        );
+        assert_eq!(
+            value("speed", "knot", "km/h"),
+            "Knots Kilometers per hour = 1.85184"
+        );
+        assert_eq!(value("temperature", "C", "F"), "Celsius Fahrenheit = 33.8");
+        assert_eq!(
+            value("temperature", "degrees celsius", "kelvin"),
+            "Celsius Kelvin = 274.15"
+        );
+        assert_eq!(
+            value("weight", "lbs", "kilo"),
+            "Pounds Kilograms = 0.453592"
+        );
+        assert_eq!(
+            value("weight", "tonne", "short ton"),
+            "Metric tonnes Short tons (US) = 1.102311"
+        );
+        assert_eq!(value("time", "h", "sec"), "Hours Seconds = 3600");
+        assert_eq!(
+            value("energy", "kilowatt hour", "J"),
+            "Kilowatt-hours Joules = 3600000"
+        );
+        assert_eq!(
+            value("pressure", "bar", "psi"),
+            "Bars Pounds per square inch = 14.50377"
+        );
+        assert_eq!(value("angle", "°", "rad"), "Degrees Radians = 0.017453");
+    }
+
+    #[test]
+    fn unknown_units_list_close_matches() {
+        let error = convert("volume", "1", "galon", "L").unwrap_err();
+        assert!(
+            error.starts_with("Unknown unit 'galon' for volume. Close matches: "),
+            "{error}"
+        );
+        assert!(error.contains("Gallons (US) (gal (US))"), "{error}");
+        let error = convert("weight", "1", "ton", "kg").unwrap_err();
+        let close = error.split(" All ").next().unwrap();
+        for unit in ["Short tons (US)", "Long tons (UK)", "Metric tonnes"] {
+            assert!(close.contains(unit), "{error}");
+        }
+        // Units the converters don't have stay errors, and every unit is listed.
+        for (category, unit) in [
+            ("length", "parsec"),
+            ("pressure", "torr"),
+            ("pressure", "hPa"),
+        ] {
+            let error = convert(category, "1", unit, "m").unwrap_err();
+            assert!(
+                error.starts_with(&format!("Unknown unit '{unit}'")),
+                "{error}"
+            );
+        }
+        let error = convert("length", "1", "parsec", "m").unwrap_err();
+        assert!(
+            error.contains("All length units: Angstroms (A), "),
+            "{error}"
+        );
+        assert!(error.contains("Nautical miles (nmi)"), "{error}");
     }
 
     #[test]

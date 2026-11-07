@@ -107,8 +107,11 @@ impl CalcCraft {
         description = "Converts a value between units with the Windows Calculator's unit \
             converters, factors and rounding: volume, length, weight, temperature, energy, \
             area, speed, time, power, data, pressure and angle. Units by English name or \
-            abbreviation (km, mi, °C, GB). Also returns the converter's 'About equal to' \
-            values.",
+            abbreviation (km, mi, °C, gallon, hp, GB); abbreviations are case-sensitive where \
+            it matters: GB, MB, KB are bytes (decimal, KiB MiB GiB binary), Gb, Mb, Kb bits. \
+            Gallons, cups and horsepower are US ones unless named (UK). Only the converters' \
+            own units exist; an unknown name gets the close matches. Also returns the \
+            converter's 'About equal to' values.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
