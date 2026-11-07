@@ -34,6 +34,9 @@ pub(super) const ICON_HIDE: char = '\u{ED1A}';
 pub(super) const ICON_CUT: char = '\u{E8C6}';
 pub(super) const ICON_COPY: char = '\u{E8C8}';
 pub(crate) const ICON_REMOVE: char = '\u{ECC9}';
+/// Dismiss / close cross icon ('X') from Fluent System Icons ("dismiss").
+#[cfg_attr(not(feature = "support-prompt"), allow(dead_code))]
+pub(crate) const ICON_CLOSE: char = '\u{E947}';
 pub(super) const ICON_CALCULATOR: char = '\u{E8EF}';
 /// The Programmer mode in the menu, `</>`.
 pub(super) const ICON_CODE: char = '\u{E943}';

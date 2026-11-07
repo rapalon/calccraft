@@ -2792,6 +2792,32 @@ impl eframe::App for CalculatorApp {
             self.all_scripts = false;
             self.update_fonts(&ctx);
         }
+
+        #[cfg(windows)]
+        if let Ok(out_path) = std::env::var("CALCCRAFT_SCREENSHOT_PATH") {
+            let screenshot_requested = ctx.data(|d| {
+                d.get_temp::<bool>(Id::new("screenshot_requested"))
+                    .unwrap_or(false)
+            });
+            if !screenshot_requested {
+                ctx.data_mut(|d| d.insert_temp(Id::new("screenshot_requested"), true));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                ctx.request_repaint();
+            } else {
+                let image = ctx.input(|i| {
+                    i.events.iter().find_map(|e| match e {
+                        egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                        _ => None,
+                    })
+                });
+                if let Some(image) = image {
+                    if let Ok(png_bytes) = share::png(&image) {
+                        let _ = std::fs::write(&out_path, png_bytes);
+                    }
+                    std::process::exit(0);
+                }
+            }
+        }
     }
 }
 
@@ -3636,7 +3662,7 @@ const NOTO_SANS_MATH: &[u8] = include_bytes!("../assets/fonts/NotoSansMath-Regul
 /// weights where a Segoe UI file is missing), Segoe UI Symbol, the embedded icon font, and the
 /// fonts for scripts that Segoe UI doesn't have (files in the Fonts folder and their index in
 /// a collection).
-fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
+pub(crate) fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
     let dir =
         std::path::PathBuf::from(std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into()))
             .join("Fonts");

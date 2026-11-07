@@ -2,11 +2,12 @@
 
 use eframe::Storage;
 use eframe::egui::{
-    Align2, Color32, CornerRadius, FontId, Id, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2,
+    Align, Align2, Color32, CornerRadius, FontId, Id, Rect, Sense, Stroke, StrokeKind, Ui,
+    UiBuilder, pos2, scroll_area::ScrollArea, text::LayoutJob, vec2,
 };
 
 use crate::app::access;
-use crate::app::icons::{ICON_REMOVE, icon_label};
+use crate::app::icons::{ICON_CLOSE, icon_label};
 use crate::app::palette::Palette;
 use crate::app::strings::tr;
 
@@ -25,6 +26,56 @@ pub enum SupportAction {
     OpenDonateUrl,
 }
 
+/// Helper function to render the green Donate button.
+fn draw_donate_button(
+    ui: &Ui,
+    p: &Palette,
+    painter: &eframe::egui::Painter,
+    rect: Rect,
+) -> (eframe::egui::Response, bool) {
+    let donate_label = tr("CalcCraft.Support.Donate");
+    let donate_resp = access::control(
+        ui,
+        p,
+        rect,
+        Id::new("support-donate"),
+        true,
+        6.0,
+        access::button(true, donate_label),
+    );
+    let donate_hovered = donate_resp.hovered();
+    let donate_pressed = donate_resp.is_pointer_button_down_on();
+
+    let donate_fill = if donate_pressed {
+        Color32::from_rgb(14, 107, 56)
+    } else if donate_hovered {
+        Color32::from_rgb(19, 137, 74)
+    } else {
+        Color32::from_rgb(16, 124, 65)
+    };
+
+    let donate_cr = CornerRadius::same(6);
+    painter.rect_filled(rect, donate_cr, donate_fill);
+    painter.rect_stroke(
+        rect,
+        donate_cr,
+        Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 40)),
+        StrokeKind::Inside,
+    );
+
+    let donate_font = FontId::new(14.0, crate::app::semibold());
+    painter.text(
+        rect.center(),
+        Align2::CENTER_CENTER,
+        donate_label,
+        donate_font,
+        Color32::WHITE,
+    );
+
+    let clicked = donate_resp.clicked();
+    (donate_resp, clicked)
+}
+
 /// Runtime state of the support prompt module.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SupportState {
@@ -37,8 +88,14 @@ pub struct SupportState {
 impl SupportState {
     /// Creates or restores support state from storage.
     pub fn new(storage: Option<&dyn Storage>) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        let is_open = std::env::var("CALCCRAFT_SUPPORT_OPEN")
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or(false);
+        #[cfg(target_arch = "wasm32")]
+        let is_open = false;
         Self {
-            is_open: false,
+            is_open,
             stats: SupportStats::load(storage),
         }
     }
@@ -149,13 +206,81 @@ impl SupportState {
             return SupportAction::None;
         }
 
-        let width = (window_rect.width() * 0.75).clamp(280.0, 520.0);
-        let height = (window_rect.height() * 0.60).clamp(220.0, 360.0);
-        let card_rect = Rect::from_center_size(window_rect.center(), vec2(width, height));
+        // 1. Compute geometry with horizontal padding and text bounds
+        let card_width = (window_rect.width() * 0.78)
+            .clamp(280.0, 480.0)
+            .min((window_rect.width() - 24.0).max(200.0));
+        let h_pad = 24.0;
+        let body_max_width = (card_width - 2.0 * h_pad).max(160.0);
+        let title_max_width = (card_width - 80.0).max(160.0);
 
-        let painter = ui.painter().clone();
+        // Text colors matching the warm amber theme
+        let title_color = if dark {
+            Color32::from_rgb(255, 238, 185)
+        } else {
+            Color32::from_rgb(55, 38, 5)
+        };
+        let body_color = if dark {
+            Color32::from_rgb(225, 210, 180)
+        } else {
+            Color32::from_rgb(95, 75, 45)
+        };
 
-        // 1. Semi-transparent amber card panel
+        // Layout text galleys with centered alignment and wrapping
+        let title_text = tr("CalcCraft.Support.Title");
+        let title_font = FontId::new(19.0, crate::app::semibold());
+        let mut title_job = LayoutJob::simple(
+            title_text.to_string(),
+            title_font,
+            title_color,
+            title_max_width,
+        );
+        title_job.halign = Align::Center;
+        let title_galley = ui.painter().layout_job(title_job);
+        let title_height = title_galley.size().y;
+
+        let body_text_raw = tr("CalcCraft.Support.Body");
+        let body_text_long;
+        #[cfg(not(target_arch = "wasm32"))]
+        let long_env = std::env::var("CALCCRAFT_SUPPORT_LONG_TEXT")
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or(false);
+        #[cfg(target_arch = "wasm32")]
+        let long_env = false;
+        let body_text = if long_env {
+            body_text_long = format!("{body_text_raw} {body_text_raw} {body_text_raw}");
+            body_text_long.as_str()
+        } else {
+            body_text_raw
+        };
+        let body_font = FontId::proportional(13.5);
+        let mut body_job =
+            LayoutJob::simple(body_text.to_string(), body_font, body_color, body_max_width);
+        body_job.halign = Align::Center;
+        let body_galley = ui.painter().layout_job(body_job);
+        let body_height = body_galley.size().y;
+
+        // Content vertical block metrics (Fluent-like spacing: 14 px between title/body, 22 px before button)
+        let spacing_title_body = 14.0;
+        let spacing_body_button = 22.0;
+        let btn_height = 36.0;
+        let btn_width = (card_width * 0.52).clamp(140.0, 200.0);
+
+        let content_height =
+            title_height + spacing_title_body + body_height + spacing_body_button + btn_height;
+
+        // Card height dynamically adapts to content within bounds
+        let v_pad = 28.0;
+        let ideal_card_height = content_height + 2.0 * v_pad;
+        let min_card_height = 200.0;
+        let max_card_height = (window_rect.height() - 32.0).clamp(min_card_height, 520.0);
+        let card_height = ideal_card_height.clamp(min_card_height, max_card_height);
+        let card_rect = Rect::from_center_size(window_rect.center(), vec2(card_width, card_height));
+
+        // Clip all drawing to card_rect so nothing ever renders outside the card
+        let painter = ui.painter().with_clip_rect(card_rect);
+
+        // 2. Semi-transparent amber card panel
         let (panel_fill, panel_stroke) = if dark {
             (
                 Color32::from_rgba_unmultiplied(46, 32, 10, 225),
@@ -171,13 +296,18 @@ impl SupportState {
         painter.rect_filled(card_rect, cr, panel_fill);
         painter.rect_stroke(card_rect, cr, panel_stroke, StrokeKind::Inside);
 
-        // Consume pointer clicks within the card panel bounds so keys beneath aren't accidentally clicked
+        // Consume clicks within the card panel bounds so keys beneath aren't clicked
         ui.interact(card_rect, Id::new("support-card-bg"), Sense::CLICK);
 
-        // 2. Red "X" close icon in top-right corner
+        // 3. Fluent Close "X" button in top-right corner (32x32 hit target, neutral color)
+        let close_size = 32.0;
+        let close_margin = 8.0;
         let close_rect = Rect::from_min_size(
-            pos2(card_rect.right() - 36.0, card_rect.top() + 8.0),
-            vec2(28.0, 28.0),
+            pos2(
+                card_rect.right() - close_size - close_margin,
+                card_rect.top() + close_margin,
+            ),
+            vec2(close_size, close_size),
         );
         let close_name = tr("CalcCraft.Support.Close");
         let close_resp = access::control(
@@ -193,25 +323,27 @@ impl SupportState {
         let close_pressed = close_resp.is_pointer_button_down_on();
 
         if close_pressed {
-            painter.rect_filled(
-                close_rect,
-                CornerRadius::same(4),
-                Color32::from_rgba_unmultiplied(200, 30, 30, 60),
-            );
+            let fill = if dark {
+                Color32::from_white_alpha(45)
+            } else {
+                Color32::from_black_alpha(35)
+            };
+            painter.rect_filled(close_rect, CornerRadius::same(4), fill);
         } else if close_hovered {
-            painter.rect_filled(
-                close_rect,
-                CornerRadius::same(4),
-                Color32::from_rgba_unmultiplied(220, 50, 50, 35),
-            );
+            let fill = if dark {
+                Color32::from_white_alpha(25)
+            } else {
+                Color32::from_black_alpha(20)
+            };
+            painter.rect_filled(close_rect, CornerRadius::same(4), fill);
         }
 
         let close_icon_color = if close_hovered || close_pressed {
-            Color32::from_rgb(235, 45, 45)
+            p.text
         } else {
-            Color32::from_rgb(210, 50, 50)
+            p.text_secondary
         };
-        let close_glyph = painter.layout_job(icon_label(ICON_REMOVE, 14.0));
+        let close_glyph = painter.layout_job(icon_label(ICON_CLOSE, 12.0));
         let glyph_pos = pos2(
             close_rect.center().x - close_glyph.size().x / 2.0,
             close_rect.center().y - close_glyph.size().y / 2.0,
@@ -223,91 +355,206 @@ impl SupportState {
             return SupportAction::Close;
         }
 
-        // 3. Title text ("Please support us!")
-        let title_text = tr("CalcCraft.Support.Title");
-        let title_color = if dark {
-            Color32::from_rgb(255, 238, 185)
+        // 4. Cohesive vertical block layout: Title, Body, Donate button
+        let overflow = content_height + 32.0 > card_rect.height();
+        if !overflow {
+            let extra_v = card_rect.height() - content_height;
+            let block_top = card_rect.top() + (extra_v / 2.0);
+
+            // Title
+            let title_top = block_top;
+            painter.galley(
+                pos2(card_rect.center().x, title_top),
+                title_galley,
+                title_color,
+            );
+
+            // Body
+            let body_top = title_top + title_height + spacing_title_body;
+            painter.galley(
+                pos2(card_rect.center().x, body_top),
+                body_galley,
+                body_color,
+            );
+
+            // Donate button
+            let donate_top = body_top + body_height + spacing_body_button;
+            let donate_rect = Rect::from_min_size(
+                pos2(card_rect.center().x - btn_width / 2.0, donate_top),
+                vec2(btn_width, btn_height),
+            );
+            let (_resp, clicked) = draw_donate_button(ui, p, &painter, donate_rect);
+            if clicked {
+                ui.ctx()
+                    .open_url(eframe::egui::OpenUrl::new_tab(DONATE_URL));
+                return SupportAction::OpenDonateUrl;
+            }
         } else {
-            Color32::from_rgb(55, 38, 5)
-        };
-        let title_font = FontId::new(19.0, crate::app::semibold());
-        painter.text(
-            pos2(card_rect.center().x, card_rect.top() + 38.0),
-            Align2::CENTER_CENTER,
-            title_text,
-            title_font,
-            title_color,
-        );
+            // Content exceeded card height (e.g. tiny window or extreme translation): scroll inside card
+            let scroll_rect = Rect::from_min_max(
+                pos2(card_rect.left() + 8.0, card_rect.top() + 42.0),
+                pos2(card_rect.right() - 8.0, card_rect.bottom() - 12.0),
+            );
+            let mut donate_clicked = false;
+            ui.scope_builder(UiBuilder::new().max_rect(scroll_rect), |ui| {
+                ScrollArea::vertical()
+                    .id_salt("support-card-scroll")
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        ui.spacing_mut().item_spacing.y = 0.0;
+                        let (title_alloc, _) = ui.allocate_exact_size(
+                            vec2(ui.available_width(), title_height),
+                            Sense::hover(),
+                        );
+                        ui.painter().galley(
+                            pos2(title_alloc.center().x, title_alloc.top()),
+                            title_galley,
+                            title_color,
+                        );
 
-        // 4. Friendly body text
-        let body_text = tr("CalcCraft.Support.Body");
-        let body_color = if dark {
-            Color32::from_rgb(225, 210, 180)
-        } else {
-            Color32::from_rgb(95, 75, 45)
-        };
-        let body_font = FontId::proportional(13.5);
-        painter.text(
-            pos2(card_rect.center().x, card_rect.top() + 72.0),
-            Align2::CENTER_TOP,
-            body_text,
-            body_font,
-            body_color,
-        );
+                        ui.add_space(spacing_title_body);
 
-        // 5. Green "Donate" button in the lower part
-        let btn_width = (card_rect.width() * 0.55).clamp(140.0, 220.0);
-        let btn_height = 38.0;
-        let donate_rect = Rect::from_center_size(
-            pos2(card_rect.center().x, card_rect.bottom() - 42.0),
-            vec2(btn_width, btn_height),
-        );
+                        let (body_alloc, _) = ui.allocate_exact_size(
+                            vec2(ui.available_width(), body_height),
+                            Sense::hover(),
+                        );
+                        ui.painter().galley(
+                            pos2(body_alloc.center().x, body_alloc.top()),
+                            body_galley,
+                            body_color,
+                        );
 
-        let donate_label = tr("CalcCraft.Support.Donate");
-        let donate_resp = access::control(
-            ui,
-            p,
-            donate_rect,
-            Id::new("support-donate"),
-            true,
-            6.0,
-            access::button(true, donate_label),
-        );
-        let donate_hovered = donate_resp.hovered();
-        let donate_pressed = donate_resp.is_pointer_button_down_on();
+                        ui.add_space(spacing_body_button);
 
-        let donate_fill = if donate_pressed {
-            Color32::from_rgb(14, 107, 56)
-        } else if donate_hovered {
-            Color32::from_rgb(19, 137, 74)
-        } else {
-            Color32::from_rgb(16, 124, 65)
-        };
-
-        let donate_cr = CornerRadius::same(6);
-        painter.rect_filled(donate_rect, donate_cr, donate_fill);
-        painter.rect_stroke(
-            donate_rect,
-            donate_cr,
-            Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 40)),
-            StrokeKind::Inside,
-        );
-
-        let donate_font = FontId::new(14.0, crate::app::semibold());
-        painter.text(
-            donate_rect.center(),
-            Align2::CENTER_CENTER,
-            donate_label,
-            donate_font,
-            Color32::WHITE,
-        );
-
-        if donate_resp.clicked() {
-            ui.ctx()
-                .open_url(eframe::egui::OpenUrl::new_tab(DONATE_URL));
-            return SupportAction::OpenDonateUrl;
+                        let (btn_alloc, _) = ui.allocate_exact_size(
+                            vec2(ui.available_width(), btn_height),
+                            Sense::hover(),
+                        );
+                        let donate_rect =
+                            Rect::from_center_size(btn_alloc.center(), vec2(btn_width, btn_height));
+                        let (_resp, clicked) =
+                            draw_donate_button(ui, p, &ui.painter().clone(), donate_rect);
+                        if clicked {
+                            donate_clicked = true;
+                        }
+                    });
+            });
+            if donate_clicked {
+                ui.ctx()
+                    .open_url(eframe::egui::OpenUrl::new_tab(DONATE_URL));
+                return SupportAction::OpenDonateUrl;
+            }
         }
 
         SupportAction::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn galley_layout_wrapping() {
+        let ctx = eframe::egui::Context::default();
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let mut job = eframe::egui::text::LayoutJob::simple(
+                "CalcCraft is free and ad-free. Your support helps keep development active."
+                    .to_string(),
+                FontId::proportional(13.5),
+                Color32::WHITE,
+                300.0,
+            );
+            job.halign = eframe::egui::Align::Center;
+            let galley = ui.painter().layout_job(job);
+            assert!(galley.rows.len() >= 2);
+            for row in &galley.rows {
+                let r = row.rect();
+                let center_x = (r.min.x + r.max.x) / 2.0;
+                assert!(
+                    center_x.abs() < 2.0,
+                    "row center {center_x} should be near 0"
+                );
+            }
+        });
+        output.textures_delta.clear();
+    }
+
+    #[test]
+    fn support_popup_wrapping_and_bounds_test() {
+        let ctx = eframe::egui::Context::default();
+        crate::app::setup_fonts(&ctx, &[]);
+        let mut state = SupportState {
+            is_open: true,
+            stats: SupportStats::new(),
+        };
+
+        // Window size ~480 x 600 px
+        let window_size = vec2(480.0, 600.0);
+        let window_rect = Rect::from_min_size(pos2(0.0, 0.0), window_size);
+
+        let p = &crate::app::palette::LIGHT;
+
+        let mut output = ctx.run_ui(
+            eframe::egui::RawInput {
+                screen_rect: Some(window_rect),
+                ..Default::default()
+            },
+            |ui| {
+                state.draw_popup(ui, window_rect, false, p);
+            },
+        );
+        output.textures_delta.clear();
+
+        // Check close button response
+        let close_resp = ctx.read_response(Id::new("support-close")).unwrap();
+        assert!(close_resp.rect.width() >= 32.0);
+        assert!(close_resp.rect.height() >= 32.0);
+
+        // Check donate button response
+        let donate_resp = ctx.read_response(Id::new("support-donate")).unwrap();
+        assert!(donate_resp.rect.width() >= 140.0);
+        assert!(donate_resp.rect.height() >= 36.0);
+
+        // Verify donate button is below close button and within window
+        assert!(donate_resp.rect.top() > close_resp.rect.bottom());
+        assert!(window_rect.contains_rect(close_resp.rect));
+        assert!(window_rect.contains_rect(donate_resp.rect));
+    }
+
+    #[test]
+    fn support_popup_long_text_wrapping_and_confinement() {
+        let ctx = eframe::egui::Context::default();
+
+        // Test artificially long body string (3x the English text)
+        let long_body = "CalcCraft is free and ad-free. Your support helps keep development active. \
+            CalcCraft is free and ad-free. Your support helps keep development active. \
+            CalcCraft is free and ad-free. Your support helps keep development active.";
+
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let card_width = 360.0;
+            let h_pad = 24.0;
+            let body_max_width = card_width - 2.0 * h_pad;
+
+            let mut job = LayoutJob::simple(
+                long_body.to_string(),
+                FontId::proportional(13.5),
+                Color32::WHITE,
+                body_max_width,
+            );
+            job.halign = Align::Center;
+            let galley = ui.painter().layout_job(job);
+
+            // Should wrap into at least 5 lines
+            assert!(
+                galley.rows.len() >= 5,
+                "long body text should wrap into multiple lines"
+            );
+            assert!(
+                galley.size().x <= body_max_width + 1.0,
+                "galley must not exceed text area width"
+            );
+        });
+        output.textures_delta.clear();
     }
 }

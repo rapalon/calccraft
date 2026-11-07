@@ -18,10 +18,20 @@ pub mod support;
 pub fn run() -> eframe::Result {
     use eframe::egui;
 
+    let (w, h) = if let Ok(sz) = std::env::var("CALCCRAFT_WINDOW_SIZE") {
+        if let Some((w, h)) = sz.split_once('x') {
+            (w.parse().unwrap_or(320.0), h.parse().unwrap_or(500.0))
+        } else {
+            (320.0, 500.0)
+        }
+    } else {
+        (320.0, 500.0)
+    };
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("CalcCraft")
-            .with_inner_size([320.0, 500.0])
+            .with_inner_size([w, h])
             .with_min_inner_size(app::MIN_SIZE)
             .with_icon(app::window_icon()),
         // Settings are saved, but the window always opens at the default size.
