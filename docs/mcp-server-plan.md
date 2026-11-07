@@ -1,9 +1,10 @@
 # An MCP server for CalcCraft: pros, cons, use cases and an implementation plan
 
-Branch: `research/mcp-server` · Written: 2026-10-18 · Starting point: `main` at `1567714`
-(v1.3.0) · Status: phases 1–3 (the core crate, the expression front-end and the server with
-six tools) are built and tested on `feature/mcp-server`: see `crates/core`, `crates/mcp` and
-`crates/mcp/README.md`. Phase 4 (packaging) and later are still to do.
+Written: 2026-10-18 · Starting point: `main` at `1567714` (v1.3.0) · Status: phases 1–3 (the
+core crate, the expression front-end and the server with six tools) are built and tested: see
+`crates/core`, `crates/mcp` and `crates/mcp/README.md`. A review found problems, fixed as
+listed in `docs/mcp-fixes.md`; where this plan and the code differ, `crates/mcp/README.md`
+describes what the server does. Phase 4 (packaging) and later are still to do.
 
 ## Summary
 
@@ -40,7 +41,7 @@ outputs are illustrative.
    `0.5`; `calculate {"expression": "0.5!"}` → `0.88622692545275801364908374167057` (√π/2);
    `tan(90)` → the error `Invalid input`, as in Windows, instead of `1.6e16`.
 4. **Programmer questions.** "What is −1 as a 16-bit hex number?", "FF AND 3C?", "rotate
-   0x80000000 left". `programmer {"expression": "FF AND 3C", "radix": "hex", "word": "byte"}`
+   0x80000000 left". `programmer {"expression": "FF AND 3C", "radix": "hex", "word_size": "byte"}`
    → `3C` and its value in DEC, OCT and BIN, with the word size's two's complement.
 5. **Unit conversion with Windows' factors.** `convert_units {"category": "length",
    "value": "5", "from": "km", "to": "mi"}` → `3.106856`, plus "about equal to" values in
@@ -82,8 +83,8 @@ outputs are illustrative.
 - **Stateless tools.** MCP 2026-07-28 has no protocol sessions, and each tool call carries its
   whole input. The calculator's memory and history stay in the app.
 - **SDK:** the official Rust SDK, [`rmcp`](https://github.com/modelcontextprotocol/rust-sdk)
-  3.x (`server`, `macros`, `transport-io`), which supports MCP 2026-07-28 and stays compatible
-  with 2025-11-25. Tools are methods with `#[tool]`, and their parameters derive
+  3.x (`server`, `macros`, `transport-io`). rmcp 3.5 answers a client that asks for
+  2026-07-28 with 2025-11-25, the newest revision it implements. Tools are methods with `#[tool]`, and their parameters derive
   `schemars::JsonSchema`, so the input schemas come from the Rust types.
 - **Every tool:**
   - is annotated `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true` and
@@ -95,17 +96,18 @@ outputs are illustrative.
     a hint, so the agent can correct itself.
 - **Locale-neutral.** Numbers use `.` as the decimal point and dates ISO 8601 in and out,
   whatever the user's region. Unit, category and function names are English.
-- **Limits:** input of at most 512 characters (the paste limit), a time budget of about 2 s per
-  call (factorials, huge powers and the function analysis can be slow) and `catch_unwind`
-  around each call, so no input can hang or crash the server. Logs go to stderr only: stdout
-  belongs to the protocol.
+- **Limits:** input of at most 512 characters (the paste limit), unknown parameters refused,
+  a time budget of 10 s per call that really stops the calculation (a cancellation flag the
+  evaluators check), at most 4 calculations at a time, and each call on a blocking thread
+  whose panic becomes an error, so no input can hang or crash the server. Logs go to stderr
+  only: stdout belongs to the protocol. `crates/mcp/README.md` lists every limit.
 
 ### 4.2 Tools
 
 | Tool | Input | Output | Built on |
 |---|---|---|---|
-| `calculate` | `expression`; `angle`: `degrees` (default, as in Windows), `radians` or `gradians`; `mode`: `scientific` (default) or `standard` | `result` (32 significant digits), `exact` (`p/q` when the result is a short fraction), `expression_line` (Windows' form, such as `sin₀(30)`) | New exact evaluator (section 4.3); `standard` uses the engine's paste path |
-| `programmer` | `expression` in the radix; `radix`: `hex`, `dec`, `oct` or `bin`; `word`: `qword`, `dword`, `word` or `byte` | `hex`, `dec`, `oct` and `bin` values, `expression_line` | `Calculator::programmer()`, its paste rules, and `AND`/`OR`/`XOR`/`NOT`/`NAND`/`NOR`, shifts and rotations mapped to the engine's commands |
+| `calculate` | `expression`; `angle`: `degrees` (default, as in Windows), `radians` or `gradians`; `mode`: `scientific` (default) or `standard` | `result` (32 significant digits), `fraction` (`p/q` when the result is a short exact fraction; no expression line yet) | New exact evaluator (section 4.3); `standard` uses the engine's paste path |
+| `programmer` | `expression` in the radix; `radix`: `hex`, `dec`, `oct` or `bin`; `word_size`: `qword`, `dword`, `word` or `byte` | `hex`, `dec`, `oct` and `bin` values, `expression_line` | `Calculator::programmer()`, its paste rules, and `AND`/`OR`/`XOR`/`NOT`/`NAND`/`NOR`, shifts and rotations mapped to the engine's commands |
 | `convert_units` | `category` (one of the 12), `value`, `from`, `to` (English names or abbreviations) | `value` (Windows' rounding), `about_equal_to` (the "about equal to" list) | `Converter`: `set_category`, `set_unit1`/`set_unit2`, `paste`, `value2`, `suggestions` |
 | `date_difference` | `from`, `to` (ISO dates, 1601–9999) | `years`, `months`, `weeks`, `days`, `total_days`, `description` | `dates::difference`, `days_between`, `describe_difference` |
 | `date_add` | `date`; `years`, `months`, `days` (0–999); `subtract` | `date` (ISO) and `long_date` | `dates::add`, `dates::subtract` |
@@ -139,8 +141,7 @@ An example definition, as `tools/list` would show it:
     "type": "object",
     "properties": {
       "result": { "type": "string" },
-      "exact": { "type": "string" },
-      "expression_line": { "type": "string" }
+      "fraction": { "type": "string" }
     },
     "required": ["result"]
   },
