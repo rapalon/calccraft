@@ -36,7 +36,8 @@ whatever the hour.
                     └────────────────────────────────▶ [Stage 1: red dot] (next cycle)
 
  Donate (popup or menu)  ──▶ pause everything for 180 days, donate_clicked_ever = true
- "I already supported"   ──▶ "Thank you!", pause everything for 365 days
+ "I already supported"   ──▶ "Thank you!", pause everything for 365 days,
+                             supporter state: the menu shows a green thank-you line (2.9)
 ```
 
 ### 2.1 Stage 0: silent
@@ -121,7 +122,38 @@ by `ladder_step`, which goes up by one per complete cycle:
 | "I already supported" | Shown in the popup only when `donate_clicked_ever` is true (until then the popup has just Donate and Close). Secondary style, under Donate. Pressing it shows "Thank you!" for `thank_you_ms` = **1500** ms, closes the popup, and pauses automatic reminders for `already_supported_pause_days` = **365** days. |
 | Popup opened on demand from the menu | Counts as seen: completes the cycle if the dot was active, no penalty. Closing it quickly is no penalty either. Outside an active cycle it changes nothing. |
 
-The on-demand menu button keeps working during every pause.
+The on-demand menu button keeps working during every pause (in the supporter state it is the
+thank-you line, 2.9).
+
+### 2.9 Supporter state
+
+While the pause of "I already supported" runs (`already_supported_pause_days` = **365** days from
+the press, stored as `supporter_until_day`), the user is a **supporter**:
+
+- The amber "Please Support!" button is not in the navigation menu. In its place, at the top of
+  the menu, is one quiet line in green text with a small filled heart from the app's Fluent icon
+  font (`ICON_HEART`, U+EB52, Segoe Fluent Icons' HeartFill): **"Thanks for supporting
+  CalcCraft"** (`CalcCraft.Support.Thanks`). No fill, no outline; a light hover/pressed tint and
+  the usual focus visual.
+- Green: Windows' success green (`SystemFillColorSuccess`), `#0F7B0F` in the light theme and
+  `#6CCB5F` in the dark theme, both above 4.5:1 against the menu's background.
+- The text wraps (never clips) in the narrow menu: the line takes the header's height, and a very
+  long translation gets a smaller font. Without room for any text (under 90 px) only the heart
+  shows, with the text as its tooltip. The menu has no icons-only mode today, so that fallback is
+  defensive.
+- It is a focusable button (`access::control`, accessible name = the thanks text). Click, Enter
+  or Space opens the usual support popup, so a supporter can donate again. Opening it never
+  resets or shortens the 365 days and never counts as a cycle (no cycle runs during the pause). A
+  Donate click from it keeps the longer of the two pauses (`pause_until_day` never moves
+  earlier) and keeps the supporter state.
+- No red dot and no automatic popup (the pause already holds them back).
+- A Donate click alone does **not** make a supporter (the user may not have paid): only
+  "I already supported" does.
+- When the 365 days are over, the amber button is back and the normal cycle resumes at Stage 1
+  (the dot first).
+
+Pure API: `policy::menu_entry(stats, cfg, now) -> MenuEntry` (`SupportButton` or
+`SupporterThanks`).
 
 ---
 
@@ -152,6 +184,8 @@ pub fn evaluate(stats: &SupportStats, cfg: &SupportPolicyConfig, now: Timestamp,
 pub fn on_event(stats: &SupportStats, cfg: &SupportPolicyConfig, event: SupportEvent,
                 now: Timestamp) -> SupportStats;
 pub fn show_already_supported_button(stats: &SupportStats) -> bool;
+pub fn menu_entry(stats: &SupportStats, cfg: &SupportPolicyConfig,
+                  now: Timestamp) -> MenuEntry;                     // SupportButton | SupporterThanks
 ```
 
 `SupportEvent`: `AppLaunched`, `CalculationDone`, `DotShown`, `MenuOpened`, `PopupShown`,
@@ -193,6 +227,7 @@ fields.
 | `next_cycle_day` | the earliest day the next cycle may start |
 | `dot_since_day` | the day the current cycle's dot first showed (empty: no dot) |
 | `pause_until_day` | no automatic reminder before this day (Donate, "I already supported") |
+| `supporter_until_day` | the supporter state (2.9) lasts until this day ("I already supported" + 365; empty: none) |
 | `donate_clicked_ever` | ever clicked Donate (never reset) |
 | `calculations` | successful calculations counted (kept from v1, informational) |
 | `fast` | the record was written in fast mode (6), whose day numbers are minutes |
@@ -231,7 +266,8 @@ $env:CALCCRAFT_SUPPORT_FAST = "1"; .\target\release\calculator.exe
 
 To jump straight to a stage (fast mode only), `CALCCRAFT_SUPPORT_DEMO` makes the user eligible
 and starts in it: `dot`, `menu` (the menu open over the dot), `popup` (opened by itself),
-`popup-supported` (after a Donate click: with "I already supported") or `thanks`.
+`popup-supported` (after a Donate click: with "I already supported"), `thanks`, or `supporter`
+(the supporter state of 2.9, with the menu open on the thank-you line).
 
 Developer-only extra variables: `CALCCRAFT_SUPPORT_OPEN=1` opens the popup at start (v1),
 `CALCCRAFT_SUPPORT_LONG_TEXT=1` triples the body text (layout checks), and the app's
@@ -321,7 +357,7 @@ thin hook calls, each behind `#[cfg(feature = "support-prompt")]`:
 | `support::note_display(ctx, rect)` | where a mode draws its display |
 | `support.draw_menu_badge(ui, rect)` | on the hamburger button |
 | `support.on_menu_opened()` | when the navigation menu opens |
-| `support.draw_menu_button(ui, rect, p)` | in the navigation header; returns true to close the menu |
+| `support.draw_menu_button(ui, rect, p)` | in the navigation header (the amber button, or the thank-you line in the supporter state); returns true to close the menu |
 | `support.draw_overlay(ui, window, p)` | last, over the page |
 
 Files: `policy.rs` (config, decisions, events: pure), `stats.rs` (record and persistence,
@@ -339,6 +375,7 @@ migration), `donate.rs` (URL, `DonationChannel`), `clock.rs` (real and fast time
   hamburger and menu buttons
 - `CalcCraft.Support.AlreadySupported=I already supported`
 - `CalcCraft.Support.ThankYou=Thank you!`
+- `CalcCraft.Support.Thanks=Thanks for supporting CalcCraft` — the supporter state's menu line
 
 The new button goes through `access::control` (Tab, Enter, Space). The popup is non-modal and
 traps no focus.
