@@ -14,6 +14,9 @@ CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
 CalcCraft.Support.Donate=Donate
 CalcCraft.Support.Close=Close
+CalcCraft.Support.Reminder=Support reminder
+CalcCraft.Support.AlreadySupported=I already supported
+CalcCraft.Support.ThankYou=Thank you!
 
 [en-GB]
 CalcCraft.Language=Language

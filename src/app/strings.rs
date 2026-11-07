@@ -520,6 +520,18 @@ mod tests {
             "Please support us!"
         );
         assert_eq!(load("fr-FR").get("CalcCraft.Support.Donate"), "Donate");
+        assert_eq!(
+            load("de-DE").get("CalcCraft.Support.AlreadySupported"),
+            "I already supported"
+        );
+        assert_eq!(
+            load("es-ES").get("CalcCraft.Support.ThankYou"),
+            "Thank you!"
+        );
+        assert_eq!(
+            load("en-US").get("CalcCraft.Support.Reminder"),
+            "Support reminder"
+        );
         assert_eq!(languages().count(), LOCALES.len() - UNSUPPORTED.len());
     }
 

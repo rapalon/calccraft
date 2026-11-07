@@ -60,8 +60,9 @@ Only `last_active_day` and an `active_days` counter are stored, not a list of da
 - A small red dot badge on the hamburger (navigation) button, and, while the menu is open, on the
   "Please Support!" button too.
 - The day the dot first shows in a cycle is stored (`dot_since_day`).
-- Opening the navigation menu while the dot shows counts as **seen**: both dots go away and the
-  cycle is complete (as for a shown popup); the interval starts, even without a Donate click.
+- Opening the navigation menu while the dot shows counts as **seen**: the cycle is complete (as
+  for a shown popup) and the interval starts, even without a Donate click. Both dots stay in the
+  open menu, so the user sees what was meant, and go away when it closes.
 - Opening the popup from the menu button counts as seen too.
 
 ### 2.4 Stage 2: popup
