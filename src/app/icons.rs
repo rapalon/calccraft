@@ -37,6 +37,9 @@ pub(crate) const ICON_REMOVE: char = '\u{ECC9}';
 /// Dismiss / close cross icon ('X') from Fluent System Icons ("dismiss").
 #[cfg_attr(not(feature = "support-prompt"), allow(dead_code))]
 pub(crate) const ICON_CLOSE: char = '\u{E947}';
+/// HeartFill, the support prompt's thank-you line for supporters.
+#[cfg_attr(not(feature = "support-prompt"), allow(dead_code))]
+pub(crate) const ICON_HEART: char = '\u{EB52}';
 pub(super) const ICON_CALCULATOR: char = '\u{E8EF}';
 /// The Programmer mode in the menu, `</>`.
 pub(super) const ICON_CODE: char = '\u{E943}';
