@@ -1,164 +1,341 @@
-# Support Prompt Module Specification
+# Support Prompt Module Specification (v2)
 
-## 1. Purpose & Overview
-CalcCraft is a free, ad-free, open-source calculator project. To support ongoing development without compromising user trust or cluttering the primary calculation interface, this module provides an unobtrusive support mechanism consisting of:
-1. An entry button at the top of the hamburger navigation pane ("Please Support!").
-2. A semi-transparent floating card ("Please support us!") over the main application screen.
-3. A non-intrusive trigger mechanism that presents the support popup every 5th completed calculation.
+## 1. Purpose
 
-The feature is fully gated behind a Cargo feature flag (`support-prompt`, enabled by default) so future paid variants or customized builds can omit it entirely at compile time.
+CalcCraft is free, ad-free and open source. The support prompt asks regular users, rarely and
+politely, to support development. v2 replaces v1's temporary "every 5th calculation" rule with a
+staged policy: people use the app first, then see a soft red dot, and only later a popup, shown
+at a calm moment and never over the result.
 
----
-
-## 2. UI Layout & Visual Styling
-
-### 2.1 Navigation Pane Button
-- **Position:** Placed at the top of the hamburger drawer, directly to the right of the hamburger toggle button (`Id::new("nav-menu")`) and above the scrollable modes list header (`"CALCULATOR"`).
-- **Dimensions:** Width occupies the available header area of the drawer (`~180-220 px`, padding of 8 px on the right), with a standard header button height (`32-36 px`) vertically centered in the 48 px header row.
-- **Styling:**
-  - Distinct rounded pill/card styling (corner radius 8 px).
-  - Amber / warm gold accent background:
-    - **Light theme:** Warm amber surface (`#FDE38C` / `#FFE699`) with high-contrast text (`#4D3100`) and a subtle golden border (`#E5C365`).
-    - **Dark theme:** Deep amber surface (`#593B00` / `#4A3500`) with warm yellow text (`#FFE699`) and subtle amber border (`#7D5300`).
-  - Subtle hover and active feedback matching Fluent design conventions (no harsh text outlines or garish contrast).
-- **Accessibility:** Labeled with localized string `CalcCraft.Support.MenuButton` ("Please Support!"), focusable via `Tab` / `Shift+Tab`, activatable via `Enter` or `Space`.
-- **Action:** Clicking closes the navigation drawer and opens the support popup on the main screen.
-
-### 2.2 Floating Support Popup
-- **Position & Geometry:** Floating panel centered over the main calculator area.
-  - Width: ~75% of window width (bounded between 280 px and 520 px to look great both at narrow 480 px mobile/docked sizes and wide desktop windows).
-  - Height: dynamic, adapts to content (title, wrapped body text, Donate button) within sensible bounds (min ~180-200 px, max bounded by available window height), keeping the block vertically balanced.
-- **Panel Aesthetics:**
-  - Semi-transparent amber panel with rounded corners (12 px corner radius) and a subtle Fluent border (1 px stroke).
-  - **Light theme:** Translucent warm amber surface (`rgba(255, 245, 225, 0.90)` / `Color32::from_rgba_unmultiplied(255, 245, 225, 230)`), border `rgba(225, 195, 130, 0.8)`.
-  - **Dark theme:** Translucent deep amber surface (`rgba(45, 30, 8, 0.88)` / `Color32::from_rgba_unmultiplied(45, 30, 8, 225)`), border `rgba(130, 90, 25, 0.8)`.
-  - The calculator display and keypad remain faintly visible underneath the translucent panel.
-- **Header & Dismissal ("X"):**
-  - Top-right corner hosts a close button displaying the Fluent dismiss / close "X" glyph (`ICON_CLOSE`, `\u{E947}`).
-  - Accessible name: `CalcCraft.Support.Close` ("Close").
-  - Hit target size of at least 32x32 px.
-  - Neutral foreground color fitting both light and dark themes, with a subtle hover/pressed overlay background (consistent with standard Fluent button styling).
-  - Maintains full keyboard focus ring, Tab traversal, Enter/Space activation, and Escape dismiss.
-  - Clicking closes the popup.
-- **Content & Vertical Block Layout:**
-  - Laid out as a cohesive vertical block (title, body, Donate button) with consistent Fluent spacing (e.g. 12–16 px between title and body, 20–24 px before Donate button), vertically centered within the card.
-  - Centered title in semibold font (18-20 pt): `CalcCraft.Support.Title` ("Please support us!"), wrapping onto multiple lines if long.
-  - Brief friendly description text (13-14 pt) in secondary text color:
-    `CalcCraft.Support.Body` ("CalcCraft is free and ad-free. Your support helps keep development active.").
-  - Inner text area narrower than the card (inner horizontal padding of ~20–24 px on each side at 480 px window width) allowing text to wrap onto as many lines as needed with centered horizontal alignment.
-  - Text never overflows or clips outside the card; dynamic height accommodates longer translations (e.g. German, Finnish) gracefully.
-- **Action Button ("Donate"):**
-  - Located in the lower portion of the panel, centered.
-  - Styled as a rounded accent button with Fluent green:
-    - Background: Fluent green (`#107C41`), hover `#13894A`, active `#0E6B38`.
-    - Text: White (`#FFFFFF`), semibold 14 pt.
-  - Accessible name: `CalcCraft.Support.Donate` ("Donate").
-  - Action: Invokes the platform URL handler `ctx.open_url(egui::OpenUrl::new_tab(DONATE_URL))`.
-  - Constant:
-    ```rust
-    // TODO: Owner will confirm the real Stripe page URL.
-    pub const DONATE_URL: &str = "https://rapalon.com/donate";
-    ```
+Everything lives in `src/support/` behind the Cargo feature `support-prompt` (on by default).
+Without the feature, the module, its UI, its strings' use and its stored state disappear at compile
+time, and the build and tests pass (`cargo test --no-default-features`).
 
 ---
 
-## 3. Behaviour & Non-Modality
+## 2. The policy (state machine)
 
-- **Non-modal Interaction:**
-  - The popup does **not** block calculator operation. The calculator controls underneath remain in the Tab order and interactable.
-  - Keyboard input directed at the calculator (digits, arithmetic operators, backspace, etc.) continues to function normally while the popup is visible.
-- **Dismissal & Stacking:**
-  - The popup never stacks; there is only a single instance of `SupportState`. If a trigger fires while the popup is already displayed, it remains open without duplicating.
-  - Pressing `Escape` while the popup is open closes the popup and consumes the `Escape` key (preventing accidental clearing of the current calculator input).
-  - Clicking the "X" button dismisses the popup.
-  - Clicking "Donate" opens the donation webpage in the default browser and leaves or dismisses the popup gracefully.
-- **Open On-Demand:**
-  - Activating the "Please Support!" button in the hamburger menu immediately opens the popup and closes the menu pane.
+Time is injected: the policy never reads a clock. A `Timestamp` has `millis` (wall clock, for the
+seconds-long timers) and `day` (the local calendar day number, for the day-long ones). All "days"
+below are calendar days of the user's local date, so "7 days" means "7 calendar days later",
+whatever the hour.
+
+```
+            launches <= 3                launches >= 4 and active days >= 3
+ [Stage 0: silent] ─────────────────────────────────────────────▶ [Stage 1: red dot]
+                                                                     │        │
+                         menu opened / popup opened from the menu    │        │ dot shown for
+                         ("seen": cycle complete)                    │        │ 7 days unseen
+                    ┌────────────────────────────────────────────────┘        ▼
+                    │                                         [Stage 2: popup may open at
+                    │                                          a calm moment; dot stays]
+                    │                                                         │ popup shown
+                    ▼                                                         ▼
+          [Waiting: interval of the ladder, no dot, no popup] ◀── cycle complete (closed)
+                    │ interval over
+                    └────────────────────────────────▶ [Stage 1: red dot] (next cycle)
+
+ Donate (popup or menu)  ──▶ pause everything for 180 days, donate_clicked_ever = true
+ "I already supported"   ──▶ "Thank you!", pause everything for 365 days
+```
+
+### 2.1 Stage 0: silent
+
+During the first **3** app launches (those before `min_launches`) nothing support-related appears by
+itself: no dot, no popup. The amber "Please Support!" button stays in the navigation menu at all
+times (it is on demand), just without a dot.
+
+### 2.2 Eligibility ("regular users")
+
+The soft stage may start only when both hold:
+
+- `launches >= min_launches` (**4**), and
+- the app was used on at least `min_active_days` (**3**) distinct calendar days. A day is active
+  when at least one successful calculation (section 4) happened on it, by local date.
+
+Only `last_active_day` and an `active_days` counter are stored, not a list of dates.
+
+### 2.3 Stage 1: soft reminder (red dot)
+
+- A small red dot badge on the hamburger (navigation) button, and, while the menu is open, on the
+  "Please Support!" button too.
+- The day the dot first shows in a cycle is stored (`dot_since_day`).
+- Opening the navigation menu while the dot shows counts as **seen**: both dots go away and the
+  cycle is complete (as for a shown popup); the interval starts, even without a Donate click.
+- Opening the popup from the menu button counts as seen too.
+
+### 2.4 Stage 2: popup
+
+- When the dot has shown for `dot_days_before_popup` = **7** days without being seen, the popup
+  may open by itself, but only at a calm moment (2.5). The dot stays until the popup shows.
+- At most **one** automatic popup per app session, never at app start (a calm moment needs a
+  calculation made in this session).
+- Showing the popup completes the cycle and clears the dot.
+
+### 2.5 Calm moment
+
+The owner's key point: never interrupt a calculation in progress. The popup opens by itself only
+when all of these hold:
+
+1. a successful calculation just finished (section 4);
+2. since then there has been no further input (a key press, typed text, a pointer click or tap
+   anywhere in the window, a paste) for `calm_delay_ms` = **3000** ms;
+3. the app is visible and focused: egui's `InputState::focused` and the viewport not
+   `minimized`. On Android and the web this is the same check (eframe reports a backgrounded
+   activity or a hidden tab as unfocused), so the condition is written platform-neutrally;
+4. the mode is Standard, Scientific or Programmer (never converters, date calculation, graphing
+   or the Settings page), and nothing else is open over the calculator: the navigation menu, a
+   history or memory flyout, a context menu, a mode's menu, or the popup itself.
+
+Any input during the wait cancels this opportunity; the next successful calculation starts a new
+wait. The module calls `ctx.request_repaint_after(remaining)` so that the timer fires without
+input.
+
+### 2.6 Placement
+
+The popup never covers the result or the expression line. Every mode's display reports its
+rectangle to the module (`support::note_display`), and the card is anchored below it, at the
+bottom of the window over the memory row and keypad. It stays fully inside the window from the
+320 px minimum and ~480 px up to wide windows (where it keeps its 480 px maximum width, centered
+over the calculator part, left of a docked history panel). If the space under the display is too
+short for the card, its contents scroll inside it rather than move up over the display.
+
+The look is v1's: semi-transparent amber card, green Donate button, Fluent close X. It stays
+non-modal (the calculator keeps working under it), never stacks, and closes with Esc or X.
+
+### 2.7 Cycles and backoff
+
+After a complete cycle (dot seen, or popup shown), the next cycle waits an interval, then starts
+again at Stage 1 (dot first, popup after 7 unseen days). The interval comes from a ladder indexed
+by `ladder_step`, which goes up by one per complete cycle:
+
+`cycle_intervals_days` = **7, 14, 30, 60, 90**, then **90** for every later cycle (the cap).
+
+### 2.8 Reactions
+
+| Reaction | Effect |
+| --- | --- |
+| Automatic popup closed (X or Esc) within `quick_close_ms` = **2000** ms of appearing ("annoyed") | One extra step up the ladder: the wait becomes the next interval (7 → 14 days, …). |
+| Donate clicked (popup or menu popup) | All automatic reminders pause for `donate_pause_days` = **180** days; `donate_clicked_ever = true`, never reset. The popup closes. |
+| "I already supported" | Shown in the popup only when `donate_clicked_ever` is true (until then the popup has just Donate and Close). Secondary style, under Donate. Pressing it shows "Thank you!" for `thank_you_ms` = **1500** ms, closes the popup, and pauses automatic reminders for `already_supported_pause_days` = **365** days. |
+| Popup opened on demand from the menu | Counts as seen: completes the cycle if the dot was active, no penalty. Closing it quickly is no penalty either. Outside an active cycle it changes nothing. |
+
+The on-demand menu button keeps working during every pause.
 
 ---
 
-## 4. Definition of a "Calculation"
+## 3. Configuration: `SupportPolicyConfig`
 
-A calculation is defined strictly and unambiguously as:
-> **A successful evaluation triggered by `=` or `Enter` in Standard, Scientific, or Programmer modes.**
+All thresholds are fields of one struct in `src/support/policy.rs`, with `Default` holding the
+values above, so they can be tuned in one place:
 
-Specifically:
-1. **Trigger source:** The user presses the `=` button on the keypad or presses `=` or `Enter` on the keyboard while in `Mode::Standard`, `Mode::Scientific`, or `Mode::Programmer`.
-2. **Success criterion:** The calculation engine evaluates the command without error (`!calc.has_error()`). If an evaluation results in an error (such as division by zero, overflow, or invalid input), it does **not** count.
-3. **Excluded interactions:**
-   - Raw key presses (typing numbers, intermediate operators like `+`, `-`, `*`, `(`, `)`).
-   - Conversions in unit converters.
-   - Date calculations.
-   - Equation plotting / evaluation in Graphing mode.
-   - Clipboard paste operations that do not submit `=`.
+| Field | Default | Fast mode (6) |
+| --- | --- | --- |
+| `min_launches` | 4 | 2 |
+| `min_active_days` | 3 | 2 |
+| `dot_days_before_popup` | 7 | 7 |
+| `cycle_intervals_days` | [7, 14, 30, 60, 90] (last one repeats) | same |
+| `calm_delay_ms` | 3000 | 3000 |
+| `quick_close_ms` | 2000 | 2000 |
+| `donate_pause_days` | 180 | 180 |
+| `already_supported_pause_days` | 365 | 365 |
+| `thank_you_ms` | 1500 | 1500 |
 
----
+Launches before `min_launches` are the silent stage: launches 1–3, so the 4th may show the dot.
 
-## 5. Storage & Privacy
+### 3.1 The pure API (`src/support/policy.rs`)
 
-All stats are stored locally on the user's machine through the app's existing `eframe::Storage` interface (which maps to the standard application data location on Windows and local storage on web).
+```rust
+pub fn evaluate(stats: &SupportStats, cfg: &SupportPolicyConfig, now: Timestamp,
+                moment: MomentContext) -> SupportDecision;          // Nothing | ShowDot | ShowPopup
+pub fn on_event(stats: &SupportStats, cfg: &SupportPolicyConfig, event: SupportEvent,
+                now: Timestamp) -> SupportStats;
+pub fn show_already_supported_button(stats: &SupportStats) -> bool;
+```
 
-- **No telemetry / No network:** No network requests, analytics, or external calls are ever made by this module.
-- **Keys persisted:**
-  - `SupportCalculationCount`: Total number of successful evaluations (stored as decimal string representing `u64`).
-  - `SupportFirstUsed`: Timestamp of initial launch / first recorded calculation (stored as decimal string representing seconds since Unix epoch).
-  - `SupportPopupShownCount`: Total number of times the support popup has been shown (stored as decimal string representing `u64`).
-
----
-
-## 6. Architecture & Separation of Concerns
-
-The module is housed under `src/support/`:
-- `src/support/stats.rs`: Definition of `SupportStats`, loading from and saving to `eframe::Storage`, and tracking calculation events and first-use timestamps.
-- `src/support/policy.rs`: Pure decision policy defining when to trigger the popup.
-  - Trait `SupportPolicy` with method `fn should_show(&self, stats: &SupportStats, now: Option<u64>) -> bool`.
-  - Default implementation `EveryNCalculations { interval: 5 }`: returns `true` when `stats.calculation_count > 0 && stats.calculation_count % 5 == 0`.
-  - Free pure function `pub fn should_show(stats: &SupportStats, now: Option<u64>) -> bool` allowing drop-in replacement by future formulas without touching UI code.
-- `src/support/view.rs`: State struct `SupportState`, layout metrics, Fluent color palette mapping for amber/green components, and egui drawing routines for the menu button and floating dialog.
-- `src/support/mod.rs`: Module exports and public interface.
+`SupportEvent`: `AppLaunched`, `CalculationDone`, `DotShown`, `MenuOpened`, `PopupShown`,
+`PopupOpenedOnDemand`, `PopupClosed { after_ms, automatic }`, `DonateClicked`,
+`AlreadySupported`. `MomentContext` holds what the calm-moment rule needs: the time of the last
+successful calculation with no input since, whether the app is visible and focused, whether the
+mode is a calculator mode with nothing open over it, and whether an automatic popup was already
+shown this session. The UI only feeds events and draws decisions.
 
 ---
 
-## 7. Feature Flag (`support-prompt`)
+## 4. Definition of a "calculation" (unchanged from v1)
 
-- Configured in `Cargo.toml`:
-  ```toml
-  [features]
-  default = ["support-prompt"]
-  support-prompt = []
-  ```
-- **When enabled (default, free build):** The menu button, floating dialog, calculation counter, and storage hooks are compiled and active.
-- **When disabled (e.g. `cargo check --no-default-features` for a future paid variant):**
-  - The `support` module, UI buttons, popup rendering, calculation tracking, and support strings disappear completely from compilation.
-  - The project compiles cleanly and passes all tests without dead code or compiler warnings.
+A successful evaluation triggered by `=` or `Enter` (keypad button or keyboard) in Standard,
+Scientific or Programmer mode: `Command::Equals` executed and `!has_error()` afterwards. Typing,
+intermediate operators, converters, date calculation, graphing and pastes that don't end in `=`
+don't count. The check is `SupportState::after_command(command, has_error)` in the module; the app
+only calls it after executing a command.
 
 ---
 
-## 8. Localization & Fallback Strategy
+## 5. Storage and privacy
 
-- Strings are integrated into CalcCraft's localized strings file (`locales/calccraft.txt`) under `[en-US]`:
-  - `CalcCraft.Support.MenuButton=Please Support!`
-  - `CalcCraft.Support.Title=Please support us!`
-  - `CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.`
-  - `CalcCraft.Support.Donate=Donate`
-  - `CalcCraft.Support.Close=Close`
-- **Fallback behavior:** The string system's `Strings::get` checks the active language table and falls back to `self.english` if a key is not present in the current locale. Because all 5 keys are present in `[en-US]`, any non-English locale (e.g., German, French, Japanese) will display the English text gracefully without missing key assertions or panics.
+Local only, through the existing `eframe::Storage` (`%APPDATA%\CalcCraft\data\app.ron` on
+Windows, `localStorage` in the browser). No network, no telemetry, no unique or per-install IDs.
+
+One key, `SupportStatsV2`, holds a versioned text record (`v=2;launches=5;active_days=3;…`):
+unknown fields are ignored and missing ones take their defaults, so later versions can add
+fields.
+
+| Field | Meaning |
+| --- | --- |
+| `launches` | app launches counted |
+| `active_days`, `last_active_day` | distinct days with a calculation, and the last one |
+| `first_day` | the day of the first launch (for the coarse days-since-install bucket) |
+| `cycles` | complete cycles |
+| `ladder_step` | index into the interval ladder |
+| `last_cycle_day` | the day the last cycle completed |
+| `next_cycle_day` | the earliest day the next cycle may start |
+| `dot_since_day` | the day the current cycle's dot first showed (empty: no dot) |
+| `pause_until_day` | no automatic reminder before this day (Donate, "I already supported") |
+| `donate_clicked_ever` | ever clicked Donate (never reset) |
+| `calculations` | successful calculations counted (kept from v1, informational) |
+| `fast` | the record was written in fast mode (6), whose day numbers are minutes |
+
+### 5.1 Migration from v1
+
+v1 stored `SupportCalculationCount`, `SupportFirstUsed` (Unix seconds) and
+`SupportPopupShownCount`. When `SupportStatsV2` is missing, they are read (unparsable values
+are ignored, nothing panics) and mapped: the count goes to `calculations`; a user who already
+calculated counts as having used the app on 1 active day; `SupportFirstUsed` becomes `first_day`;
+launches start at 0 (v1 didn't count them). So v1 users go through the silent stage once. The
+v1 keys are removed when v2 is saved.
+
+A record written in fast mode is reset when read in normal mode and the other way around, since
+their day numbers mean different things.
 
 ---
 
-## 9. Future Extension Points (Out of Scope for This Task)
+## 6. Debug / demo mode (fast time)
 
-The architecture is deliberately prepared for future owner enhancements:
-1. **Smarter Frequency Formula:** The `SupportPolicy` trait allows replacing the `n % 5 == 0` rule with exponential backoff (e.g. 5, 20, 50, 100), time-decay formulas, or grace periods based on `stats.first_used`.
-2. **Grace Period After Installation:** Policy check using `stats.first_used` to suppress prompts during the first N days of use.
-3. **Prompt Frequency Ceiling:** Maximum number of automatic prompts per day or per lifetime.
-4. **"Already Supported" Setting:** A future setting or dialog option to disable the automatic trigger permanently for donors.
+So the owner can see the flow without waiting weeks:
 
-*(Note: These extensions are documented as future design targets and are explicitly not implemented in this initial task).*
+```powershell
+$env:CALCCRAFT_SUPPORT_FAST = "1"; .\target\release\calculator.exe
+```
+
+- Active only while `CALCCRAFT_SUPPORT_FAST` is `1` or `true` (desktop and Android; the web
+  version has no environment and never runs in fast mode).
+- One "day" is one minute: day numbers are Unix minutes, so 7 days of dot take 7 minutes and the
+  intervals take 7, 14, 30 … minutes. `CALCCRAFT_SUPPORT_DAY_SECS=10` shortens a day further
+  (to 10 s) for quick checks.
+- The launch thresholds drop (1 silent launch, 2 launches and 2 active "days" for eligibility).
+- The seconds-long timers (calm 3 s, quick close 2 s) stay real.
+- Each Donate prints the final URL to stderr (`support: donate URL …`).
+- Since the stored record is marked `fast`, normal runs start fresh afterwards (5.1).
+
+Developer-only extra variables kept from v1: `CALCCRAFT_SUPPORT_OPEN=1` opens the popup at start
+(screenshots), `CALCCRAFT_SUPPORT_LONG_TEXT=1` triples the body text (layout checks).
 
 ---
 
-## 10. Scope & Verification Target
+## 7. Donate link and Stripe tracking
 
-- **Verified Target:** Windows desktop build (`x86_64-pc-windows-msvc`).
-- **Platforms Not Verified:** Web (WASM), Android, macOS, and Linux targets are deliberately not built or executed in this task per project scope instructions. All code is written using cross-platform abstractions (`eframe::Storage`, `egui::OpenUrl`) to ensure future compatibility across all supported platforms.
+`DONATE_URL` stays the placeholder:
+
+```rust
+// TODO: Owner will confirm the real Stripe page URL.
+pub const DONATE_URL: &str = "https://rapalon.com/donate";
+```
+
+The opened URL is `DONATE_URL` plus query parameters built by the pure function
+`donate_url(base, &DonateContext)` (`src/support/donate.rs`):
+
+| Parameter | Value |
+| --- | --- |
+| `utm_source` | `calccraft` |
+| `utm_medium` | `popup` or `menu` (where Donate was clicked: an automatic popup, or one opened from the menu) |
+| `utm_campaign` | `support` |
+| `utm_content` | `<platform>_<version with dots as dashes>`, e.g. `win_1-3-2` |
+| `client_reference_id` | `cc_<platform>_<version>_<source>_c<cycles>_<bucket>`, e.g. `cc_win_1-3-2_popup_c3_d30-90` |
+
+- Platform: `win`, `mac`, `linux`, `android`, `web`, else `other`. Version: `CARGO_PKG_VERSION`.
+- `c<cycles>`: complete reminder cycles so far, capped at `c10`.
+- Days-since-install bucket from `first_day`: `d0-7`, `d7-30`, `d30-90`, `d90-365`, `d365p`.
+- Every value is sanitized to Stripe's allowed characters (ASCII letters, digits, `-`, `_`) and
+  cut to its limit (150 for UTM values, 200 for `client_reference_id`).
+- Nothing in it identifies a person or an installation: many users share every value.
+
+Example:
+`https://rapalon.com/donate?utm_source=calccraft&utm_medium=popup&utm_campaign=support&utm_content=win_1-3-2&client_reference_id=cc_win_1-3-2_popup_c3_d30-90`
+
+Notes for the owner's setup:
+
+- Stripe Payment Links accept these UTM parameters and `client_reference_id`, which arrives in
+  the `checkout.session.completed` webhook and in the dashboard.
+- If `rapalon.com/donate` redirects to the Stripe Payment Link, the redirect **must forward the
+  query string**, or the parameters are lost.
+- The UTM codes reach the page shown after payment only when the Payment Link's confirmation
+  behaviour is set to "redirect to your website".
+
+---
+
+## 8. Store builds: `DonationChannel`
+
+Google Play and the App Store require their own in-app purchase for tips and paid versions.
+`src/support/donate.rs` defines:
+
+```rust
+pub trait DonationChannel {
+    /// Starts a donation for a Donate click from `source`.
+    fn donate(&self, ctx: &egui::Context, request: &DonateContext);
+}
+pub struct ExternalLink; // opens donate_url(DONATE_URL, request) with ctx.open_url
+```
+
+`SupportState` holds a `Box<dyn DonationChannel>`, `ExternalLink` today. A store build would add
+a `PlayBilling` (Google Play Billing through JNI, next to `src/app/android.rs`) or `StoreKit`
+implementation and pick it in `SupportState::new` under its `cfg`; a "buy the paid version" action
+would be another method of the trait (or a second channel) shown as a popup button. The policy,
+stats and UI stay as they are. Nothing of this is implemented yet: no SDKs.
+
+---
+
+## 9. Integration (module boundary)
+
+All logic, state, UI and strings handling live in `src/support/`. The rest of the app has only
+thin hook calls, each behind `#[cfg(feature = "support-prompt")]`:
+
+| Hook | Where |
+| --- | --- |
+| `SupportState::new(storage)` / `save(storage)` | app creation and `save` |
+| `support.begin_frame(ctx, calculator_mode, covered)` | start of `draw_frame` (input watch, calm timer, Esc, auto open) |
+| `support.after_command(command, has_error)` | after the calculator executes a key |
+| `support::note_display(ctx, rect)` | where a mode draws its display |
+| `support.draw_menu_badge(ui, rect)` | on the hamburger button |
+| `support.on_menu_opened()` | when the navigation menu opens |
+| `support.draw_menu_button(ui, rect, p)` | in the navigation header; returns true to close the menu |
+| `support.draw_overlay(ui, window, p)` | last, over the page |
+
+Files: `policy.rs` (config, decisions, events: pure), `stats.rs` (record and persistence,
+migration), `donate.rs` (URL, `DonationChannel`), `clock.rs` (real and fast time),
+`view.rs` (`SupportState`, drawing), `mod.rs` (exports and hooks).
+
+---
+
+## 10. Strings and accessibility
+
+`locales/calccraft.txt`, `[en-US]` (other languages fall back to English):
+
+- `CalcCraft.Support.MenuButton=Please Support!`, `.Title`, `.Body`, `.Donate`, `.Close` (v1)
+- `CalcCraft.Support.Reminder=Support reminder` — the dot's accessible description on the
+  hamburger and menu buttons
+- `CalcCraft.Support.AlreadySupported=I already supported`
+- `CalcCraft.Support.ThankYou=Thank you!`
+
+The new button goes through `access::control` (Tab, Enter, Space). The popup is non-modal and
+traps no focus.
+
+---
+
+## 11. Verification scope
+
+Built, run and verified on Windows desktop (`x86_64-pc-windows-msvc`) only: `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings` (with and without default features), `cargo test`
+(with and without), `cargo build --release`, and a walk through the whole flow in fast mode. The
+code uses only cross-platform pieces (`eframe::Storage`, `egui::OpenUrl`, `web_time`, chrono's
+local date), but macOS, Linux, Android and the web version are not run in this task.
