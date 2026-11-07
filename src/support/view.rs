@@ -11,7 +11,7 @@ use eframe::egui::{
 };
 
 use crate::app::access;
-use crate::app::icons::{ICON_CLOSE, icon_label};
+use crate::app::icons::{ICON_CLOSE, ICON_HEART, icon_label};
 use crate::app::palette::Palette;
 use crate::app::strings::tr;
 use crate::engine::Command;
@@ -19,7 +19,7 @@ use crate::engine::Command;
 use super::clock::Clock;
 use super::donate::{DonateContext, DonateSource, DonationChannel, ExternalLink, platform};
 use super::policy::{
-    self, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
+    self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
 };
 use super::stats::SupportStats;
 
@@ -134,19 +134,29 @@ impl SupportState {
 
     /// Starts in a stage of the flow (`CALCCRAFT_SUPPORT_DEMO`, fast mode only): `dot`,
     /// `menu` (the menu open over the dot), `popup` (opened by itself), `popup-supported`
-    /// (after a Donate click, with "I already supported") or `thanks`.
+    /// (after a Donate click, with "I already supported"), `thanks`, or `supporter` (the
+    /// supporter state, the menu open on its thank-you line).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    fn start_demo(&mut self, demo: &str) {
+    pub(crate) fn start_demo(&mut self, demo: &str) {
         let stats = &mut self.stats;
         stats.launches = stats.launches.max(self.cfg.min_launches);
         stats.active_days = stats.active_days.max(self.cfg.min_active_days);
         stats.next_cycle_day = None;
         stats.pause_until_day = None;
+        stats.supporter_until_day = None;
         stats.dot_since_day = None;
-        if matches!(demo, "popup-supported" | "thanks") {
+        if matches!(demo, "popup-supported" | "thanks" | "supporter") {
             stats.donate_clicked_ever = true;
         }
-        self.demo_menu = demo == "menu";
+        if demo == "supporter" {
+            self.stats = policy::on_event(
+                &self.stats,
+                &self.cfg,
+                SupportEvent::AlreadySupported,
+                self.clock.now(),
+            );
+        }
+        self.demo_menu = matches!(demo, "menu" | "supporter");
         if matches!(demo, "popup" | "popup-supported" | "thanks") {
             let now = self.now().millis;
             self.popup = Some(OpenPopup {
@@ -354,9 +364,26 @@ impl SupportState {
         describe(ui, id);
     }
 
-    /// The amber "Please Support!" button in the menu's header. Returns true when it was
-    /// pressed: the popup opens and the menu should close.
+    /// The menu's support entry now.
+    pub fn menu_entry(&self) -> MenuEntry {
+        policy::menu_entry(&self.stats, &self.cfg, self.now())
+    }
+
+    /// The amber "Please Support!" button in the menu's header, or the supporter state's
+    /// thank-you line. Returns true when it was pressed: the popup opens and the menu should
+    /// close.
     pub(crate) fn draw_menu_button(&mut self, ui: &mut Ui, rect: Rect, p: &Palette) -> bool {
+        let clicked = match self.menu_entry() {
+            MenuEntry::SupportButton => self.draw_support_button(ui, rect, p),
+            MenuEntry::SupporterThanks => draw_thanks_line(ui, rect, p),
+        };
+        if clicked {
+            self.open_on_demand();
+        }
+        clicked
+    }
+
+    fn draw_support_button(&self, ui: &mut Ui, rect: Rect, p: &Palette) -> bool {
         let dark = dark(ui.ctx());
         let label = tr("CalcCraft.Support.MenuButton");
         let id = Id::new("support-menu-button");
@@ -423,12 +450,7 @@ impl SupportState {
             paint_dot(ui, pos2(rect.right() - 7.0, rect.top() + 7.0));
             describe(ui, id);
         }
-
-        let clicked = response.clicked();
-        if clicked {
-            self.open_on_demand();
-        }
-        clicked
+        response.clicked()
     }
 
     /// The popup, if open, under the display noted in this pass (`note_display`) and inside
@@ -446,6 +468,97 @@ impl SupportState {
             self.handle(ui.ctx(), action);
         }
     }
+}
+
+/// The thank-you line's green: Windows' success green (`SystemFillColorSuccess`), darker on the
+/// light menu and lighter on the dark one, both above 4.5:1 against it.
+const THANKS_LIGHT: Color32 = Color32::from_rgb(15, 123, 15);
+const THANKS_DARK: Color32 = Color32::from_rgb(108, 203, 95);
+/// Narrower than this, the line is only its heart, with the text as a tooltip.
+const THANKS_MIN_TEXT_WIDTH: f32 = 90.0;
+const THANKS_HEART_SIZE: f32 = 14.0;
+const THANKS_PAD: f32 = 8.0;
+const THANKS_GAP: f32 = 6.0;
+
+/// The supporter state's quiet thank-you line in `rect` (the amber button's place): a heart and
+/// the wrapped text in green, no fill or outline. Returns true when it was pressed.
+fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
+    let dark = dark(ui.ctx());
+    let color = if dark { THANKS_DARK } else { THANKS_LIGHT };
+    let label = tr("CalcCraft.Support.Thanks");
+    let heart = ui
+        .painter()
+        .layout_job(icon_label(ICON_HEART, THANKS_HEART_SIZE));
+    // The header around the button's rect has a few points more above and below for two lines.
+    let area = rect.expand2(vec2(0.0, 6.0));
+    let text_width = area.width() - 2.0 * THANKS_PAD - heart.size().x - THANKS_GAP;
+    let text = (area.width() >= THANKS_MIN_TEXT_WIDTH)
+        .then(|| thanks_galley(ui, label, color, text_width, area.height()));
+
+    let control = match &text {
+        Some(text) => {
+            // A long translation grows past the header rather than clip.
+            let height = area.height().max(text.size().y + 4.0);
+            Rect::from_center_size(area.center(), vec2(area.width(), height))
+        }
+        None => Rect::from_center_size(area.center(), vec2(32.0, 32.0).min(area.size())),
+    };
+    let id = Id::new("support-thanks");
+    let response = access::control(ui, p, control, id, true, 6.0, access::button(true, label));
+    let overlay = match (
+        response.is_pointer_button_down_on(),
+        response.hovered(),
+        dark,
+    ) {
+        (true, _, true) => Some(Color32::from_white_alpha(20)),
+        (true, _, false) => Some(Color32::from_black_alpha(18)),
+        (false, true, true) => Some(Color32::from_white_alpha(12)),
+        (false, true, false) => Some(Color32::from_black_alpha(10)),
+        _ => None,
+    };
+    let painter = ui.painter();
+    if let Some(fill) = overlay {
+        painter.rect_filled(control, CornerRadius::same(6), fill);
+    }
+    let heart_size = heart.size();
+    match text {
+        Some(text) => {
+            let x = control.left() + THANKS_PAD;
+            painter.galley(
+                pos2(x, control.center().y - heart_size.y / 2.0),
+                heart,
+                color,
+            );
+            let top = control.center().y - text.size().y / 2.0;
+            painter.galley(pos2(x + heart_size.x + THANKS_GAP, top), text, color);
+            response.clicked()
+        }
+        None => {
+            painter.galley(control.center() - heart_size / 2.0, heart, color);
+            response.on_hover_text(label).clicked()
+        }
+    }
+}
+
+/// The thanks text wrapped at `width`, in the largest of 13, 12 and 11 points that fits in
+/// `height` (else 11, taller).
+fn thanks_galley(ui: &Ui, label: &str, color: Color32, width: f32, height: f32) -> Arc<Galley> {
+    let layout = |size: f32| {
+        let job = LayoutJob::simple(
+            label.to_owned(),
+            FontId::proportional(size),
+            color,
+            width.max(1.0),
+        );
+        ui.painter().layout_job(job)
+    };
+    for size in [13.0, 12.0] {
+        let galley = layout(size);
+        if galley.size().y + 4.0 <= height {
+            return galley;
+        }
+    }
+    layout(11.0)
 }
 
 /// Adds the support reminder to the screen reader description of control `id`.

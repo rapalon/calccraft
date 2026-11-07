@@ -15,7 +15,7 @@ pub mod stats;
 pub mod view;
 
 pub use donate::{DONATE_URL, DonationChannel, ExternalLink, donate_url};
-pub use policy::{SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp};
+pub use policy::{MenuEntry, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp};
 pub use stats::SupportStats;
 pub use view::{SupportState, note_display};
 
@@ -269,6 +269,116 @@ mod tests {
             version = env!("CARGO_PKG_VERSION").replace('.', "-"),
         );
         assert_eq!(url.as_deref(), Some(expected.as_str()));
+    }
+
+    /// A supporter at day 10: "I already supported" was pressed on day 10.
+    fn supporter() -> SupportState {
+        let mut state = regular();
+        state.stats.donate_clicked_ever = true;
+        set_time(&mut state, at(10, 0));
+        state.open_on_demand();
+        state.handle(&Context::default(), PopupAction::AlreadySupported);
+        state.popup = None;
+        state
+    }
+
+    /// A context with the app's fonts (the thank-you line draws an icon).
+    fn fonts_context() -> Context {
+        let ctx = Context::default();
+        crate::app::setup_fonts(&ctx, &[]);
+        ctx
+    }
+
+    /// The menu's support entry drawn at the header's place in a 480 px window, with `events`.
+    fn menu_frame(ctx: &Context, state: &mut SupportState, events: Vec<Event>) -> bool {
+        let window = egui::Rect::from_min_size(pos2(0.0, 0.0), vec2(480.0, 640.0));
+        let mut clicked = false;
+        let mut output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(window),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                state.begin_frame(ui.ctx(), false, true, true);
+                let rect = egui::Rect::from_min_max(pos2(52.0, 8.0), pos2(270.0, 40.0));
+                clicked |= state.draw_menu_button(ui, rect, &crate::app::palette::LIGHT);
+            },
+        );
+        output.textures_delta.clear();
+        clicked
+    }
+
+    fn click_at(pos: egui::Pos2) -> [Vec<Event>; 2] {
+        let button = |pressed| Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        [
+            vec![Event::PointerMoved(pos), button(true)],
+            vec![button(false)],
+        ]
+    }
+
+    #[test]
+    fn supporter_menu_shows_thanks_and_opens_the_popup_without_touching_the_pause() {
+        let ctx = fonts_context();
+        let mut state = supporter();
+        assert_eq!(state.stats.supporter_until_day, Some(375));
+        assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+        let before = state.stats.clone();
+
+        menu_frame(&ctx, &mut state, vec![]);
+        assert!(!state.dot_visible());
+        let [press, release] = click_at(pos2(120.0, 24.0));
+        menu_frame(&ctx, &mut state, press);
+        assert!(menu_frame(&ctx, &mut state, release));
+        assert!(state.is_open());
+        assert!(!state.popup.unwrap().automatic);
+        assert_eq!(state.stats, before, "no cycle, the pause unchanged");
+
+        // Donating again from it keeps the supporter state and the 365 days.
+        state.handle(&ctx, PopupAction::Donate);
+        assert!(!state.is_open());
+        assert_eq!(state.stats.pause_until_day, Some(375));
+        assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+
+        // No dot and no automatic popup during the state, even at a calm moment.
+        for day in [30, 200, 374] {
+            set_time(&mut state, at(day, 0));
+            state.after_command(Command::Equals, false);
+            set_time(&mut state, at(day, 5000));
+            frame(&ctx, &mut state, vec![], false);
+            assert!(!state.dot_visible() && !state.is_open(), "day {day}");
+            assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+        }
+        set_time(&mut state, at(375, 0));
+        frame(&ctx, &mut state, vec![], false);
+        assert_eq!(state.menu_entry(), MenuEntry::SupportButton);
+        assert!(state.dot_visible());
+    }
+
+    #[test]
+    fn supporter_thanks_line_presses_with_the_keyboard() {
+        let ctx = fonts_context();
+        let mut state = supporter();
+        menu_frame(&ctx, &mut state, vec![]);
+        ctx.memory_mut(|m| m.request_focus(egui::Id::new("support-thanks")));
+        menu_frame(&ctx, &mut state, vec![]);
+        assert!(menu_frame(&ctx, &mut state, vec![key(Key::Enter)]));
+        assert!(state.is_open());
+    }
+
+    #[test]
+    fn demo_supporter_opens_the_menu_on_the_thanks_line() {
+        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        state.start_demo("supporter");
+        assert!(state.demo_opens_menu());
+        assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+        assert!(state.stats.donate_clicked_ever);
+        assert!(!state.is_open());
     }
 
     #[test]

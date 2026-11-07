@@ -32,6 +32,8 @@ pub struct SupportStats {
     pub dot_since_day: Option<i64>,
     /// No automatic reminder before this day.
     pub pause_until_day: Option<i64>,
+    /// The supporter state ("I already supported") lasts until this day.
+    pub supporter_until_day: Option<i64>,
     /// Ever clicked Donate (never reset).
     pub donate_clicked_ever: bool,
     pub calculations: u64,
@@ -70,6 +72,7 @@ impl SupportStats {
             next_cycle_day: field(&fields, "next_cycle_day"),
             dot_since_day: field(&fields, "dot_since_day"),
             pause_until_day: field(&fields, "pause_until_day"),
+            supporter_until_day: field(&fields, "supporter_until_day"),
             donate_clicked_ever: field(&fields, "donate_clicked_ever").unwrap_or(false),
             calculations: field(&fields, "calculations").unwrap_or(0),
             popups_shown: field(&fields, "popups_shown").unwrap_or(0),
@@ -85,7 +88,8 @@ impl SupportStats {
         format!(
             "v={VERSION};launches={};active_days={};last_active_day={};first_day={};cycles={};\
              ladder_step={};last_cycle_day={};next_cycle_day={};dot_since_day={};\
-             pause_until_day={};donate_clicked_ever={};calculations={};popups_shown={};fast={}",
+             pause_until_day={};supporter_until_day={};donate_clicked_ever={};calculations={};\
+             popups_shown={};fast={}",
             self.launches,
             self.active_days,
             day(self.last_active_day),
@@ -96,6 +100,7 @@ impl SupportStats {
             day(self.next_cycle_day),
             day(self.dot_since_day),
             day(self.pause_until_day),
+            day(self.supporter_until_day),
             self.donate_clicked_ever,
             self.calculations,
             self.popups_shown,
@@ -200,6 +205,7 @@ pub(crate) mod tests {
             next_cycle_day: Some(20_450),
             dot_since_day: None,
             pause_until_day: Some(20_570),
+            supporter_until_day: Some(20_600),
             donate_clicked_ever: true,
             calculations: 123,
             popups_shown: 2,

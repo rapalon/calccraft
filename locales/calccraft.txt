@@ -17,6 +17,7 @@ CalcCraft.Support.Close=Close
 CalcCraft.Support.Reminder=Support reminder
 CalcCraft.Support.AlreadySupported=I already supported
 CalcCraft.Support.ThankYou=Thank you!
+CalcCraft.Support.Thanks=Thanks for supporting CalcCraft
 
 [en-GB]
 CalcCraft.Language=Language

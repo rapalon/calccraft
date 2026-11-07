@@ -212,17 +212,44 @@ pub fn on_event(
                 s.ladder_step = s.ladder_step.saturating_add(1);
             }
         }
+        // A pause never moves earlier: a supporter donating again from the thank-you line
+        // keeps the rest of the 365 days.
         SupportEvent::DonateClicked => {
             s.donate_clicked_ever = true;
-            s.pause_until_day = Some(now.day + cfg.donate_pause_days);
+            pause_until(&mut s, now.day + cfg.donate_pause_days);
             s.dot_since_day = None;
         }
         SupportEvent::AlreadySupported => {
-            s.pause_until_day = Some(now.day + cfg.already_supported_pause_days);
+            let until = now.day + cfg.already_supported_pause_days;
+            pause_until(&mut s, until);
+            s.supporter_until_day = Some(s.supporter_until_day.map_or(until, |d| d.max(until)));
             s.dot_since_day = None;
         }
     }
     s
+}
+
+fn pause_until(stats: &mut SupportStats, day: i64) {
+    stats.pause_until_day = Some(stats.pause_until_day.map_or(day, |d| d.max(day)));
+}
+
+/// What the top of the navigation menu shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuEntry {
+    /// The amber "Please Support!" button.
+    SupportButton,
+    /// The supporter state's green thank-you line ("I already supported", for 365 days).
+    SupporterThanks,
+}
+
+/// The menu's support entry now. Only "I already supported" makes a supporter: a Donate click
+/// alone may not have ended in a payment.
+pub fn menu_entry(stats: &SupportStats, _cfg: &SupportPolicyConfig, now: Timestamp) -> MenuEntry {
+    if stats.supporter_until_day.is_some_and(|day| now.day < day) {
+        MenuEntry::SupporterThanks
+    } else {
+        MenuEntry::SupportButton
+    }
 }
 
 /// "I already supported" shows only after a Donate click.
@@ -512,6 +539,60 @@ mod tests {
         assert_eq!(s.dot_since_day, None);
         assert_eq!(decide(&s, at(190 + 364)), SupportDecision::Nothing);
         assert_eq!(decide(&s, at(190 + 365)), SupportDecision::ShowDot);
+    }
+
+    fn entry(stats: &SupportStats, day: i64) -> MenuEntry {
+        menu_entry(stats, &cfg(), at(day))
+    }
+
+    #[test]
+    fn supporter_thanks_for_365_days_after_already_supported() {
+        let s = dot(&regular(4), 2);
+        assert_eq!(entry(&SupportStats::default(), 0), MenuEntry::SupportButton);
+        assert_eq!(entry(&s, 2), MenuEntry::SupportButton);
+        // A Donate click alone is no proof of support.
+        let s = apply(&s, SupportEvent::DonateClicked, at(3));
+        for day in [3, 100, 182, 183, 1000] {
+            assert_eq!(entry(&s, day), MenuEntry::SupportButton, "day {day}");
+        }
+        let s = apply(&s, SupportEvent::AlreadySupported, at(10));
+        assert_eq!(s.supporter_until_day, Some(375));
+        for day in [10, 11, 200, 374] {
+            assert_eq!(entry(&s, day), MenuEntry::SupporterThanks, "day {day}");
+            assert_eq!(decide(&s, at(day)), SupportDecision::Nothing, "day {day}");
+        }
+        // Then the button is back and the cycle starts again at Stage 1, the dot.
+        assert_eq!(entry(&s, 375), MenuEntry::SupportButton);
+        assert_eq!(decide(&s, at(375)), SupportDecision::ShowDot);
+        let s = dot(&s, 375);
+        assert_eq!(decide(&s, at(381)), SupportDecision::ShowDot);
+        assert_eq!(decide(&s, at(382)), SupportDecision::ShowPopup);
+    }
+
+    #[test]
+    fn opening_and_donating_from_the_thanks_line_keep_the_pause() {
+        let s = apply(&regular(4), SupportEvent::DonateClicked, at(2));
+        let s = apply(&s, SupportEvent::AlreadySupported, at(10));
+        let before = s.clone();
+        // Opening the popup on demand is no cycle.
+        let s = apply(&s, SupportEvent::PopupOpenedOnDemand, at(20));
+        assert_eq!(s, before);
+        let closed = SupportEvent::PopupClosed {
+            after_ms: 100,
+            automatic: false,
+        };
+        assert_eq!(apply(&s, closed, at(20)), before);
+        // Donating again doesn't shorten the 365 days to 180 from now.
+        let s = apply(&s, SupportEvent::DonateClicked, at(20));
+        assert_eq!(s.pause_until_day, Some(375));
+        assert_eq!(s.supporter_until_day, Some(375));
+        assert_eq!(s.cycles, before.cycles);
+        assert_eq!(entry(&s, 374), MenuEntry::SupporterThanks);
+        // A late Donate still pauses its own 180 days past the supporter state.
+        let s = apply(&s, SupportEvent::DonateClicked, at(300));
+        assert_eq!(s.pause_until_day, Some(480));
+        assert_eq!(entry(&s, 375), MenuEntry::SupportButton);
+        assert_eq!(decide(&s, at(479)), SupportDecision::Nothing);
     }
 
     #[test]
