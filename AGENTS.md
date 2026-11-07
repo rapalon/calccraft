@@ -67,10 +67,13 @@ crates/core/src/         calccraft-core, the engines without UI; the app re-expo
   graphing/plot.rs       views, grid steps, plotting, inequality regions, best fit, tracing
   graphing/analysis.rs   the key graph features (function analysis)
   graphing/exact.rs      exact values (fractions, multiples of π, square roots) for the analysis
+  cancel.rs              a per-thread cancellation flag that the formula evaluator and the analysis
+                         check, so the MCP server can stop a calculation (the app sets none)
   monkey.rs              random key sequences checked against invariants (tests)
-crates/mcp/              calccraft-mcp, the MCP server for AI agents (docs/mcp-server-plan.md):
-                         src/tools.rs (the tools' work, unit tests), src/server.rs (rmcp: schemas,
-                         annotations, a time budget), tests/stdio.rs (the built server over stdio)
+crates/mcp/              calccraft-mcp, the MCP server for AI agents (docs/mcp-server-plan.md,
+                         docs/mcp-fixes.md): src/tools.rs (the tools' work, unit tests),
+                         src/server.rs (rmcp: schemas, annotations, a time budget that cancels),
+                         tests/stdio.rs (the built server over stdio), scripts/repro.mjs
 src/app.rs               egui user interface (custom painting), modes, menu, keyboard, fonts, title bar
 src/app/access.rs        keyboard focus, focus visuals and screen reader names of every control
 src/app/icons.rs         the icons: code points of the embedded icon font, and a test that it has them

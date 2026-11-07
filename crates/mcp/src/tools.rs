@@ -411,14 +411,11 @@ fn type_number(
         } else {
             let max = (1u128 << bits) - 1;
             let in_radix = match base {
-                16 => format!("{max:X}"),
-                8 => format!("{max:o}"),
-                _ => format!("{max:b}"),
+                16 => format!("{max:X} ({max} in dec)"),
+                8 => format!("{max:o} ({max:X} in hex, {max} in dec)"),
+                _ => format!("{max:b} ({max:X} in hex, {max} in dec)"),
             };
-            format!(
-                "{text} doesn't fit into a {word}: in {radix_name} it takes at most {in_radix} \
-                 ({max:X} in hex, {max} in dec)"
-            )
+            format!("{text} doesn't fit into a {word}: in {radix_name} it takes at most {in_radix}")
         }
     };
     // No more digits than the largest value has, so that the value below fits a u128

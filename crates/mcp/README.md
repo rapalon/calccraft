@@ -68,16 +68,16 @@ never crashes or hangs on an input.
 
 | What | Limit | Error |
 | --- | --- | --- |
-| Parameters | only those of the tool's schema (`additionalProperties: false`) | `unknown field 'word', expected one of 'expression', 'radix', 'word_size'` |
+| Parameters | only those of the tool's schema (`additionalProperties: false`) | ``failed to deserialize parameters: unknown field `word`, expected one of `expression`, `radix`, `word_size` `` |
 | `calculate` formula | 512 characters, 100 nesting levels | `The formula is longer than 512 characters …`, `The formula nests too deeply …` |
 | Numbers | the engine's: `Overflow` beyond 10^±9999, `3250!` and more, `Invalid input` for powers too large to hold exactly (`9^9^9`) | Windows' messages |
-| `calculate` in `standard` mode | 512 characters, 100 operands, 16 digits per number (Windows' paste rules) | `Invalid input: … at most 16 digits …` |
-| `programmer` expression | 512 characters; at most 25 open parentheses and pending operations, the engine's (and Windows') own limit | `The expression nests more than 25 levels …` |
-| `programmer` numbers | each must fit the word size: QWORD −9223372036854775808 to 9223372036854775807 in DEC, up to `FFFFFFFFFFFFFFFF` in HEX (any digit count, leading zeros allowed) | `… doesn't fit into a Qword …` |
+| `calculate` in `standard` mode | 512 characters, 100 operands, 16 digits per number (Windows' paste rules) | `Invalid input: … numbers of at most 16 digits (12345678901234567 has 17) …` |
+| `programmer` expression | 512 characters; at most 25 open parentheses and pending operations, the engine's (and Windows') own limit | `The expression nests more than 25 levels of parentheses and pending operations …` |
+| `programmer` numbers | each must fit the word size: −9223372036854775808 to 9223372036854775807 in DEC for a QWORD (−128 to 127 for a BYTE), up to `FFFFFFFFFFFFFFFF` in HEX; leading zeros don't count | `-129 doesn't fit into a BYTE: in DEC it takes -128 to 127` |
 | `convert_units` value | a plain number of at most 15 digits, negative only for temperature, power and angle | `Invalid input: …`, `… can't be negative …` |
 | `date_add` | 0 to 999 years, months and days; dates from 1601-01-01 to 9999-12-31 | `Date out of Bound` |
 | `analyze_function` equation | 2048 characters, the Graphing mode's nesting limits | the Graphing mode's messages |
-| Time | 10 seconds per call, at most 4 calculations at a time (more wait their turn) | `The calculation took longer than 10 seconds …` |
+| Time | 10 seconds per call, at most 4 calculations at a time (more wait their turn) | `The calculation took longer than 10 seconds and was stopped …` |
 
 When a calculation runs out of time, the server stops it: the evaluators check a cancellation
 flag between operations and at every evaluation of the analyzed function, so the thread and
@@ -130,9 +130,16 @@ Use the full path to the built server in each of these.
 cargo test -p calccraft-mcp
 ```
 
-The unit tests in `src/tools.rs` check each tool's results and errors. `tests/stdio.rs`
-starts the built server and speaks MCP to it over stdio with rmcp's own client: the handshake,
-the tool list with its schemas and annotations, a call to every tool, and error results.
+The unit tests in `src/tools.rs` check each tool's results and errors, and compare the
+programmer and unit converter tools with the GUI's engine and converters; those in
+`src/server.rs` check the time budget and the cancellation. `tests/stdio.rs` starts the
+built server and speaks MCP to it over stdio with rmcp's own client: the handshake, the tool
+list with its schemas and annotations, a call to every tool, error results, unknown
+parameters and pathological inputs. Run them with `--release` too: integer overflow behaves
+differently there.
+
+`node scripts/repro.mjs <path to the server>` runs the review's reproduction cases over
+stdio and prints each answer (`docs/mcp-fixes.md`).
 
 ## Status
 

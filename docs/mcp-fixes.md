@@ -107,7 +107,8 @@ Fix:
 
 Tests: `server::tests::a_timeout_stops_the_calculation` (a calculation of about 0.5 s with a
 budget of 20 ms returns the timeout error, and its thread is done well before the
-calculation would have been), `server::tests::the_server_answers_after_a_timeout`,
+calculation would have been), `server::tests::the_server_answers_after_a_timeout` (more
+timeouts than workers, then a normal answer), `server::tests::a_panic_is_an_error`,
 `cancel::tests` in core (a cancelled formula and analysis end at once; without a flag
 nothing changes), and the stdio test `pathological_inputs_answer_quickly` (huge powers,
 factorials and the longest formulas answer with an error or a result within the budget, and
@@ -120,8 +121,9 @@ Before: `programmer {"expression": "-1", "word": "byte"}` silently used a QWORD
 
 Fix: every parameter type has `#[serde(deny_unknown_fields)]`, and its schema says
 `additionalProperties: false`. A call with an unknown field is an `isError` result that names
-it and lists the valid ones: `unknown field 'word', expected one of 'expression', 'radix',
-'word_size'`. The schemas also declare the limits the code checks (`maxLength`, `maximum`).
+it and lists the valid ones: ``failed to deserialize parameters: unknown field `word`, expected
+one of `expression`, `radix`, `word_size` ``. The schemas also declare the limits the code
+checks (`maxLength` 512 and 2048, `maximum` 999).
 
 Tests: `tools::tests::unknown_fields_are_refused` (every tool), and the stdio test
 `unknown_parameters_are_errors_that_name_them` (the review's three cases, and that every
@@ -132,12 +134,15 @@ input schema has `additionalProperties: false`).
 Before: `gallon`, `cup` and `hp` were `Unknown unit`.
 
 Fix: an alias table, only for units the GUI converters have (each alias is checked by a test
-to name an existing unit): `gallon` and `gal` (US), `cup`, `pint`, `quart`, `tsp`, `tbsp`,
-`fl oz` (US; the UK ones by their own names), `hp` and `horsepower` (US), `kph`, `kmh`,
-`knot`, `kB`, `Kibit`, `Mibit` …, `m2`, `ft3` …, `metre`, `litre` and other British spellings,
-`degree`, `celsius`, `tonne` and more. A name that matches nothing is an error that first
-lists up to 5 close matches (by edit distance and by containment), then every unit of the
-category. Units that the converters don't have (parsec, torr, hectopascal …) stay errors.
+to name an existing unit): `gallon` and `gal`, `cup`, `pint`, `quart`, `tsp`, `tbsp`, `fl oz`
+(the US ones; `imperial gallon` and the converter's `(UK)` names for the others), `hp` and
+`horsepower` (US), `kph`, `kmh`, `kt`, `lbs`, `tonne`, `short ton`, `long ton`, `h`, `sec`,
+`kB`, `kbit`, `Kibit`/`Kib`, `Mbit`, `Mibit`/`Mib` … up to yotta, `zettabyte` (the
+converter writes Zeta-), `°` and `gon`. Spellings are normalized: `metre` and `litre`, `m2`,
+`m^2`, `sq ft`, `cu ft`, Greek μ, and plurals. A name that matches nothing is an error that
+first lists up to 5 close matches (by edit distance and by containment), then every unit of
+the category. Units that the converters don't have (parsec, torr, hectopascal …) stay
+errors.
 
 Tests: `tools::tests::unit_aliases` (each alias converts as its unit does),
 `aliases_name_existing_units`, `unknown_units_list_close_matches`.
@@ -168,3 +173,40 @@ merged without conflicts (main's six commits touch `src/app*`, `android/`, `READ
 
 Not done, besides the above: a snapshot test of `tools/list`, a fuzz target for the
 parsers (`cargo-fuzz` needs a nightly toolchain), and packaging (phase 4 of the plan).
+
+## Verification
+
+- `cargo fmt --all --check`; `cargo clippy --all-targets -- -D warnings` and with
+  `--workspace`; `cargo clippy --target wasm32-unknown-unknown -- -D warnings` and with
+  `--workspace --exclude calccraft-mcp`: all clean.
+- `cargo test --workspace`: 336 tests (core 221, MCP 24 + 5 over stdio, app 86), and
+  `cargo test --release -p calccraft-mcp`.
+- `cargo tree -p calculator --target all -i rmcp` (and `schemars`, `serde_json`,
+  `calccraft-mcp`): not in the app's tree, on any target.
+- `cargo deny --workspace check licenses` with `deny.toml` from `feature/license-check`:
+  `licenses ok`. No new crates: the server only uses tokio's `sync` feature now (MIT).
+- The GUI engine's calculations are unchanged: the core gained a read-only getter
+  (`Calculator::pending_operations`), a public `MAX_DEPTH` and the cancellation checks,
+  which find no flag in the app; all of the engine's own and Windows' oracle tests pass.
+
+## After
+
+`repro.mjs` on the release build of the fixes (the debug build gives the same answers, and
+no panic):
+
+| # | Call | Before | After |
+| --- | --- | --- | --- |
+| B1 | `programmer` 44 nines | `999999999999999999` (debug: panic) | `isError`: `… doesn't fit into a QWORD: in DEC it takes -9223372036854775808 to 9223372036854775807` |
+| B1 | `programmer` 2^128 | `3402823669209384634` | `isError`: `… doesn't fit into a QWORD …` |
+| B1 | `programmer` `-9223372036854775808` | `isError` (didn't fit) | `-9223372036854775808` (`8000000000000000`) |
+| B1 | `programmer` `9223372036854775808`, `-9223372036854775809`, hex `10000000000000000` | `isError` | `isError`, with the range |
+| B2 | `1 GB → MiB` | Gigabits → `119.2093` | Gigabytes → `953.6743` |
+| B2 | `1 KB → B`, `1 TB → GB`, `1 Gb → MB` | Kilobits → Bits `1000`, Terabits → Gigabits, Gigabits → Megabits | Kilobytes → Bytes `1000`, Terabytes → Gigabytes `1000`, Gigabits → Megabytes `125` |
+| I1 | `programmer` 24 / 28 / 40 levels | `50331646` / `100663300` / `100663324` | `50331646` / `isError` / `isError` (`… more than 25 levels …`) |
+| I2 | `9^9^9`, `(2^9999)!`, `3248.5!`, 512 characters, `1+1` after them | answers within 4 ms | the same; a call over its budget is now stopped and its thread freed (server tests) |
+| I3 | `"word": "byte"`, `"angles"`, `"extra"` | ignored (QWORD, degrees) | `isError`: ``unknown field `word`, expected one of `expression`, `radix`, `word_size` `` |
+| I4 | `gallon → liter`, `cup → mL`, `hp → W`, `kilometre → mile` | `Unknown unit` | `3.785412`, `236.5882`, `745.6999`, `0.621371` |
+| I4 | `parsec → m` | `Unknown unit` with all units | the same (no such unit) |
+| M1 | `-128` / `-129` in a BYTE | `isError` / `isError` | `-128` (`80`) / `isError` |
+| M2 | standard `12345678901234567 + 1` / `2 + 3 * 4 = =` | "takes only numbers and + - * /" / `80` | "… at most 16 digits (12345678901234567 has 17) …" / `20` |
+| M3 | a line that isn't JSON | no answer, server goes on | the same (rmcp) |
