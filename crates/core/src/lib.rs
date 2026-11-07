@@ -3,6 +3,7 @@
 //! (`converter`), regional formats (`locale`) and the Graphing mode's math (`graphing`).
 //! The app (`calculator`) and the MCP server (`calccraft-mcp`) build on it.
 
+pub mod cancel;
 pub mod converter;
 pub mod dates;
 pub mod engine;

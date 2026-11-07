@@ -58,6 +58,8 @@ pub enum ExpressionError {
     Syntax { message: String, position: usize },
     /// The calculator's own error, with Windows' message (`Cannot divide by zero`, …).
     Calc(CalcError),
+    /// The caller stopped the calculation (`crate::cancel`).
+    Cancelled,
 }
 
 impl ExpressionError {
@@ -67,6 +69,7 @@ impl ExpressionError {
                 format!("{message} (at character {})", position + 1)
             }
             ExpressionError::Calc(error) => error.message().to_string(),
+            ExpressionError::Cancelled => "The calculation was stopped".to_string(),
         }
     }
 }
@@ -419,6 +422,11 @@ impl Parser<'_> {
     }
 
     fn primary(&mut self) -> Result<Value, ExpressionError> {
+        // Every operation needs an operand first, so this stops a calculation between two
+        // of them; none takes more than a few milliseconds.
+        if crate::cancel::cancelled() {
+            return Err(ExpressionError::Cancelled);
+        }
         let Some(token) = self.peek().cloned() else {
             return Err(syntax("The formula ends too early", self.end));
         };

@@ -232,17 +232,29 @@ impl<'a> Fun<'a> {
         }
     }
 
+    // A stopped analysis (`crate::cancel`) sees a function without values, which ends its
+    // searches at once; its caller throws the result away.
+
     fn f(&self, x: f64) -> f64 {
+        if crate::cancel::cancelled() {
+            return f64::NAN;
+        }
         self.e.eval(x, 0.0, &self.env)
     }
 
     fn d1(&self, x: f64) -> f64 {
+        if crate::cancel::cancelled() {
+            return f64::NAN;
+        }
         self.d1
             .as_ref()
             .map_or(f64::NAN, |d| d.eval(x, 0.0, &self.env))
     }
 
     fn d2(&self, x: f64) -> f64 {
+        if crate::cancel::cancelled() {
+            return f64::NAN;
+        }
         self.d2
             .as_ref()
             .map_or(f64::NAN, |d| d.eval(x, 0.0, &self.env))

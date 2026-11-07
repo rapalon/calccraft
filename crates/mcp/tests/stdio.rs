@@ -191,5 +191,85 @@ async fn errors_are_tool_results_the_agent_can_read() {
     );
     let result = call(&client, "calculate", json!({ "expression": "3250!" })).await;
     assert_eq!(error_text(&result), "Overflow");
+
+    // The review's B1: 44 nines wrapped in a release build and panicked in a debug one.
+    let nines = "9".repeat(44);
+    let result = call(&client, "programmer", json!({ "expression": nines })).await;
+    assert!(error_text(&result).contains("doesn't fit into a QWORD"));
+    let result = call(
+        &client,
+        "programmer",
+        json!({ "expression": "340282366920938463463374607431768211456" }),
+    )
+    .await;
+    assert!(error_text(&result).contains("doesn't fit"));
+    // B2: GB is gigabytes.
+    let result = call(
+        &client,
+        "convert_units",
+        json!({ "category": "data", "value": "1", "from": "GB", "to": "MiB" }),
+    )
+    .await;
+    let value = structured(&result);
+    assert_eq!(
+        (&value["from"], &value["value"]),
+        (&json!("Gigabytes"), &json!("953.6743"))
+    );
+    // I1: the review's 28 levels of parentheses.
+    let nested = format!("{}1+1)*2{}", "(".repeat(28), "+1)*2".repeat(27));
+    let result = call(&client, "programmer", json!({ "expression": nested })).await;
+    assert!(error_text(&result).contains("more than 25 levels"));
+    client.cancel().await.unwrap();
+}
+
+/// The review's I2: inputs that could be slow answer within the budget, and the server goes
+/// on answering.
+#[tokio::test]
+async fn pathological_inputs_answer_quickly() {
+    let client = connect().await;
+    let long_sum = format!("1{}", "+1".repeat(255));
+    for (tool, arguments) in [
+        ("calculate", json!({ "expression": "9^9^9" })),
+        ("calculate", json!({ "expression": "7^(2^20)" })),
+        ("calculate", json!({ "expression": "(2^9999)!" })),
+        ("calculate", json!({ "expression": "3248.5!" })),
+        (
+            "calculate",
+            json!({ "expression": vec!["3248.5!"; 60].join("*") }),
+        ),
+        (
+            "calculate",
+            json!({ "expression": "(123456789/987654321)^9999" }),
+        ),
+        (
+            "calculate",
+            json!({ "expression": vec!["asinh(1e-9999)"; 30].join("+") }),
+        ),
+        ("calculate", json!({ "expression": long_sum })),
+        (
+            "calculate",
+            json!({ "expression": format!("{long_sum}+1") }),
+        ),
+        (
+            "calculate",
+            json!({ "expression": "(".repeat(200) + "1" + &")".repeat(200) }),
+        ),
+        ("analyze_function", json!({ "equation": "x^x^x^x^x^x^x^x" })),
+        (
+            "analyze_function",
+            json!({ "equation": vec!["sin(1000x)"; 90].join("+") }),
+        ),
+        ("analyze_function", json!({ "equation": "x".repeat(2049) })),
+        ("programmer", json!({ "expression": "1".repeat(512) })),
+    ] {
+        let start = std::time::Instant::now();
+        let _ = call(&client, tool, arguments.clone()).await;
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(10),
+            "{tool} {arguments}"
+        );
+    }
+    let result = call(&client, "calculate", json!({ "expression": "1+1" })).await;
+    assert_eq!(structured(&result)["result"], "2");
     client.cancel().await.unwrap();
 }

@@ -2,18 +2,30 @@
 //! types), annotations and descriptions. Every tool is read-only and idempotent, and a
 //! calculation error is a tool result marked `isError`, with a message the agent can act on.
 
-use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
+use calccraft_core::cancel;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::{Json, Parameters};
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{ServerHandler, tool, tool_handler, tool_router};
+use tokio::sync::Semaphore;
+use tokio::task::JoinError;
 
 use crate::tools::{self, *};
 
 /// How long one calculation may take: factorials, huge powers and the function analysis
-/// can be slow, and no input should hang the server.
+/// can be slow, and no input should hang the server. The slowest inputs found take about
+/// half a second.
 const BUDGET: Duration = Duration::from_secs(10);
+
+/// How many calculations run at once; more calls wait for their turn, so that a client
+/// can't keep every core busy.
+const WORKERS: usize = 4;
+
+static PERMITS: Semaphore = Semaphore::const_new(WORKERS);
 
 const INSTRUCTIONS: &str = "CalcCraft's calculators, modeled on the Windows Calculator: \
 exact arithmetic with 32 significant digits (calculate), programmer integers in hex, dec, oct \
@@ -23,18 +35,64 @@ function analysis (analyze_function). Use them instead of calculating in your he
 use '.' as the decimal point and no digit groups; dates are YYYY-MM-DD. Errors say what to \
 change.";
 
-/// Runs a tool's work on a blocking thread within `BUDGET`, so that a slow calculation
-/// neither stalls the server nor hangs it, and a panic becomes an error.
+/// Runs a tool's work on a blocking thread within `BUDGET`.
 async fn run<T: Send + 'static>(
     work: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
-    match tokio::time::timeout(BUDGET, tokio::task::spawn_blocking(work)).await {
+    run_within(BUDGET, work).await
+}
+
+/// Runs a tool's work on a blocking thread within `budget`, so that a slow calculation
+/// neither stalls the server nor hangs it, and a panic becomes an error. When the time is
+/// up, the calculation's cancellation flag (`calccraft_core::cancel`) stops it, and this
+/// waits until its thread is free before it answers and lets the next calculation run.
+async fn run_within<T: Send + 'static>(
+    budget: Duration,
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    let _permit = PERMITS.acquire().await.expect("the semaphore stays open");
+    let flag = Arc::new(AtomicBool::new(false));
+    let mut thread = tokio::task::spawn_blocking({
+        let flag = flag.clone();
+        move || cancel::with_flag(flag, work)
+    });
+    let failed = |error: JoinError| {
+        let message = error
+            .try_into_panic()
+            .ok()
+            .and_then(|panic| {
+                panic
+                    .downcast_ref::<&str>()
+                    .map(|text| text.to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+            })
+            .unwrap_or_else(|| "no message".into());
+        eprintln!("calccraft-mcp: a calculation panicked: {message}");
+        Err("The calculation failed: an internal error, logged on the server's stderr".into())
+    };
+    match tokio::time::timeout(budget, &mut thread).await {
         Ok(Ok(result)) => result,
-        Ok(Err(_)) => Err("The calculation failed".into()),
-        Err(_) => Err(format!(
-            "The calculation took longer than {} seconds",
-            BUDGET.as_secs()
-        )),
+        Ok(Err(error)) => failed(error),
+        Err(_) => {
+            flag.store(true, Ordering::Relaxed);
+            let start = Instant::now();
+            let _ = thread.await;
+            eprintln!(
+                "calccraft-mcp: a calculation ran out of its {} ms and was stopped after {} ms \
+                 more",
+                budget.as_millis(),
+                start.elapsed().as_millis()
+            );
+            Err(format!(
+                "The calculation took longer than {} and was stopped: try smaller numbers or a \
+                 shorter expression",
+                if budget >= Duration::from_secs(1) {
+                    format!("{} seconds", budget.as_secs())
+                } else {
+                    format!("{} ms", budget.as_millis())
+                }
+            ))
+        }
     }
 }
 
@@ -196,5 +254,68 @@ impl ServerHandler for CalcCraft {
                     .with_title("CalcCraft"),
             )
             .with_instructions(INSTRUCTIONS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// About half a second in a release build, much more in a debug build: the slowest
+    /// formula found, functions of tiny arguments.
+    fn slow() -> CalculateParams {
+        CalculateParams {
+            expression: vec!["asinh(1e-9999)"; 30].join("+"),
+            angle: AngleUnit::Degrees,
+            mode: CalcMode::Scientific,
+        }
+    }
+
+    /// The review's I2: the timeout dropped the answer, but the thread calculated on.
+    #[tokio::test]
+    async fn a_timeout_stops_the_calculation() {
+        let start = Instant::now();
+        let full = tools::calculate(&slow()).unwrap();
+        let uncancelled = start.elapsed();
+        assert_eq!(full.result, "3.e-9998");
+
+        let start = Instant::now();
+        let error = run_within(Duration::from_millis(20), || tools::calculate(&slow()))
+            .await
+            .unwrap_err();
+        // The answer comes once the thread is free again, long before the calculation
+        // would have ended.
+        let stopped = start.elapsed();
+        assert_eq!(
+            error,
+            "The calculation took longer than 20 ms and was stopped: try smaller numbers or a \
+             shorter expression"
+        );
+        assert!(stopped < uncancelled / 2, "{stopped:?} of {uncancelled:?}");
+    }
+
+    #[tokio::test]
+    async fn the_server_answers_after_a_timeout() {
+        for _ in 0..WORKERS + 2 {
+            let error = run_within(Duration::from_millis(5), || tools::calculate(&slow())).await;
+            assert!(error.unwrap_err().contains("was stopped"));
+        }
+        let params = CalculateParams {
+            expression: "1+1".into(),
+            angle: AngleUnit::Degrees,
+            mode: CalcMode::Scientific,
+        };
+        assert_eq!(
+            run(move || tools::calculate(&params)).await.unwrap().result,
+            "2"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_panic_is_an_error() {
+        let error = run(|| -> Result<(), String> { panic!("a bug") })
+            .await
+            .unwrap_err();
+        assert!(error.starts_with("The calculation failed"), "{error}");
     }
 }
