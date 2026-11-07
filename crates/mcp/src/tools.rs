@@ -86,15 +86,27 @@ pub fn calculate(params: &CalculateParams) -> Result<CalculateResult, String> {
             })
             .map_err(|error| error.message()),
         CalcMode::Standard => {
-            // A final `=` would repeat the last operation.
-            let text = params.expression.trim().trim_end_matches('=');
+            // A final `=` would repeat the last operation, as the key does.
+            let text = params
+                .expression
+                .trim_end_matches(|c: char| c == '=' || c.is_whitespace())
+                .trim_start();
             let mut calc = Calculator::default();
             if !calc.paste(text) {
-                return Err(
-                    "Invalid input: the Standard mode takes only numbers and + - * /, \
-                     as Windows' paste does; use the scientific mode for more"
-                        .into(),
-                );
+                // Which of Windows' paste rules it breaks, where that's easy to tell.
+                let long_number = text
+                    .split(|c: char| !c.is_ascii_digit() && c != '.')
+                    .map(|number| (number, number.chars().filter(char::is_ascii_digit).count()))
+                    .find(|&(_, digits)| digits > 16);
+                let reason = match long_number {
+                    Some((number, digits)) => format!(" ({number} has {digits})"),
+                    None => String::new(),
+                };
+                return Err(format!(
+                    "Invalid input: the Standard mode takes what Windows' paste takes: numbers \
+                     of at most 16 digits{reason}, + - * /, at most 100 numbers and 512 \
+                     characters; use the scientific mode for more digits and functions"
+                ));
             }
             calc.execute(Command::Equals);
             match (calc.error(), calc.copy_text()) {
@@ -1071,6 +1083,33 @@ mod tests {
                 .unwrap_err()
                 .starts_with("Invalid input")
         );
+    }
+
+    /// The review's M2.
+    #[test]
+    fn standard_mode_errors() {
+        let standard = |expression: &str| {
+            calculate(&CalculateParams {
+                expression: expression.into(),
+                angle: AngleUnit::Degrees,
+                mode: CalcMode::Standard,
+            })
+        };
+        // Every final `=` is the end of the formula, not a repeat of the last operation.
+        assert_eq!(standard("2 + 3 * 4 = =").unwrap().result, "20");
+        assert_eq!(standard("2 + 3 * 4==  ").unwrap().result, "20");
+        let error = standard("12345678901234567 + 1").unwrap_err();
+        assert!(
+            error.contains("at most 16 digits (12345678901234567 has 17)"),
+            "{error}"
+        );
+        assert_eq!(
+            standard("1234567890123456 + 1").unwrap().result,
+            "1234567890123457"
+        );
+        let error = standard("sin(30)").unwrap_err();
+        assert!(error.contains("functions"), "{error}");
+        assert!(!error.contains(" has "), "{error}");
     }
 
     fn program(expression: &str, radix: RadixName, word_size: WordName) -> ProgrammerResult {

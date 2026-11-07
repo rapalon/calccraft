@@ -120,7 +120,8 @@ impl CalcCraft {
         description = "Evaluates a formula exactly, as the Windows Calculator's Scientific mode \
             does: operator precedence, 32 significant digits, its error messages \
             ('Cannot divide by zero', 'Invalid input', 'Overflow'). Takes numbers (1.5, 2e-3), \
-            + - * / ^, % or mod (remainder), parentheses, |x|, x!, √x, pi, e, and sin cos tan \
+            + - * / ^, % or mod (the remainder, NOT percent: 200 % 15 is 5, and x % 0 is x, \
+            as in Windows), parentheses, |x|, x!, √x, pi, e, and sin cos tan \
             sec csc cot with their inverses (asin …) and hyperbolic forms (sinh, asinh …), \
             sqrt, cbrt, root(x, n), log (base 10), log(b, x), ln, exp, abs, floor, ceil. \
             Functions need parentheses: sin(30). -2^2 is -4. Returns the value, and the exact \
@@ -144,8 +145,12 @@ impl CalcCraft {
         description = "Integer arithmetic as the Windows Calculator's Programmer mode does it: \
             numbers in hex, dec, oct or bin, a word size of 64, 32, 16 or 8 bits in two's \
             complement, + - * / % (remainder), AND OR XOR NAND NOR NOT, shifts (LSH, RSH or \
-            << >>) and one-bit rotations ROL(x) ROR(x), with the Programmer mode's precedence. \
-            Returns the result in all four radixes.",
+            << >>) and one-bit rotations ROL(x) ROR(x), with the Programmer mode's precedence; \
+            ^ is XOR, there's no power. Each number has to fit the word (-128 to 127 in dec \
+            for a byte, up to FF in hex). Results wrap around in two's complement as in \
+            Windows (FFFFFFFFFFFFFFFF + 1 is 0); a shift by the word size or more is 'Result \
+            not defined'. At most 25 nested parentheses and pending operations. Returns the \
+            result in all four radixes.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
