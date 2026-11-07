@@ -1,0 +1,21 @@
+[package]
+name = "calccraft-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "An MCP server that lets AI agents use CalcCraft's calculators: exact arithmetic, programmer integers, unit conversion, dates and function analysis"
+publish = false
+
+[dependencies]
+calccraft-core = { path = "../core" }
+chrono = { version = "0.4.45", default-features = false, features = ["std"] }
+rmcp = { version = "3.5", features = ["server", "macros", "transport-io"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt", "io-std", "sync", "time"] }
+
+[dev-dependencies]
+# The tests talk to the built server over stdio, as a client.
+rmcp = { version = "3.5", features = ["client", "transport-child-process"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process"] }

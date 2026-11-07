@@ -95,7 +95,7 @@ jobs:
       # CI runs on the same tag in parallel, but nothing stops it from publishing a failing
       # build. The macOS tests run on the runner's own (Apple silicon) build.
       - name: Test
-        run: cargo test --locked
+        run: cargo test --workspace --locked
 
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}

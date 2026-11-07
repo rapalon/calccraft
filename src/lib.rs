@@ -2,14 +2,11 @@
 //! browser; on Android, the system loads this library and calls `android_main`.
 
 mod app;
-mod converter;
-mod dates;
-mod engine;
-mod graphing;
 mod icon;
-mod locale;
-#[cfg(test)]
-mod monkey;
+
+// The engines live in `calccraft-core` (crates/core), shared with the MCP server; these keep
+// their paths in the app (`crate::engine`, …).
+use calccraft_core::{converter, dates, engine, graphing, locale};
 
 /// Runs the app in a window until it is closed.
 #[cfg(not(target_arch = "wasm32"))]

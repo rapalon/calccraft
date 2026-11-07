@@ -14,7 +14,9 @@ jobs:
   check:
     name: fmt, clippy, test (${{ matrix.os }})
     # The app targets Windows (DWM title bar tint, Segoe fonts, the share sheet), and the
-    # releases are built for Linux and macOS too, so CI checks all three.
+    # releases are built for Linux and macOS too, so CI checks all three. `--workspace` takes
+    # in the engines (crates/core) and the MCP server (crates/mcp), whose tests start the
+    # server and talk MCP to it over stdio.
     strategy:
       fail-fast: false
       matrix:
@@ -38,13 +40,13 @@ jobs:
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
 
   web:
     name: web build (wasm32)
@@ -65,7 +67,7 @@ jobs:
           key: wasm32
 
       - name: Clippy (wasm32)
-        run: cargo clippy --target wasm32-unknown-unknown -- -D warnings
+        run: cargo clippy --target wasm32-unknown-unknown --workspace --exclude calccraft-mcp -- -D warnings
 
       # A prebuilt Trunk; it fetches the wasm-bindgen and wasm-opt it needs itself.
       - uses: taiki-e/install-action@v2

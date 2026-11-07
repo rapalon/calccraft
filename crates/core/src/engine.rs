@@ -16,6 +16,7 @@
 //! engine with precedence, a radix and a word size (see `integer.rs`). The Scientific
 //! mode's functions are in `math.rs`.
 
+pub mod expression;
 mod integer;
 mod math;
 #[cfg(test)]
@@ -52,7 +53,7 @@ const MAX_EXPONENT: i64 = 9999;
 const HISTORY_LIMIT: usize = 20;
 const MEMORY_LIMIT: usize = 100;
 /// Deepest nesting of pending operations and of parentheses (`MAXPRECDEPTH`).
-const MAX_DEPTH: usize = 25;
+pub const MAX_DEPTH: usize = 25;
 /// Paste limits from Windows' `CopyPasteManager`.
 const MAX_PASTE_LENGTH: usize = 512;
 const MAX_PASTE_OPERANDS: usize = 100;
@@ -1056,6 +1057,14 @@ impl Calculator {
     /// How many parentheses are open (the `(` counter of the Scientific mode).
     pub fn open_parentheses(&self) -> usize {
         self.paren_stack.len()
+    }
+
+    /// How many entries the precedence stack holds: the operations waiting for a tighter
+    /// one, and a mark for each open parenthesis. At `MAX_DEPTH`, as in Windows, the engine
+    /// ignores a `(` or an operator that needs room, as the keys do; a caller that types a
+    /// whole formula checks this first instead of calculating with a part of it left out.
+    pub fn pending_operations(&self) -> usize {
+        self.precedence_stack.len()
     }
 
     pub fn memory(&self) -> &[Number] {
