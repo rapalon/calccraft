@@ -36,6 +36,10 @@ pub struct SupportStats {
     pub supporter_until_day: Option<i64>,
     /// Ever clicked Donate (never reset).
     pub donate_clicked_ever: bool,
+    /// Share clicks (informational).
+    pub shares: u32,
+    /// `cycles` at the last Share that moved the ladder: one extra step per cycle.
+    pub last_share_cycle: Option<u32>,
     pub calculations: u64,
     pub popups_shown: u32,
     /// Written in fast mode, whose day numbers are minutes.
@@ -74,6 +78,8 @@ impl SupportStats {
             pause_until_day: field(&fields, "pause_until_day"),
             supporter_until_day: field(&fields, "supporter_until_day"),
             donate_clicked_ever: field(&fields, "donate_clicked_ever").unwrap_or(false),
+            shares: field(&fields, "shares").unwrap_or(0),
+            last_share_cycle: field(&fields, "last_share_cycle"),
             calculations: field(&fields, "calculations").unwrap_or(0),
             popups_shown: field(&fields, "popups_shown").unwrap_or(0),
             fast: field(&fields, "fast").unwrap_or(false),
@@ -89,7 +95,7 @@ impl SupportStats {
             "v={VERSION};launches={};active_days={};last_active_day={};first_day={};cycles={};\
              ladder_step={};last_cycle_day={};next_cycle_day={};dot_since_day={};\
              pause_until_day={};supporter_until_day={};donate_clicked_ever={};calculations={};\
-             popups_shown={};fast={}",
+             popups_shown={};fast={};shares={};last_share_cycle={}",
             self.launches,
             self.active_days,
             day(self.last_active_day),
@@ -105,6 +111,8 @@ impl SupportStats {
             self.calculations,
             self.popups_shown,
             self.fast,
+            self.shares,
+            day(self.last_share_cycle.map(i64::from)),
         )
     }
 
@@ -207,6 +215,8 @@ pub(crate) mod tests {
             pause_until_day: Some(20_570),
             supporter_until_day: Some(20_600),
             donate_clicked_ever: true,
+            shares: 2,
+            last_share_cycle: Some(3),
             calculations: 123,
             popups_shown: 2,
             fast: false,
@@ -230,6 +240,8 @@ pub(crate) mod tests {
         assert_eq!(stats.launches, 4);
         assert_eq!(stats.cycles, 0);
         assert!(!stats.donate_clicked_ever);
+        // A record from before the share action has no share fields.
+        assert_eq!((stats.shares, stats.last_share_cycle), (0, None));
         assert_eq!(SupportStats::parse("v=3;launches=4"), None);
         assert_eq!(SupportStats::parse("garbage"), None);
         let mut storage = MemoryStorage::default();
