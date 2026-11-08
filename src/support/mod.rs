@@ -265,7 +265,7 @@ mod tests {
             })
         });
         let expected = format!(
-            "https://rapalon.com/donate?utm_source=calccraft&utm_medium=menu&utm_campaign=support\
+            "https://rapalon.com/calccraft/donate?utm_source=calccraft&utm_medium=menu&utm_campaign=support\
              &utm_content={platform}_{version}&client_reference_id=cc_{platform}_{version}_menu_c0_d0-7",
             platform = donate::platform(),
             version = env!("CARGO_PKG_VERSION").replace('.', "-"),

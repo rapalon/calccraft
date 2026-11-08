@@ -289,11 +289,12 @@ $env:CALCCRAFT_WINDOW_SIZE = "480x640"; $env:CALCCRAFT_SCREENSHOT_PATH = "$PWD\p
 
 ## 7. Donate link and Stripe tracking
 
-`DONATE_URL` stays the placeholder:
+`DONATE_URL` is CalcCraft's own page on rapalon.com (support links are per product). The site
+redirects it to CalcCraft's Stripe payment link, so the target changes in one place without an
+app release, and campaigns stay trackable:
 
 ```rust
-// TODO: Owner will confirm the real Stripe page URL.
-pub const DONATE_URL: &str = "https://rapalon.com/donate";
+pub const DONATE_URL: &str = "https://rapalon.com/calccraft/donate";
 ```
 
 The opened URL is `DONATE_URL` plus query parameters built by the pure function
@@ -315,13 +316,13 @@ The opened URL is `DONATE_URL` plus query parameters built by the pure function
 - Nothing in it identifies a person or an installation: many users share every value.
 
 Example:
-`https://rapalon.com/donate?utm_source=calccraft&utm_medium=popup&utm_campaign=support&utm_content=win_1-3-2&client_reference_id=cc_win_1-3-2_popup_c3_d30-90`
+`https://rapalon.com/calccraft/donate?utm_source=calccraft&utm_medium=popup&utm_campaign=support&utm_content=win_1-3-2&client_reference_id=cc_win_1-3-2_popup_c3_d30-90`
 
 Notes for the owner's setup:
 
 - Stripe Payment Links accept these UTM parameters and `client_reference_id`, which arrives in
   the `checkout.session.completed` webhook and in the dashboard.
-- If `rapalon.com/donate` redirects to the Stripe Payment Link, the redirect **must forward the
+- `rapalon.com/calccraft/donate` redirects to the Stripe Payment Link, the redirect **must forward the
   query string**, or the parameters are lost.
 - The UTM codes reach the page shown after payment only when the Payment Link's confirmation
   behaviour is set to "redirect to your website".
@@ -410,7 +411,6 @@ One universal URL for every platform (the page picks the right download, and can
 an app release):
 
 ```rust
-// TODO: Owner will confirm the real page (the CalcCraft section of the Rapalon site).
 pub const SHARE_URL: &str = "https://rapalon.com/calccraft";
 ```
 
