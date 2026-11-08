@@ -46,8 +46,8 @@ own `NOT_STARTED` entry.
 | **Phase 5: Date Calculation** | 4 | 4 | 0 | 0 | 0 |
 | **Phase 6: Unit Conversion (13 categories)** | 14 | 13 | 0 | 0 | 1 |
 | **Phase 7: Graphing Calculator** | 6 | 6 | 0 | 0 | 0 |
-| **Phase 8: Application Shell, UX & Accessibility** | 11 | 10 | 0 | 1 | 0 |
-| **TOTAL** | **67** | **65** | **0** | **1** | **1** |
+| **Phase 8: Application Shell, UX & Accessibility** | 12 | 11 | 0 | 1 | 0 |
+| **TOTAL** | **68** | **66** | **0** | **1** | **1** |
 
 *Last updated: 2026-10-16 (CalcCraft 1.0.0)*
 
@@ -1240,8 +1240,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
     right of the text, or under it in cards narrower than 476 px.
-  - The lists start with "Use system setting", then the 50 languages or Windows' regional
-    formats (those egui can draw that use the Gregorian calendar) by their own names
+  - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
+    that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
     (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
     card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
   - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat`.
@@ -1294,6 +1294,37 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   nor shaping (`epaint`'s text layout has a TODO for both). The strings are imported already;
   `strings::UNSUPPORTED` keeps these languages out until egui can draw them.
 
+#### `FEAT-SHELL-012` Support Prompt Module (`support-prompt`)
+- **Status:** `[x] COMPLETED`
+- **Priority:** `P2`
+- **Depends On:** `FEAT-SHELL-001`
+- **Windows ref:** N/A (CalcCraft open-source support prompt)
+- **Rust:** `src/support/`, `docs/support-prompt.md`
+- **Description:** Non-modal floating "Please support us!" popup and an amber navigation header button,
+  with the staged v2 policy: silent for the first 3 launches; for regular users (4+ launches, 3+
+  active days) a red dot on the menu button; after 7 days unseen, a popup at a calm moment (3 s
+  after a successful `=` without input, app focused, calculator mode) under the display. Intervals
+  7/14/30/60/90 days, an extra step after a quick close, pauses after Donate (180 days) and
+  "I already supported" (365 days). Gated behind Cargo feature flag `support-prompt` (enabled by default).
+- **Acceptance Criteria:**
+  - Amber "Please Support!" button in the navigation drawer header opens the popup at any time.
+  - The red dot shows on the hamburger and, in the open menu, on the support button; opening the
+    menu counts as seen and starts the next interval. The dot has a screen reader description.
+  - The popup never opens at start, while typing, in converters, date calculation or graphing, or
+    more than once per session, and never covers the result or expression line.
+  - Semi-transparent amber card floats over the calculator without blocking keyboard typing.
+  - Dismissible via close button ("X") or Escape key.
+  - "Donate" opens `DONATE_URL` with Stripe UTM parameters and a coarse `client_reference_id`.
+  - "I already supported" shows only after a Donate click, thanks, and pauses reminders.
+  - Supporter state: for the 365 days after "I already supported" the menu shows a quiet green
+    line, "Supported by you" followed by a green heart, instead of the amber button; it wraps in
+    narrow menus, is a focusable button that opens the popup without touching the pause, and the
+    button returns after the 365 days. A Donate click alone doesn't make a supporter.
+  - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
+  - `CALCCRAFT_SUPPORT_FAST=1` demo mode (a day is a minute).
+  - Compiles cleanly and tests pass with `--no-default-features`.
+- **Differences:** Windows Calculator has no support prompt.
+
 ---
 
 ## 5. Agent Quick-Check Commands
@@ -1328,3 +1359,7 @@ Windows source in `../win-calculator`.
 | 2026-10-16 | Claude Code | `FEAT-GRAPH-001`–`FEAT-GRAPH-006` | Finished Phase 7 (CalcCraft 0.9.0): the Graphing mode. `src/graphing.rs` parses the equations (implicit multiplication, variables, functions without parentheses, Windows' syntax errors) and sorts them into y = f(x), x = g(y) and implicit relations, also as inequalities; `src/graphing/plot.rs` samples functions (broken at asymptotes), traces implicit curves by marching squares, marks inequality regions, fits the view and snaps the tracer; `src/graphing/analysis.rs` and `exact.rs` find the key graph features with exact values, per period for periodic functions. The UI (`src/app/graphing_view.rs`, `graph_canvas.rs`, `graphing_keypad.rs`) follows `GraphingCalculator.xaml`, `EquationInputArea.xaml`, `GraphingNumPad.xaml`, `KeyGraphFeaturesPanel.xaml` and `GraphingSettings.xaml`, with 152 new strings in 60 languages; the share button opens the Windows share sheet (`src/app/share.rs`). Updated `FEAT-SHELL-001` and `FEAT-SHELL-010` (`Alt+3`) |
 | 2026-10-16 | Claude Code | ALL | Prepared CalcCraft 1.0.0. The icons are a subset of Microsoft's Fluent System Icons built into the executable (`assets/fonts/CalcCraftIcons.ttf`, made by `tools/icon-font.py` at Windows' Segoe Fluent Icons code points, `src/app/icons.rs`), and Inter, also built in, replaces Segoe UI where it's missing; the text fallbacks for a missing icon font are gone. Reviewed every module and fixed: a power that hung the app (`1.00000000000000001^(1e40+.5)`), pastes that lost a sign (`-0.05`), kept going after an error or turned F-E off; equations that crashed (deep nesting) or froze (huge derivatives) the Graphing mode, wrong ranges and periods in the function analysis, `ax = 3` read as f(x), the x = g(y) view; a click into a Graph options box that moved the view, Esc closing two things, stale plots after a region change, variables outside their slider, drop-downs off the window, `G6` formatting; the keyboard flash that repainted forever, shortcuts in keep-on-top, keys reaching the keypad under the history and memory flyouts or the converters under the menu, `Alt` chords that typed, the expression line in keep-on-top, re-pressed radix and word size keys, `E` for `exp`; noisy large "About equal to" values, mixed calendar eras, multi-character separators, th-TH's picker pattern. The Settings page's contribute sentence is translated (`CalcCraft.Contribute`). CI and releases cover Windows, Linux and macOS (x64) |
 | 2026-10-17 | Claude Code | ALL | Added the web version (branch `feature/web-version`, `docs/web-version-plan.md`): the app compiles to WebAssembly and runs in the browser with eframe's `WebRunner` on a canvas (`index.html`, Trunk), with the browser's languages and `Intl` formats, `?lang=`/`?region=`, the async clipboard for Paste, Share as a `graph.png` download, browser shortcuts kept from the browser, keep on top hidden (`src/app/web.rs`). CI builds it, and `pages.yml` deploys it to GitHub Pages on release tags |
+| 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Implemented support prompt module (`src/support/`, `docs/support-prompt.md`) gated behind `support-prompt` Cargo feature: amber header button in navigation drawer, non-modal semi-transparent floating card, trigger on every 5th completed calculation, local persistence, keyboard accessibility, and fallback localization |
+| 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Polished support popup: wrapped body text inside inner area with horizontal padding, cohesive vertical block layout with dynamic card height, and replaced close button with Fluent 'X' dismiss glyph (`ICON_CLOSE`) |
+| 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
+| 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |

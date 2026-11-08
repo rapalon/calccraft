@@ -9,6 +9,15 @@ CalcCraft.Language=Language
 CalcCraft.LanguageDescription=Select which language to display
 CalcCraft.RegionalFormat=Regional format
 CalcCraft.Contribute=To learn how you can contribute to CalcCraft, check out the project on %1.
+CalcCraft.Support.MenuButton=Please Support!
+CalcCraft.Support.Title=Please support us!
+CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
+CalcCraft.Support.Donate=Donate
+CalcCraft.Support.Close=Close
+CalcCraft.Support.Reminder=Support reminder
+CalcCraft.Support.AlreadySupported=I already supported
+CalcCraft.Support.ThankYou=Thank you!
+CalcCraft.Support.Thanks=Supported by you
 
 [en-GB]
 CalcCraft.Language=Language

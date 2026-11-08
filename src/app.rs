@@ -1,6 +1,6 @@
 //! User interface styled after the Windows 11 calculator, in a dark or light theme.
 
-mod access;
+pub(crate) mod access;
 #[cfg(target_os = "android")]
 pub(crate) mod android;
 mod converter_view;
@@ -8,13 +8,13 @@ mod date_view;
 mod graph_canvas;
 mod graphing_keypad;
 mod graphing_view;
-mod icons;
-mod palette;
+pub(crate) mod icons;
+pub(crate) mod palette;
 mod programmer_view;
 mod region;
 mod scientific_view;
 mod share;
-mod strings;
+pub(crate) mod strings;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
@@ -86,8 +86,8 @@ const KEY_FLASH: f64 = 0.1;
 const NAVIGATION_OPEN: &str = "Open Navigation";
 const NAVIGATION_CLOSE: &str = "Close Navigation";
 
-const REPOSITORY_URL: &str = "https://github.com/gavrilov/calccraft";
-const FEEDBACK_URL: &str = "https://github.com/gavrilov/calccraft/issues";
+const REPOSITORY_URL: &str = "https://github.com/rapalon/calccraft";
+const FEEDBACK_URL: &str = "https://github.com/rapalon/calccraft/issues";
 /// Storage key and values of the theme choice, the same as Windows uses.
 const THEME_KEY: &str = "SelectedAppTheme";
 /// Storage key of the mode the app was closed in, the same as Windows uses
@@ -586,6 +586,8 @@ pub struct CalculatorApp {
     settings_popup: Option<SettingsPopup>,
     /// What was typed into an open Settings drop-down to find an item, and when.
     type_ahead: (String, f64),
+    #[cfg(feature = "support-prompt")]
+    pub(crate) support: crate::support::SupportState,
 }
 
 impl CalculatorApp {
@@ -597,6 +599,12 @@ impl CalculatorApp {
             .and_then(|storage| storage.get_string(THEME_KEY))
             .and_then(|key| Theme::from_key(&key))
             .unwrap_or(Theme::System);
+        // For screenshots of both themes: `CALCCRAFT_THEME=Light` or `Dark` (Windows' keys).
+        #[cfg(not(target_arch = "wasm32"))]
+        let theme = std::env::var("CALCCRAFT_THEME")
+            .ok()
+            .and_then(|key| Theme::from_key(&key))
+            .unwrap_or(theme);
         cc.egui_ctx.set_theme(theme.preference());
         // A stored language or region, or `None` for the Windows setting.
         let choice = |key: &str| {
@@ -672,11 +680,17 @@ impl CalculatorApp {
             all_scripts: false,
             settings_popup: None,
             type_ahead: (String::new(), 0.0),
+            #[cfg(feature = "support-prompt")]
+            support: crate::support::SupportState::new(cc.storage),
         };
         // Like Windows (`MainPage.OnNavigatedTo`), open the mode the app was closed in, the
         // way the menu switches to it: a calculator's engine takes the memory and becomes
         // the one `engine()` returns.
         app.set_mode(mode);
+        #[cfg(feature = "support-prompt")]
+        if app.support.demo_opens_menu() {
+            app.flyout = Flyout::Navigation;
+        }
         app
     }
 
@@ -993,9 +1007,18 @@ impl CalculatorApp {
         }
     }
 
+    /// Tells the support prompt about a key the calculator executed.
+    #[cfg(feature = "support-prompt")]
+    pub(crate) fn check_calculation_trigger(&mut self, command: Command) {
+        let has_error = self.engine().has_error();
+        self.support.after_command(command, has_error);
+    }
+
     fn press(&mut self, command: Command, now: f64) {
         self.engine_mut().execute(command);
         self.key_flash = Some((command, now));
+        #[cfg(feature = "support-prompt")]
+        self.check_calculation_trigger(command);
     }
 
     fn is_flashing(&self, command: Command, now: f64) -> bool {
@@ -1172,6 +1195,9 @@ impl CalculatorApp {
             self.toggle_flyout(Flyout::Navigation);
             self.opened_from(&ctx, Id::new("menu"));
         }
+        #[cfg(feature = "support-prompt")]
+        self.support
+            .draw_menu_badge(ui, icon_button(rect.left() + 24.0), Id::new("menu"));
 
         let title = ui.painter().text(
             pos2(rect.left() + 48.0, y),
@@ -1250,6 +1276,8 @@ impl CalculatorApp {
         base_size: f32,
         center_y: f32,
     ) {
+        #[cfg(feature = "support-prompt")]
+        crate::support::note_display(ui.ctx(), rect);
         let p = self.palette;
         let painter = ui.painter();
         let right = rect.right() - 12.0;
@@ -1437,6 +1465,8 @@ impl CalculatorApp {
                 flash,
             ) {
                 self.calc.execute(command);
+                #[cfg(feature = "support-prompt")]
+                self.check_calculation_trigger(command);
             }
         }
     }
@@ -1940,6 +1970,24 @@ impl CalculatorApp {
         let label = icon_label(ICON_MENU, 16.0);
         let id = Id::new("nav-menu");
         let mut close = self.button(ui, menu, id, Kind::Subtle, true, label, NAVIGATION_CLOSE);
+
+        #[cfg(feature = "support-prompt")]
+        {
+            self.support.draw_menu_badge(ui, menu, id);
+            let button_rect = Rect::from_min_max(
+                pos2(
+                    menu.right() + 8.0,
+                    panel.top() + (HEADER_HEIGHT - 32.0) / 2.0,
+                ),
+                pos2(
+                    panel.right() - 10.0,
+                    panel.top() + (HEADER_HEIGHT + 32.0) / 2.0,
+                ),
+            );
+            if self.support.draw_menu_button(ui, button_rect, p) {
+                close = true;
+            }
+        }
 
         // The modes in two groups. They scroll between the header and Settings
         // when the window is too short for all of them.
@@ -2710,6 +2758,8 @@ impl eframe::App for CalculatorApp {
             self.graphing.match_app_theme.to_string(),
         );
         self.window_sizes.save(storage);
+        #[cfg(feature = "support-prompt")]
+        self.support.save(storage);
     }
 
     /// On Android: the system bars' part of the screen as egui's safe area, and the back
@@ -2753,6 +2803,32 @@ impl eframe::App for CalculatorApp {
             self.all_scripts = false;
             self.update_fonts(&ctx);
         }
+
+        #[cfg(windows)]
+        if let Ok(out_path) = std::env::var("CALCCRAFT_SCREENSHOT_PATH") {
+            let screenshot_requested = ctx.data(|d| {
+                d.get_temp::<bool>(Id::new("screenshot_requested"))
+                    .unwrap_or(false)
+            });
+            if !screenshot_requested {
+                ctx.data_mut(|d| d.insert_temp(Id::new("screenshot_requested"), true));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                ctx.request_repaint();
+            } else {
+                let image = ctx.input(|i| {
+                    i.events.iter().find_map(|e| match e {
+                        egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                        _ => None,
+                    })
+                });
+                if let Some(image) = image {
+                    if let Ok(png_bytes) = share::png(&image) {
+                        let _ = std::fs::write(&out_path, png_bytes);
+                    }
+                    std::process::exit(0);
+                }
+            }
+        }
     }
 }
 
@@ -2760,6 +2836,13 @@ impl CalculatorApp {
     /// Handles the keyboard and draws the page.
     fn draw_frame(&mut self, ui: &mut Ui, ctx: &Context) {
         let ctx = ctx.clone();
+        #[cfg(feature = "support-prompt")]
+        self.support.begin_frame(
+            &ctx,
+            self.page != Page::Settings && self.mode.is_calculator(),
+            self.popup_covers() || self.flyout != Flyout::None,
+            self.flyout == Flyout::Navigation,
+        );
         self.handle_mode_keys(&ctx);
         match self.mode {
             _ if self.page == Page::Settings => self.handle_keyboard(&ctx),
@@ -2784,6 +2867,8 @@ impl CalculatorApp {
             self.draw_header(ui, header);
             self.draw_graphing_mode(ui, full, header.bottom());
             self.draw_graphing_popups(ui);
+            #[cfg(feature = "support-prompt")]
+            self.draw_support_popup(ui, full);
             if self.flyout == Flyout::Navigation {
                 self.draw_navigation(ui, full);
             }
@@ -2798,6 +2883,8 @@ impl CalculatorApp {
             } else {
                 self.draw_converter_mode(ui, full, header.bottom());
             }
+            #[cfg(feature = "support-prompt")]
+            self.draw_support_popup(ui, full);
             if self.flyout == Flyout::Navigation {
                 self.draw_navigation(ui, full);
             }
@@ -2840,6 +2927,8 @@ impl CalculatorApp {
             } else {
                 self.draw_scientific_popups(ui);
             }
+            #[cfg(feature = "support-prompt")]
+            self.draw_support_popup(ui, full);
             if self.flyout == Flyout::Navigation {
                 self.draw_navigation(ui, full);
             }
@@ -2907,9 +2996,16 @@ impl CalculatorApp {
         if let Some(dock) = dock {
             self.draw_dock(ui, dock);
         }
+        #[cfg(feature = "support-prompt")]
+        self.draw_support_popup(ui, full);
         if self.flyout == Flyout::Navigation {
             self.draw_navigation(ui, full);
         }
+    }
+
+    #[cfg(feature = "support-prompt")]
+    fn draw_support_popup(&mut self, ui: &mut Ui, full: Rect) {
+        self.support.draw_overlay(ui, full, self.palette);
     }
 }
 
@@ -2921,7 +3017,7 @@ fn numbers() -> &'static crate::locale::NumberFormat {
     &region::formats().numbers
 }
 
-fn semibold() -> FontFamily {
+pub(crate) fn semibold() -> FontFamily {
     FontFamily::Name("semibold".into())
 }
 
@@ -3578,7 +3674,7 @@ const NOTO_SANS_MATH: &[u8] = include_bytes!("../assets/fonts/NotoSansMath-Regul
 /// weights where a Segoe UI file is missing), Segoe UI Symbol, the embedded icon font, and the
 /// fonts for scripts that Segoe UI doesn't have (files in the Fonts folder and their index in
 /// a collection).
-fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
+pub(crate) fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
     let dir =
         std::path::PathBuf::from(std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into()))
             .join("Fonts");
@@ -5110,5 +5206,169 @@ mod tests {
         );
         assert_eq!(sizes.leave_compact(&frame(larger, wayland.clone())), full);
         assert_eq!(sizes.enter_compact(&frame(full, wayland)), larger);
+    }
+
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_state_persists_and_counts_launches() {
+        let mut storage = MemoryStorage::default();
+        storage.0.insert(LANGUAGE_KEY.into(), "en-US".into());
+        let mut app = start(&storage);
+        assert_eq!(app.support.stats.launches, 1);
+        app.support.stats.donate_clicked_ever = true;
+        eframe::App::save(&mut app, &mut storage);
+
+        let reopened = start(&storage);
+        assert_eq!(reopened.support.stats.launches, 2);
+        assert!(reopened.support.stats.donate_clicked_ever);
+    }
+
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_counts_successful_equals_in_the_calculator_modes() {
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        let calculate = |app: &mut CalculatorApp, a, b| {
+            app.press(Command::Digit(a), 0.0);
+            app.press(Command::Operator(Op::Add), 0.0);
+            app.press(Command::Digit(b), 0.0);
+            app.press(Command::Equals, 0.0);
+        };
+        calculate(&mut app, 2, 2);
+        assert_eq!(app.support.stats.calculations, 1);
+        // An error isn't a calculation.
+        app.press(Command::Digit(1), 0.0);
+        app.press(Command::Operator(Op::Divide), 0.0);
+        app.press(Command::Digit(0), 0.0);
+        app.press(Command::Equals, 0.0);
+        assert!(app.engine().has_error());
+        assert_eq!(app.support.stats.calculations, 1);
+        app.press(Command::Clear, 0.0);
+
+        app.set_mode(Mode::Scientific);
+        calculate(&mut app, 3, 3);
+        assert_eq!(app.support.stats.calculations, 2);
+        app.set_mode(Mode::Programmer);
+        calculate(&mut app, 4, 1);
+        assert_eq!(app.support.stats.calculations, 3);
+        // Many calculations on one day are one active day.
+        assert_eq!(app.support.stats.active_days, 1);
+    }
+
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_popup_is_non_modal_and_escape_closes_it() {
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        app.support.open_on_demand();
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        assert!(app.support.is_open());
+
+        // The calculator keeps working under it.
+        run(&ctx, &mut app, MIN_SIZE, vec![Event::Text("5+5=".into())]);
+        assert_eq!(app.engine().display(), "10");
+        assert!(app.support.is_open());
+
+        run(
+            &ctx,
+            &mut app,
+            MIN_SIZE,
+            vec![key(Key::Escape, Modifiers::NONE)],
+        );
+        assert!(!app.support.is_open(), "Escape closes the popup");
+        assert_eq!(
+            app.engine().display(),
+            "10",
+            "and doesn't clear the display"
+        );
+    }
+
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_menu_button_opens_popup_and_close_button_dismisses() {
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        app.flyout = Flyout::Navigation;
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        run(
+            &ctx,
+            &mut app,
+            MIN_SIZE,
+            vec![screen_reader_click(Id::new("support-menu-button"))],
+        );
+        assert!(app.support.is_open(), "the menu button opens the popup");
+        assert!(app.flyout == Flyout::None, "and closes the menu");
+        // Before any Donate click there is no "I already supported".
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        assert!(ctx.read_response(Id::new("support-donate")).is_some());
+        assert!(ctx.read_response(Id::new("support-already")).is_none());
+
+        run(
+            &ctx,
+            &mut app,
+            MIN_SIZE,
+            vec![screen_reader_click(Id::new("support-close"))],
+        );
+        assert!(!app.support.is_open(), "the close button closes it");
+
+        // After a Donate click it is there.
+        app.support.stats.donate_clicked_ever = true;
+        app.support.open_on_demand();
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        assert!(ctx.read_response(Id::new("support-already")).is_some());
+    }
+
+    /// The popup lies under the display, inside the window, in every calculator mode.
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_popup_never_covers_the_display() {
+        for size in [MIN_SIZE, vec2(480.0, 640.0), vec2(1200.0, 900.0)] {
+            for mode in [Mode::Standard, Mode::Scientific, Mode::Programmer] {
+                let ctx = Context::default();
+                let mut app = start_in(&ctx);
+                app.set_mode(mode);
+                app.support.stats.donate_clicked_ever = true;
+                app.support.open_on_demand();
+                run(&ctx, &mut app, size, vec![]);
+                run(&ctx, &mut app, size, vec![]);
+                let display = ctx
+                    .data(|d| d.get_temp::<(Rect, u64)>(Id::new("support-display")))
+                    .unwrap()
+                    .0;
+                let window = Rect::from_min_size(Pos2::ZERO, size);
+                for id in ["support-close", "support-donate", "support-already"] {
+                    let rect = ctx.read_response(Id::new(id)).unwrap().rect;
+                    assert!(
+                        rect.top() >= display.bottom(),
+                        "{id} at {rect:?} over the display {display:?} ({mode:?}, {size:?})"
+                    );
+                    assert!(
+                        window.contains_rect(rect),
+                        "{id} {rect:?} ({mode:?}, {size:?})"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The red dot on the hamburger has a screen reader description.
+    #[cfg(feature = "support-prompt")]
+    #[test]
+    fn support_dot_is_described() {
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        app.support.stats.launches = 9;
+        app.support.stats.active_days = 9;
+        ctx.enable_accesskit();
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        assert!(app.support.dot_visible());
+        let nodes = accesskit_nodes(&ctx, &mut app, MIN_SIZE);
+        let menu = nodes
+            .iter()
+            .find(|(id, _)| *id == Id::new("menu").accesskit_id())
+            .map(|(_, node)| node)
+            .unwrap();
+        assert_eq!(menu.description(), Some("Support reminder"));
     }
 }

@@ -576,6 +576,8 @@ impl CalculatorApp {
             };
             if self.button_flash(ui, cell, key_id(i), kind, enabled, label, name, flash) {
                 self.scientific.calc.execute(command);
+                #[cfg(feature = "support-prompt")]
+                self.check_calculation_trigger(command);
                 // The second functions turn `2nd` off again (`ShiftButton_Uncheck`).
                 if second {
                     self.scientific.shift = false;
