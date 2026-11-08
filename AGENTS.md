@@ -27,8 +27,11 @@ and the user-facing changes that are welcome are the ones that bring the app clo
 **Definition of done:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
 `cargo test` and the web version's `cargo clippy --target wasm32-unknown-unknown -- -D warnings`
 all pass, and UI changes have been checked by actually running the app (see "Verifying UI
-changes"). CI (`.github/workflows/ci.yml`) runs the first three on Windows, Linux and macOS
-for every push and pull request and builds the web version with Trunk, and a pull request
+changes"). CI (`.github/workflows/ci.yml`) runs the first three for every push and pull
+request and builds the web version with Trunk. By default it runs on the org's self-hosted
+Linux runners (Linux and web only; Windows, macOS and Android are unchecked); the repository
+variable `CI_HOSTED=true` brings back the GitHub-hosted Windows, Linux, macOS and Android
+jobs. A pull request
 isn't done until all of that passes. Code for Windows alone goes under `#[cfg(windows)]`, and
 what only it uses gets `#[cfg_attr(not(windows), allow(dead_code))]`, or clippy fails on the
 others; code for the browser alone goes under `#[cfg(target_arch = "wasm32")]` the same way, and
