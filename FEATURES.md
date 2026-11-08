@@ -1317,7 +1317,7 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - "Donate" opens `DONATE_URL` with Stripe UTM parameters and a coarse `client_reference_id`.
   - "I already supported" shows only after a Donate click, thanks, and pauses reminders.
   - Supporter state: for the 365 days after "I already supported" the menu shows a quiet green
-    line with a heart, "Thanks for supporting CalcCraft", instead of the amber button; it wraps in
+    line, "Supported by you" followed by a green heart, instead of the amber button; it wraps in
     narrow menus, is a focusable button that opens the popup without touching the pause, and the
     button returns after the 365 days. A Donate click alone doesn't make a supporter.
   - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
@@ -1362,4 +1362,4 @@ Windows source in `../win-calculator`.
 | 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Implemented support prompt module (`src/support/`, `docs/support-prompt.md`) gated behind `support-prompt` Cargo feature: amber header button in navigation drawer, non-modal semi-transparent floating card, trigger on every 5th completed calculation, local persistence, keyboard accessibility, and fallback localization |
 | 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Polished support popup: wrapped body text inside inner area with horizontal padding, cohesive vertical block layout with dynamic card height, and replaced close button with Fluent 'X' dismiss glyph (`ICON_CLOSE`) |
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
-| 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Thanks for supporting CalcCraft" line with a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |
+| 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |

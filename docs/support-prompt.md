@@ -131,17 +131,18 @@ While the pause of "I already supported" runs (`already_supported_pause_days` = 
 the press, stored as `supporter_until_day`), the user is a **supporter**:
 
 - The amber "Please Support!" button is not in the navigation menu. In its place, at the top of
-  the menu, is one quiet line in green text with a small filled heart from the app's Fluent icon
-  font (`ICON_HEART`, U+EB52, Segoe Fluent Icons' HeartFill): **"Thanks for supporting
-  CalcCraft"** (`CalcCraft.Support.Thanks`). No fill, no outline; a light hover/pressed tint and
-  the usual focus visual.
+  the menu, is one quiet line in green text: **"Supported by you"** (`CalcCraft.Support.Thanks`),
+  followed by a small filled heart in the same green from the app's Fluent icon font
+  (`ICON_HEART`, U+EB52, Segoe Fluent Icons' HeartFill), the owner's "Supported by you 💚". The
+  heart is the icon-font glyph, not the 💚 emoji: egui draws emoji monochrome or not at all. No
+  fill, no outline; a light hover/pressed tint and the usual focus visual.
 - Green: Windows' success green (`SystemFillColorSuccess`), `#0F7B0F` in the light theme and
   `#6CCB5F` in the dark theme, both above 4.5:1 against the menu's background.
 - The text wraps (never clips) in the narrow menu: the line takes the header's height, and a very
   long translation gets a smaller font. Without room for any text (under 90 px) only the heart
-  shows, with the text as its tooltip. The menu has no icons-only mode today, so that fallback is
+  shows, with "Supported by you" as its tooltip. The menu has no icons-only mode today, so that fallback is
   defensive.
-- It is a focusable button (`access::control`, accessible name = the thanks text). Click, Enter
+- It is a focusable button (`access::control`, accessible name = the plain text "Supported by you", no heart). Click, Enter
   or Space opens the usual support popup, so a supporter can donate again. Opening it never
   resets or shortens the 365 days and never counts as a cycle (no cycle runs during the pause). A
   Donate click from it keeps the longer of the two pauses (`pause_until_day` never moves
@@ -376,7 +377,7 @@ migration), `donate.rs` (URL, `DonationChannel`), `clock.rs` (real and fast time
   hamburger and menu buttons
 - `CalcCraft.Support.AlreadySupported=I already supported`
 - `CalcCraft.Support.ThankYou=Thank you!`
-- `CalcCraft.Support.Thanks=Thanks for supporting CalcCraft` — the supporter state's menu line
+- `CalcCraft.Support.Thanks=Supported by you` — the supporter state's menu line
 
 The new button goes through `access::control` (Tab, Enter, Space). The popup is non-modal and
 traps no focus.
