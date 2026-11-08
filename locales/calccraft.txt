@@ -18,6 +18,10 @@ CalcCraft.Support.Reminder=Support reminder
 CalcCraft.Support.AlreadySupported=I already supported
 CalcCraft.Support.ThankYou=Thank you!
 CalcCraft.Support.Thanks=Supported by you
+CalcCraft.Support.Share=Tell a friend
+CalcCraft.Support.ShareTooltip=Share CalcCraft
+CalcCraft.Support.ShareMessage=CalcCraft — a free, precise calculator:
+CalcCraft.Support.LinkCopied=Link copied
 
 [en-GB]
 CalcCraft.Language=Language

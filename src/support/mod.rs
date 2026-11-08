@@ -11,11 +11,13 @@
 pub mod clock;
 pub mod donate;
 pub mod policy;
+pub mod share;
 pub mod stats;
 pub mod view;
 
 pub use donate::{DONATE_URL, DonationChannel, ExternalLink, donate_url};
 pub use policy::{MenuEntry, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp};
+pub use share::{ClipboardShare, SHARE_URL, ShareChannel, share_text, share_url};
 pub use stats::SupportStats;
 pub use view::{SupportState, note_display};
 
@@ -385,6 +387,81 @@ mod tests {
         assert!(!state.demo_opens_menu());
         assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
         assert!(state.is_open() && !state.popup.unwrap().automatic);
+    }
+
+    fn copied_text(ctx: &Context) -> Option<String> {
+        ctx.output(|o| {
+            o.commands.iter().find_map(|command| match command {
+                egui::OutputCommand::CopyText(text) => Some(text.clone()),
+                _ => None,
+            })
+        })
+    }
+
+    #[test]
+    fn share_copies_the_message_and_link_and_shows_the_note_for_two_seconds() {
+        let ctx = Context::default();
+        let mut state = regular();
+        state.open_on_demand();
+        state.handle(&ctx, PopupAction::Share);
+        let expected = format!(
+            "CalcCraft — a free, precise calculator: https://rapalon.com/calccraft?utm_source=calccraft\
+             &utm_medium=share&utm_content={}_{}",
+            donate::platform(),
+            env!("CARGO_PKG_VERSION").replace('.', "-"),
+        );
+        assert_eq!(copied_text(&ctx).as_deref(), Some(expected.as_str()));
+        // The popup stays (Donate is still there); the note shows, then goes by itself.
+        assert!(state.is_open());
+        assert_eq!(state.copied_until_ms, Some(2000));
+        set_time(&mut state, at(0, 1999));
+        frame(&ctx, &mut state, vec![], false);
+        assert!(state.copied_until_ms.is_some());
+        set_time(&mut state, at(0, 2000));
+        frame(&ctx, &mut state, vec![], false);
+        assert_eq!(state.copied_until_ms, None);
+    }
+
+    #[test]
+    fn share_is_no_donate() {
+        let ctx = Context::default();
+        let mut state = escalated(&ctx);
+        state.open_on_demand();
+        // Opening it completed the cycle; the share doesn't complete another.
+        let cycles = state.stats.cycles;
+        assert_eq!(cycles, 1);
+        state.handle(&ctx, PopupAction::Share);
+        assert_eq!(state.stats.shares, 1);
+        assert_eq!(state.stats.cycles, cycles);
+        assert!(!state.stats.donate_clicked_ever);
+        assert_eq!(state.stats.pause_until_day, None);
+        assert_eq!(state.menu_entry(), MenuEntry::SupportButton);
+        assert!(state.is_open());
+    }
+
+    #[test]
+    fn supporter_share_glyph_presses_with_the_keyboard_and_keeps_the_state() {
+        let ctx = fonts_context();
+        let mut state = supporter();
+        let before = state.stats.clone();
+        menu_frame(&ctx, &mut state, vec![]);
+        ctx.memory_mut(|m| m.request_focus(egui::Id::new("support-share-glyph")));
+        menu_frame(&ctx, &mut state, vec![]);
+        let closed = menu_frame(&ctx, &mut state, vec![key(Key::Enter)]);
+        // The menu stays open (nothing is returned for it) and the popup doesn't open.
+        assert!(!closed && !state.is_open());
+        assert!(state.copied_until_ms.is_some());
+        assert_eq!(state.stats.shares, 1);
+        assert_eq!(state.stats.supporter_until_day, before.supporter_until_day);
+        assert_eq!(state.stats.pause_until_day, before.pause_until_day);
+        assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+    }
+
+    #[test]
+    fn demo_share_shows_the_popup_with_the_note() {
+        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        state.start_demo("share");
+        assert!(state.is_open() && state.copied_until_ms.is_some());
     }
 
     #[test]

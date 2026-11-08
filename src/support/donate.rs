@@ -8,7 +8,7 @@ use eframe::egui;
 pub const DONATE_URL: &str = "https://rapalon.com/donate";
 
 /// Stripe's limits: 150 characters for the UTM values, 200 for `client_reference_id`.
-const UTM_MAX: usize = 150;
+pub(super) const UTM_MAX: usize = 150;
 const REFERENCE_MAX: usize = 200;
 /// `c10` stands for 10 cycles or more: the count stays coarse.
 const MAX_CYCLES: u32 = 10;

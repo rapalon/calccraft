@@ -133,7 +133,7 @@ pub(super) fn combo_box<'a>(name: &'a str, value: &'a str) -> impl Fn() -> Widge
 
 /// Text that isn't a control, like a result, for screen readers. A `live` text is
 /// read out when it changes, as Windows' `LiveSetting="Polite"` results are.
-pub(super) fn text(ui: &Ui, rect: Rect, id: Id, name: &str, live: bool) {
+pub(crate) fn text(ui: &Ui, rect: Rect, id: Id, name: &str, live: bool) {
     ui.interact(rect, id, Sense::hover());
     ui.ctx().accesskit_node_builder(id, |node| {
         // AccessKit names a label by its value.

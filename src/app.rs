@@ -5337,7 +5337,12 @@ mod tests {
                     .unwrap()
                     .0;
                 let window = Rect::from_min_size(Pos2::ZERO, size);
-                for id in ["support-close", "support-donate", "support-already"] {
+                for id in [
+                    "support-close",
+                    "support-donate",
+                    "support-already",
+                    "support-share",
+                ] {
                     let rect = ctx.read_response(Id::new(id)).unwrap().rect;
                     assert!(
                         rect.top() >= display.bottom(),
