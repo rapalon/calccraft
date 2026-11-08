@@ -21,7 +21,9 @@ use super::donate::{DonateContext, DonateSource, DonationChannel, ExternalLink, 
 use super::policy::{
     self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
 };
-use super::share::{ClipboardShare, SHARE_URL, ShareChannel, ShareContext, share_text, share_url};
+use super::share::{
+    SHARE_URL, ShareChannel, ShareContext, platform_channel, share_text, share_url,
+};
 use super::stats::SupportStats;
 
 /// The red dot's colors (Windows' critical red in light, its brighter red in dark).
@@ -77,7 +79,7 @@ pub struct SupportState {
     pub(crate) cfg: SupportPolicyConfig,
     pub(crate) clock: Clock,
     channel: &'static dyn DonationChannel,
-    share_channel: &'static dyn ShareChannel,
+    pub(crate) share_channel: &'static dyn ShareChannel,
     /// "Link copied" shows until this time (wall clock milliseconds).
     pub(crate) copied_until_ms: Option<u64>,
     pub(crate) popup: Option<OpenPopup>,
@@ -112,7 +114,7 @@ impl SupportState {
             cfg,
             clock,
             channel: &ExternalLink,
-            share_channel: &ClipboardShare,
+            share_channel: platform_channel(),
             copied_until_ms: None,
             popup: None,
             calculation_at_ms: None,
@@ -369,7 +371,7 @@ impl SupportState {
         if super::clock::fast_mode() {
             eprintln!("support: share text {text}");
         }
-        if self.share_channel.share(ctx, &text) {
+        if self.share_channel.share(ctx, &text).shows_note() {
             self.copied_until_ms = Some(self.now().millis + COPIED_MS);
             ctx.request_repaint_after(std::time::Duration::from_millis(COPIED_MS));
         }
@@ -502,7 +504,6 @@ impl SupportState {
     /// `window`.
     pub(crate) fn draw_overlay(&mut self, ui: &mut Ui, window: Rect, p: &Palette) {
         let Some(popup) = self.popup else {
-            self.draw_copied_note(ui, window, p);
             return;
         };
         let display = noted_display(ui.ctx());
@@ -513,42 +514,45 @@ impl SupportState {
         if let Some(action) = draw_card(ui, p, card, &content) {
             self.handle(ui.ctx(), action);
         }
-        self.draw_copied_note(ui, window, p);
     }
 
-    /// "Link copied": a small note near the window's bottom that goes away by itself. It takes
-    /// no clicks and no focus; screen readers hear it as a polite live region.
-    fn draw_copied_note(&self, ui: &Ui, window: Rect, p: &Palette) {
+    /// "Link copied": a small note near the window's bottom that goes away by itself. It lives
+    /// on its own top layer, so the menu (drawn after the popup, over the whole window) and
+    /// every mode show it: before, the menu's share glyph copied the link under an invisible
+    /// note. It takes no clicks and no focus, and screen readers hear it as a polite live
+    /// region. Call it once per frame, after everything else is drawn. It has no fade, which
+    /// also is what reduced motion asks for.
+    pub(crate) fn draw_toast(&self, ctx: &Context, p: &Palette) {
         if self.copied_until_ms.is_none() {
             return;
         }
         let text = tr("CalcCraft.Support.LinkCopied");
-        let job = LayoutJob::simple(
-            text.to_owned(),
-            FontId::proportional(13.0),
-            p.text,
-            (window.width() - 48.0).max(80.0),
-        );
-        let galley = ui.painter().layout_job(job);
-        let size = galley.size() + vec2(28.0, 16.0);
-        let rect = Rect::from_center_size(
-            pos2(
-                window.center().x,
-                window.bottom() - NOTE_BOTTOM_GAP - size.y / 2.0,
-            ),
-            size,
-        );
-        let painter = ui.painter();
-        let radius = CornerRadius::same(8);
-        painter.rect_filled(rect, radius, p.flyout);
-        painter.rect_stroke(
-            rect,
-            radius,
-            Stroke::new(1.0, p.flyout_border),
-            StrokeKind::Inside,
-        );
-        painter.galley(rect.center() - galley.size() / 2.0, galley, p.text);
-        access::text(ui, rect, Id::new("support-link-copied"), text, true);
+        egui::Area::new(Id::new("support-link-copied-area"))
+            .order(egui::Order::Tooltip)
+            .interactable(false)
+            .anchor(Align2::CENTER_BOTTOM, vec2(0.0, -NOTE_BOTTOM_GAP))
+            .show(ctx, |ui| {
+                let job = LayoutJob::simple(
+                    text.to_owned(),
+                    FontId::proportional(13.0),
+                    p.text,
+                    (ctx.content_rect().width() - 48.0).max(80.0),
+                );
+                let galley = ui.painter().layout_job(job);
+                let (rect, _) =
+                    ui.allocate_exact_size(galley.size() + vec2(28.0, 16.0), Sense::hover());
+                let radius = CornerRadius::same(8);
+                let painter = ui.painter();
+                painter.rect_filled(rect, radius, p.flyout);
+                painter.rect_stroke(
+                    rect,
+                    radius,
+                    Stroke::new(1.0, p.flyout_border),
+                    StrokeKind::Inside,
+                );
+                painter.galley(rect.center() - galley.size() / 2.0, galley, p.text);
+                access::text(ui, rect, Id::new("support-link-copied"), text, true);
+            });
     }
 }
 

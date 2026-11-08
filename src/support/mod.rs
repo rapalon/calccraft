@@ -17,7 +17,7 @@ pub mod view;
 
 pub use donate::{DONATE_URL, DonationChannel, ExternalLink, donate_url};
 pub use policy::{MenuEntry, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp};
-pub use share::{ClipboardShare, SHARE_URL, ShareChannel, share_text, share_url};
+pub use share::{ClipboardShare, SHARE_URL, ShareChannel, ShareOutcome, share_text, share_url};
 pub use stats::SupportStats;
 pub use view::{SupportState, note_display};
 
@@ -455,6 +455,38 @@ mod tests {
         assert_eq!(state.stats.supporter_until_day, before.supporter_until_day);
         assert_eq!(state.stats.pause_until_day, before.pause_until_day);
         assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+    }
+
+    #[test]
+    fn a_system_share_sheet_shows_no_note_but_counts_as_a_share() {
+        struct Sheet;
+        impl ShareChannel for Sheet {
+            fn share(&self, _: &Context, _: &str) -> ShareOutcome {
+                ShareOutcome::Sheet
+            }
+        }
+        let ctx = Context::default();
+        let mut state = regular();
+        state.share_channel = &Sheet;
+        state.open_on_demand();
+        state.handle(&ctx, PopupAction::Share);
+        assert_eq!(state.copied_until_ms, None);
+        assert_eq!(state.stats.shares, 1);
+    }
+
+    #[test]
+    fn the_toast_draws_over_the_menu_and_is_a_live_region() {
+        let ctx = fonts_context();
+        let mut state = supporter();
+        ctx.memory_mut(|m| m.request_focus(egui::Id::new("support-share-glyph")));
+        menu_frame(&ctx, &mut state, vec![key(Key::Enter)]);
+        assert!(state.copied_until_ms.is_some());
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            state.draw_toast(ui.ctx(), &crate::app::palette::DARK);
+        });
+        output.textures_delta.clear();
+        let area = egui::Id::new("support-link-copied-area");
+        assert!(ctx.memory(|m| m.area_rect(area)).is_some());
     }
 
     #[test]

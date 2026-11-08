@@ -437,12 +437,17 @@ The text is `"<ShareMessage> <share_url>"`. `ShareChannel` (like `DonationChanne
 | Platform | Today |
 | --- | --- |
 | Windows, macOS, Linux | Copies the text to the clipboard (`Context::copy_text`) and shows "Link copied" for 2 s. |
-| Web | The same: the browser's clipboard (works in the click's gesture). |
+| Web | `navigator.share` where the browser has it (`WebShare`): its sheet is the feedback, so no note (`ShareOutcome::Sheet`). Otherwise the same clipboard copy and note. A failed clipboard write has no manual-copy fallback yet (egui's `copy_text` can't report it): follow-up. |
 | Android | The same clipboard copy. A system share sheet (`ACTION_SEND` through JNI, next to `src/app/android.rs`) isn't implemented yet. |
 
 The existing `src/app/share.rs` is the Graphing mode's Windows-only share sheet for an image and
-HTML, so it isn't reused. "Link copied" is a small non-modal note at the bottom of the window,
-announced politely to screen readers, that disappears by itself.
+HTML, so it isn't reused. `ShareChannel::share` returns a `ShareOutcome` (`Copied`, `Sheet`,
+`Failed`); only `Copied` shows the note. "Link copied" is a small non-modal note at the bottom of
+the window, announced politely to screen readers, that disappears by itself after 2 s. It is
+drawn by `SupportState::draw_toast` on its own top layer (`Order::Tooltip`) at the end of every
+frame, so it shows in every mode and over the navigation menu, where the supporter line's share
+glyph lives (drawn in the popup's overlay it was hidden under the menu). It has no fade, so
+reduced motion needs nothing special.
 
 ### 12.4 Policy effect
 

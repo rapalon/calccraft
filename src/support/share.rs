@@ -37,20 +37,65 @@ pub fn share_text(message: &str, url: &str) -> String {
     format!("{message} {url}")
 }
 
-/// How a share is sent. Today every platform copies the text to the clipboard; a system share
-/// sheet (Android's `ACTION_SEND`) would replace it there.
+/// What a share did, which decides what the user sees.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShareOutcome {
+    /// The text is on the clipboard: "Link copied" shows.
+    Copied,
+    /// A system share sheet took over, which is its own feedback: no note.
+    Sheet,
+    /// Nothing was shared.
+    Failed,
+}
+
+impl ShareOutcome {
+    /// Whether "Link copied" should show.
+    pub fn shows_note(self) -> bool {
+        self == Self::Copied
+    }
+}
+
+/// How a share is sent. Desktops copy the text to the clipboard; the browser opens its share
+/// sheet where there is one; Android's system share sheet (`ACTION_SEND`) is a follow-up.
 pub trait ShareChannel {
-    /// Sends `text`. Returns true when the text is on the clipboard, so "Link copied" shows.
-    fn share(&self, ctx: &egui::Context, text: &str) -> bool;
+    /// Sends `text`.
+    fn share(&self, ctx: &egui::Context, text: &str) -> ShareOutcome;
 }
 
 /// Copies the text to the clipboard.
 pub struct ClipboardShare;
 
 impl ShareChannel for ClipboardShare {
-    fn share(&self, ctx: &egui::Context, text: &str) -> bool {
+    fn share(&self, ctx: &egui::Context, text: &str) -> ShareOutcome {
         ctx.copy_text(text.to_owned());
-        true
+        ShareOutcome::Copied
+    }
+}
+
+/// The browser's share sheet (`navigator.share`) where it exists, else the clipboard.
+#[cfg(target_arch = "wasm32")]
+pub struct WebShare;
+
+#[cfg(target_arch = "wasm32")]
+impl ShareChannel for WebShare {
+    fn share(&self, ctx: &egui::Context, text: &str) -> ShareOutcome {
+        if crate::app::web::share_sheet(text) {
+            ShareOutcome::Sheet
+        } else {
+            ClipboardShare.share(ctx, text)
+        }
+    }
+}
+
+/// The channel of this platform.
+pub fn platform_channel() -> &'static dyn ShareChannel {
+    #[cfg(target_arch = "wasm32")]
+    {
+        &WebShare
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        &ClipboardShare
     }
 }
 
@@ -88,6 +133,13 @@ mod tests {
     }
 
     #[test]
+    fn only_a_copy_shows_the_note() {
+        assert!(ShareOutcome::Copied.shows_note());
+        assert!(!ShareOutcome::Sheet.shows_note());
+        assert!(!ShareOutcome::Failed.shows_note());
+    }
+
+    #[test]
     fn text_is_message_then_link() {
         assert_eq!(share_text("Hi:", "https://a.b"), "Hi: https://a.b");
     }
@@ -95,7 +147,7 @@ mod tests {
     #[test]
     fn clipboard_channel_copies() {
         let ctx = egui::Context::default();
-        assert!(ClipboardShare.share(&ctx, "text"));
+        assert_eq!(ClipboardShare.share(&ctx, "text"), ShareOutcome::Copied);
         let copied = ctx.output(|o| {
             o.commands
                 .iter()

@@ -251,6 +251,40 @@ pub(super) fn clipboard_text() -> Option<String> {
         .clone()
 }
 
+// ------------------------------------------------------------- share
+
+/// Opens the browser's share sheet (`navigator.share`) with `text`. Returns false where the
+/// browser has none (most desktop browsers), so the caller copies the text instead. The sheet
+/// is its own feedback; a cancelled sheet needs no note either.
+pub(crate) fn share_sheet(text: &str) -> bool {
+    let Some(window) = web_sys::window() else {
+        return false;
+    };
+    let navigator = window.navigator();
+    let Ok(share) = js_sys::Reflect::get(&navigator, &"share".into()) else {
+        return false;
+    };
+    let Some(share) = share.dyn_ref::<js_sys::Function>() else {
+        return false;
+    };
+    let data = js_sys::Object::new();
+    if js_sys::Reflect::set(&data, &"text".into(), &text.into()).is_err() {
+        return false;
+    }
+    match share.call1(&navigator, &data) {
+        Ok(promise) => {
+            // Ignore the outcome: a rejected promise is a cancelled sheet.
+            if let Ok(promise) = promise.dyn_into::<js_sys::Promise>() {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                });
+            }
+            true
+        }
+        Err(_) => false,
+    }
+}
+
 // ------------------------------------------------------------- downloads
 
 /// Has the browser download `bytes` as a file called `name`. Returns whether it started.
