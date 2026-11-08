@@ -101,7 +101,7 @@ pub(super) fn show(_hwnd: Option<isize>, _content: Content) -> bool {
 
 /// The image as a PNG file.
 #[cfg(any(windows, target_arch = "wasm32"))]
-fn png(image: &ColorImage) -> Result<Vec<u8>, png::EncodingError> {
+pub(super) fn png(image: &ColorImage) -> Result<Vec<u8>, png::EncodingError> {
     let mut bytes = Vec::new();
     let [width, height] = image.size;
     let mut encoder = png::Encoder::new(&mut bytes, width as u32, height as u32);
