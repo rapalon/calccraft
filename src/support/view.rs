@@ -481,8 +481,8 @@ const THANKS_HEART_SIZE: f32 = 14.0;
 const THANKS_PAD: f32 = 8.0;
 const THANKS_GAP: f32 = 6.0;
 
-/// The supporter state's quiet thank-you line in `rect` (the amber button's place): a heart and
-/// the wrapped text in green, no fill or outline. Returns true when it was pressed.
+/// The supporter state's quiet thank-you line in `rect` (the amber button's place): the wrapped
+/// text and a heart after it in green, no fill or outline. Returns true when it was pressed.
 fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
     let dark = dark(ui.ctx());
     let color = if dark { THANKS_DARK } else { THANKS_LIGHT };
@@ -524,14 +524,13 @@ fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
     let heart_size = heart.size();
     match text {
         Some(text) => {
-            let x = control.left() + THANKS_PAD;
-            painter.galley(
-                pos2(x, control.center().y - heart_size.y / 2.0),
-                heart,
-                color,
+            let origin = pos2(
+                control.left() + THANKS_PAD,
+                control.center().y - text.size().y / 2.0,
             );
-            let top = control.center().y - text.size().y / 2.0;
-            painter.galley(pos2(x + heart_size.x + THANKS_GAP, top), text, color);
+            let heart_at = heart_position(origin, &text, heart_size);
+            painter.galley(origin, text, color);
+            painter.galley(heart_at, heart, color);
             response.clicked()
         }
         None => {
@@ -539,6 +538,21 @@ fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
             response.on_hover_text(label).clicked()
         }
     }
+}
+
+/// Where the heart goes for the thanks text drawn at `origin`: after its last row, centered on
+/// it, as in the owner's "Supported by you 💚".
+fn heart_position(origin: egui::Pos2, text: &Galley, heart_size: egui::Vec2) -> egui::Pos2 {
+    let last = text
+        .rows
+        .last()
+        .map_or(Rect::from_min_size(origin, egui::Vec2::ZERO), |row| {
+            row.rect().translate(origin.to_vec2())
+        });
+    pos2(
+        last.right() + THANKS_GAP,
+        last.center().y - heart_size.y / 2.0,
+    )
 }
 
 /// The thanks text wrapped at `width`, in the largest of 13, 12 and 11 points that fits in
@@ -954,6 +968,30 @@ mod tests {
         let display = Rect::from_min_max(pos2(0.0, 48.0), pos2(320.0, 180.0));
         let card = card_rect(window, Some(display), card_width(320.0), 200.0);
         assert!(card.top() >= 192.0 - 0.01 && card.bottom() <= 300.0);
+    }
+
+    #[test]
+    fn thanks_line_reads_supported_by_you_with_the_heart_after_it() {
+        // The key stays; the English text is the owner's wording, the heart is drawn, not text.
+        let english = include_str!("../../locales/calccraft.txt")
+            .lines()
+            .find_map(|line| line.trim_end().strip_prefix("CalcCraft.Support.Thanks="));
+        assert_eq!(english, Some("Supported by you"));
+
+        let ctx = Context::default();
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            let heart = vec2(THANKS_HEART_SIZE, THANKS_HEART_SIZE);
+            let origin = pos2(10.0, 20.0);
+            for width in [200.0, 60.0] {
+                let text = thanks_galley(ui, "Supported by you", Color32::WHITE, width, 40.0);
+                let at = heart_position(origin, &text, heart);
+                let last = text.rows.last().unwrap().rect().translate(origin.to_vec2());
+                assert!(at.x >= last.right() + THANKS_GAP - 0.01, "{at:?} {last:?}");
+                assert!(at.x + heart.x <= origin.x + width + THANKS_GAP + heart.x + 0.01);
+                assert!((at.y + heart.y / 2.0 - last.center().y).abs() < 0.01);
+            }
+        });
+        output.textures_delta.clear();
     }
 
     #[test]
