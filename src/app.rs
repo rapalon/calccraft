@@ -16,7 +16,7 @@ mod scientific_view;
 mod share;
 pub(crate) mod strings;
 #[cfg(target_arch = "wasm32")]
-mod web;
+pub(crate) mod web;
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::{Arc, OnceLock};
@@ -2795,6 +2795,8 @@ impl eframe::App for CalculatorApp {
         }
 
         self.draw_frame(ui, &ctx);
+        #[cfg(feature = "support-prompt")]
+        self.support.draw_toast(&ctx, self.palette);
         self.last_focus = access::focused(&ctx);
         // The Settings lists load every script font (some 70 MB of CJK fonts); they go
         // again with the page.
@@ -5337,7 +5339,12 @@ mod tests {
                     .unwrap()
                     .0;
                 let window = Rect::from_min_size(Pos2::ZERO, size);
-                for id in ["support-close", "support-donate", "support-already"] {
+                for id in [
+                    "support-close",
+                    "support-donate",
+                    "support-already",
+                    "support-share",
+                ] {
                     let rect = ctx.read_response(Id::new(id)).unwrap().rect;
                     assert!(
                         rect.top() >= display.bottom(),

@@ -11,7 +11,7 @@ use eframe::egui::{
 };
 
 use crate::app::access;
-use crate::app::icons::{ICON_CLOSE, ICON_HEART, icon_label};
+use crate::app::icons::{ICON_CLOSE, ICON_HEART, ICON_SHARE, icon_label};
 use crate::app::palette::Palette;
 use crate::app::strings::tr;
 use crate::engine::Command;
@@ -20,6 +20,9 @@ use super::clock::Clock;
 use super::donate::{DonateContext, DonateSource, DonationChannel, ExternalLink, platform};
 use super::policy::{
     self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
+};
+use super::share::{
+    SHARE_URL, ShareChannel, ShareContext, platform_channel, share_text, share_url,
 };
 use super::stats::SupportStats;
 
@@ -67,6 +70,7 @@ pub(super) enum PopupAction {
     Close,
     Donate,
     AlreadySupported,
+    Share,
 }
 
 /// The support prompt's state for one app session.
@@ -75,6 +79,9 @@ pub struct SupportState {
     pub(crate) cfg: SupportPolicyConfig,
     pub(crate) clock: Clock,
     channel: &'static dyn DonationChannel,
+    pub(crate) share_channel: &'static dyn ShareChannel,
+    /// "Link copied" shows until this time (wall clock milliseconds).
+    pub(crate) copied_until_ms: Option<u64>,
     pub(crate) popup: Option<OpenPopup>,
     /// When the last successful calculation finished, if there was no input since.
     pub(crate) calculation_at_ms: Option<u64>,
@@ -107,6 +114,8 @@ impl SupportState {
             cfg,
             clock,
             channel: &ExternalLink,
+            share_channel: platform_channel(),
+            copied_until_ms: None,
             popup: None,
             calculation_at_ms: None,
             popup_shown_this_session: false,
@@ -136,7 +145,7 @@ impl SupportState {
     /// `menu` (the menu open over the dot), `popup` (opened by itself), `popup-supported`
     /// (after a Donate click, with "I already supported"), `thanks`, `supporter` (the
     /// supporter state, the menu open on its thank-you line) or `supporter-popup` (the popup
-    /// as the thank-you line opens it).
+    /// as the thank-you line opens it), or `share` (the popup with "Link copied" showing).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(crate) fn start_demo(&mut self, demo: &str) {
         let stats = &mut self.stats;
@@ -158,7 +167,11 @@ impl SupportState {
             self.open_on_demand();
         }
         self.demo_menu = matches!(demo, "menu" | "supporter");
-        if matches!(demo, "popup" | "popup-supported" | "thanks") {
+        if demo == "share" {
+            // The popup with "Link copied" already showing, for screenshots.
+            self.copied_until_ms = Some(self.now().millis + SHARE_DEMO_MS);
+        }
+        if matches!(demo, "popup" | "popup-supported" | "thanks" | "share") {
             let now = self.now().millis;
             self.popup = Some(OpenPopup {
                 automatic: true,
@@ -218,6 +231,12 @@ impl SupportState {
         menu_open: bool,
     ) {
         let now = self.now();
+        if self
+            .copied_until_ms
+            .is_some_and(|until| now.millis >= until)
+        {
+            self.copied_until_ms = None;
+        }
 
         // Any input cancels the calm moment of the last calculation; the calculation of this
         // frame comes after this and starts a new one.
@@ -340,9 +359,29 @@ impl SupportState {
         self.popup = None;
     }
 
+    /// Shares CalcCraft: "<message> <link>" goes through the share channel, "Link copied" shows
+    /// for a moment, and the policy hears of it. The popup stays open, so Donate is still there.
+    pub(crate) fn share(&mut self, ctx: &Context) {
+        let context = ShareContext {
+            platform: platform(),
+            version: env!("CARGO_PKG_VERSION"),
+        };
+        let url = share_url(SHARE_URL, &context);
+        let text = share_text(tr("CalcCraft.Support.ShareMessage"), &url);
+        if super::clock::fast_mode() {
+            eprintln!("support: share text {text}");
+        }
+        if self.share_channel.share(ctx, &text).shows_note() {
+            self.copied_until_ms = Some(self.now().millis + COPIED_MS);
+            ctx.request_repaint_after(std::time::Duration::from_millis(COPIED_MS));
+        }
+        self.apply(SupportEvent::ShareClicked);
+    }
+
     pub(super) fn handle(&mut self, ctx: &Context, action: PopupAction) {
         let now = self.now();
         match action {
+            PopupAction::Share => self.share(ctx),
             PopupAction::Close => self.close_popup(now),
             PopupAction::Donate => self.donate(ctx),
             PopupAction::AlreadySupported => {
@@ -376,7 +415,14 @@ impl SupportState {
     pub(crate) fn draw_menu_button(&mut self, ui: &mut Ui, rect: Rect, p: &Palette) -> bool {
         let clicked = match self.menu_entry() {
             MenuEntry::SupportButton => self.draw_support_button(ui, rect, p),
-            MenuEntry::SupporterThanks => draw_thanks_line(ui, rect, p),
+            MenuEntry::SupporterThanks => {
+                // The share glyph takes the line's right end; the menu stays open for it.
+                let (line, share) = split_share(rect);
+                if draw_share_glyph(ui, p, share) {
+                    self.share(ui.ctx());
+                }
+                draw_thanks_line(ui, line, p)
+            }
         };
         if clicked {
             self.open_on_demand();
@@ -469,6 +515,102 @@ impl SupportState {
             self.handle(ui.ctx(), action);
         }
     }
+
+    /// "Link copied": a small note near the window's bottom that goes away by itself. It lives
+    /// on its own top layer, so the menu (drawn after the popup, over the whole window) and
+    /// every mode show it: before, the menu's share glyph copied the link under an invisible
+    /// note. It takes no clicks and no focus, and screen readers hear it as a polite live
+    /// region. Call it once per frame, after everything else is drawn. It has no fade, which
+    /// also is what reduced motion asks for.
+    pub(crate) fn draw_toast(&self, ctx: &Context, p: &Palette) {
+        if self.copied_until_ms.is_none() {
+            return;
+        }
+        let text = tr("CalcCraft.Support.LinkCopied");
+        egui::Area::new(Id::new("support-link-copied-area"))
+            .order(egui::Order::Tooltip)
+            .interactable(false)
+            .anchor(Align2::CENTER_BOTTOM, vec2(0.0, -NOTE_BOTTOM_GAP))
+            .show(ctx, |ui| {
+                let job = LayoutJob::simple(
+                    text.to_owned(),
+                    FontId::proportional(13.0),
+                    p.text,
+                    (ctx.content_rect().width() - 48.0).max(80.0),
+                );
+                let galley = ui.painter().layout_job(job);
+                let (rect, _) =
+                    ui.allocate_exact_size(galley.size() + vec2(28.0, 16.0), Sense::hover());
+                let radius = CornerRadius::same(8);
+                let painter = ui.painter();
+                painter.rect_filled(rect, radius, p.flyout);
+                painter.rect_stroke(
+                    rect,
+                    radius,
+                    Stroke::new(1.0, p.flyout_border),
+                    StrokeKind::Inside,
+                );
+                painter.galley(rect.center() - galley.size() / 2.0, galley, p.text);
+                access::text(ui, rect, Id::new("support-link-copied"), text, true);
+            });
+    }
+}
+
+/// How long "Link copied" shows.
+const COPIED_MS: u64 = 2000;
+/// How long the `share` demo stage keeps it (long enough to take a screenshot).
+const SHARE_DEMO_MS: u64 = 60_000;
+/// The note's distance from the window's bottom edge.
+const NOTE_BOTTOM_GAP: f32 = 24.0;
+const SHARE_GLYPH_SIZE: f32 = 32.0;
+
+/// Splits the supporter line's rect into the line and the share glyph's square at its right end.
+fn split_share(rect: Rect) -> (Rect, Rect) {
+    let side = SHARE_GLYPH_SIZE.min(rect.height()).min(rect.width());
+    let glyph = Rect::from_min_size(
+        pos2(rect.right() - side, rect.center().y - side / 2.0),
+        vec2(side, side),
+    );
+    let line = Rect::from_min_max(rect.min, pos2(glyph.left() - 2.0, rect.bottom()));
+    (line, glyph)
+}
+
+/// The quiet share glyph next to the supporter line. Returns true when it was pressed.
+fn draw_share_glyph(ui: &Ui, p: &Palette, rect: Rect) -> bool {
+    let label = tr("CalcCraft.Support.ShareTooltip");
+    let response = access::control(
+        ui,
+        p,
+        rect,
+        Id::new("support-share-glyph"),
+        true,
+        6.0,
+        access::button(true, label),
+    );
+    let dark = dark(ui.ctx());
+    let overlay = match (
+        response.is_pointer_button_down_on(),
+        response.hovered(),
+        dark,
+    ) {
+        (true, _, true) => Some(Color32::from_white_alpha(20)),
+        (true, _, false) => Some(Color32::from_black_alpha(18)),
+        (false, true, true) => Some(Color32::from_white_alpha(12)),
+        (false, true, false) => Some(Color32::from_black_alpha(10)),
+        _ => None,
+    };
+    let painter = ui.painter();
+    if let Some(fill) = overlay {
+        painter.rect_filled(rect, CornerRadius::same(6), fill);
+    }
+    let color = if response.hovered() {
+        p.text
+    } else {
+        p.text_secondary
+    };
+    let glyph = painter.layout_job(icon_label(ICON_SHARE, 14.0));
+    painter.galley(rect.center() - glyph.size() / 2.0, glyph, color);
+    response.on_hover_text(label).clicked()
 }
 
 /// The thank-you line's green: Windows' success green (`SystemFillColorSuccess`), darker on the
@@ -605,6 +747,7 @@ const GAP_BODY_BUTTON: f32 = 22.0;
 const GAP_BUTTONS: f32 = 8.0;
 const DONATE_HEIGHT: f32 = 36.0;
 const SECONDARY_HEIGHT: f32 = 32.0;
+const SHARE_HEIGHT: f32 = 28.0;
 const MIN_CARD_HEIGHT: f32 = 200.0;
 /// The space kept between the display and the card, and around the card.
 const CARD_MARGIN: f32 = 12.0;
@@ -690,6 +833,7 @@ impl Content {
             if already {
                 height += GAP_BUTTONS + SECONDARY_HEIGHT;
             }
+            height += GAP_BUTTONS + SHARE_HEIGHT;
         }
         height
     }
@@ -800,8 +944,8 @@ fn draw_content(
     let width = (content.width * 0.52).clamp(140.0, 200.0);
     let donate = Rect::from_min_size(pos2(center_x - width / 2.0, y), vec2(width, DONATE_HEIGHT));
     let mut action = donate_button(ui, p, painter, donate).then_some(PopupAction::Donate);
+    y += DONATE_HEIGHT + GAP_BUTTONS;
     if already {
-        y += DONATE_HEIGHT + GAP_BUTTONS;
         let rect = Rect::from_min_size(
             pos2(center_x - width / 2.0, y),
             vec2(width, SECONDARY_HEIGHT),
@@ -809,6 +953,11 @@ fn draw_content(
         if secondary_button(ui, p, painter, rect) {
             action = Some(PopupAction::AlreadySupported);
         }
+        y += SECONDARY_HEIGHT + GAP_BUTTONS;
+    }
+    let rect = Rect::from_min_size(pos2(center_x - width / 2.0, y), vec2(width, SHARE_HEIGHT));
+    if share_link(ui, p, painter, rect) {
+        action = Some(PopupAction::Share);
     }
     action
 }
@@ -934,6 +1083,58 @@ fn secondary_button(ui: &Ui, p: &Palette, painter: &Painter, rect: Rect) -> bool
         label,
         FontId::proportional(13.0),
         text,
+    );
+    response.clicked()
+}
+
+/// "Tell a friend": the quietest action of the card, text with the share glyph, no fill or
+/// outline, under Donate.
+fn share_link(ui: &Ui, p: &Palette, painter: &Painter, rect: Rect) -> bool {
+    let dark = dark(ui.ctx());
+    let label = tr("CalcCraft.Support.Share");
+    let response = access::control(
+        ui,
+        p,
+        rect,
+        Id::new("support-share"),
+        true,
+        6.0,
+        access::button(true, label),
+    );
+    let fill = match (
+        response.is_pointer_button_down_on(),
+        response.hovered(),
+        dark,
+    ) {
+        (true, _, true) => Color32::from_white_alpha(25),
+        (true, _, false) => Color32::from_black_alpha(20),
+        (false, true, true) => Color32::from_white_alpha(14),
+        (false, true, false) => Color32::from_black_alpha(10),
+        _ => Color32::TRANSPARENT,
+    };
+    painter.rect_filled(rect, CornerRadius::same(6), fill);
+    let color = if dark {
+        Color32::from_rgb(225, 210, 180)
+    } else {
+        Color32::from_rgb(95, 75, 45)
+    };
+    let glyph = painter.layout_job(icon_label(ICON_SHARE, 13.0));
+    let text = painter.layout_no_wrap(label.to_owned(), FontId::proportional(13.0), color);
+    let gap = 6.0;
+    let total = glyph.size().x + gap + text.size().x;
+    let left = rect.center().x - total / 2.0;
+    painter.galley(
+        pos2(left, rect.center().y - glyph.size().y / 2.0),
+        glyph.clone(),
+        color,
+    );
+    painter.galley(
+        pos2(
+            left + glyph.size().x + gap,
+            rect.center().y - text.size().y / 2.0,
+        ),
+        text,
+        color,
     );
     response.clicked()
 }

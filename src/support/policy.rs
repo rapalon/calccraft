@@ -128,6 +128,8 @@ pub enum SupportEvent {
     },
     DonateClicked,
     AlreadySupported,
+    /// "Tell a friend" or the supporter line's share glyph: a friendly reaction, but no Donate.
+    ShareClicked,
 }
 
 /// Whether a cycle is running: past the silent stage, eligible, and not waiting or paused.
@@ -224,6 +226,22 @@ pub fn on_event(
             pause_until(&mut s, until);
             s.supporter_until_day = Some(s.supporter_until_day.map_or(until, |d| d.max(until)));
             s.dot_since_day = None;
+        }
+        // Sharing is a free way to support: the running cycle completes like "seen", and the
+        // ladder moves one extra step, once per cycle. It is no Donate and no supporter.
+        SupportEvent::ShareClicked => {
+            s.shares = s.shares.saturating_add(1);
+            if s.dot_since_day.is_some() && cycle_active(&s, cfg, now) {
+                complete_cycle(&mut s, cfg, now);
+            }
+            if s.last_share_cycle != Some(s.cycles) {
+                s.last_share_cycle = Some(s.cycles);
+                if let Some(completed) = s.last_cycle_day {
+                    let next = completed + cfg.interval(s.ladder_step);
+                    s.next_cycle_day = Some(s.next_cycle_day.map_or(next, |d| d.max(next)));
+                }
+                s.ladder_step = s.ladder_step.saturating_add(1);
+            }
         }
     }
     s
@@ -623,6 +641,78 @@ mod tests {
         assert_eq!(
             evaluate(&s, &c, at(1), calm(at(1))),
             SupportDecision::ShowDot
+        );
+    }
+
+    #[test]
+    fn share_completes_the_cycle_and_adds_one_ladder_step() {
+        let s = dot(&regular(4), 2);
+        let s = apply(&s, SupportEvent::ShareClicked, at(3));
+        // Seen (cycle 1, the 7-day wait) plus one extra step: the 14-day wait.
+        assert_eq!(
+            (s.cycles, s.dot_since_day, s.next_cycle_day, s.ladder_step),
+            (1, None, Some(17), 2)
+        );
+        assert_eq!((s.shares, s.last_share_cycle), (1, Some(1)));
+        // No Donate, no pause, no supporter.
+        assert!(!s.donate_clicked_ever);
+        assert_eq!((s.pause_until_day, s.supporter_until_day), (None, None));
+        assert_eq!(menu_entry(&s, &cfg(), at(3)), MenuEntry::SupportButton);
+        assert!(!show_already_supported_button(&s));
+        for day in 3..17 {
+            assert_eq!(decide(&s, at(day)), SupportDecision::Nothing, "day {day}");
+        }
+        assert_eq!(decide(&s, at(17)), SupportDecision::ShowDot);
+    }
+
+    #[test]
+    fn share_moves_the_ladder_once_per_cycle() {
+        let s = dot(&regular(4), 2);
+        let once = apply(&s, SupportEvent::ShareClicked, at(3));
+        let twice = apply(&once, SupportEvent::ShareClicked, at(4));
+        assert_eq!(
+            twice,
+            SupportStats {
+                shares: 2,
+                ..once.clone()
+            }
+        );
+        // The next cycle can be shared again.
+        let s = dot(&once, 17);
+        let s = apply(&s, SupportEvent::ShareClicked, at(18));
+        assert_eq!(
+            (s.cycles, s.ladder_step, s.last_share_cycle),
+            (2, 4, Some(2))
+        );
+        assert_eq!(s.next_cycle_day, Some(18 + 60));
+    }
+
+    #[test]
+    fn share_while_waiting_or_silent_only_lengthens_the_wait() {
+        // Waiting after a menu visit (cycle 1 on day 5, next on day 12).
+        let s = apply(&dot(&regular(4), 2), SupportEvent::MenuOpened, at(5));
+        let s = apply(&s, SupportEvent::ShareClicked, at(6));
+        assert_eq!(
+            (s.cycles, s.next_cycle_day, s.ladder_step),
+            (1, Some(19), 2)
+        );
+        // Silent stage: no cycle to complete, the first wait will be longer.
+        let s = apply(&SupportStats::default(), SupportEvent::ShareClicked, at(0));
+        assert_eq!(
+            (s.cycles, s.next_cycle_day, s.ladder_step, s.shares),
+            (0, None, 1, 1)
+        );
+    }
+
+    #[test]
+    fn share_keeps_the_supporter_state_and_pause() {
+        let s = apply(&regular(4), SupportEvent::AlreadySupported, at(10));
+        let shared = apply(&s, SupportEvent::ShareClicked, at(11));
+        assert_eq!(shared.supporter_until_day, s.supporter_until_day);
+        assert_eq!(shared.pause_until_day, s.pause_until_day);
+        assert_eq!(
+            menu_entry(&shared, &cfg(), at(11)),
+            MenuEntry::SupporterThanks
         );
     }
 }
