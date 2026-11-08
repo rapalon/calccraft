@@ -120,6 +120,7 @@ by `ladder_step`, which goes up by one per complete cycle:
 | Automatic popup closed (X or Esc) within `quick_close_ms` = **2000** ms of appearing ("annoyed") | One extra step up the ladder: the wait becomes the next interval (7 → 14 days, …). |
 | Donate clicked (popup or menu popup) | All automatic reminders pause for `donate_pause_days` = **180** days; `donate_clicked_ever = true`, never reset. The popup closes. |
 | "I already supported" | Shown in the popup only when `donate_clicked_ever` is true (until then the popup has just Donate and Close). Secondary style, under Donate. Pressing it shows "Thank you!" for `thank_you_ms` = **1500** ms, closes the popup, and pauses automatic reminders for `already_supported_pause_days` = **365** days. |
+| Share ("Tell a friend" or the supporter line's share glyph, section 12) | A supporter-friendly reaction: completes the running cycle like "seen" and adds one extra ladder step (once per cycle). Not a Donate: `donate_clicked_ever` stays, no pause, no supporter state. |
 | Popup opened on demand from the menu | Counts as seen: completes the cycle if the dot was active, no penalty. Closing it quickly is no penalty either. Outside an active cycle it changes nothing. |
 
 The on-demand menu button keeps working during every pause (in the supporter state it is the
@@ -230,6 +231,8 @@ fields.
 | `pause_until_day` | no automatic reminder before this day (Donate, "I already supported") |
 | `supporter_until_day` | the supporter state (2.9) lasts until this day ("I already supported" + 365; empty: none) |
 | `donate_clicked_ever` | ever clicked Donate (never reset) |
+| `shares` | Share clicks counted (informational) |
+| `last_share_cycle` | the value of `cycles` at the last Share that moved the ladder (one extra step per cycle; empty: never) |
 | `calculations` | successful calculations counted (kept from v1, informational) |
 | `fast` | the record was written in fast mode (6), whose day numbers are minutes |
 
@@ -378,6 +381,8 @@ migration), `donate.rs` (URL, `DonationChannel`), `clock.rs` (real and fast time
 - `CalcCraft.Support.AlreadySupported=I already supported`
 - `CalcCraft.Support.ThankYou=Thank you!`
 - `CalcCraft.Support.Thanks=Supported by you` — the supporter state's menu line
+- `CalcCraft.Support.Share=Tell a friend`, `.ShareTooltip=Share CalcCraft`,
+  `.ShareMessage=CalcCraft — a free, precise calculator:`, `.LinkCopied=Link copied` (section 12)
 
 The new button goes through `access::control` (Tab, Enter, Space). The popup is non-modal and
 traps no focus.
@@ -391,3 +396,64 @@ Built, run and verified on Windows desktop (`x86_64-pc-windows-msvc`) only: `car
 (with and without), `cargo build --release`, and a walk through the whole flow in fast mode. The
 code uses only cross-platform pieces (`eframe::Storage`, `egui::OpenUrl`, `web_time`, chrono's
 local date), but macOS, Linux, Android and the web version are not run in this task.
+
+---
+
+## 12. Share with a friend
+
+Sharing is a free way to support CalcCraft, for people who won't donate. It is a quiet secondary
+action, never competing with Donate. No network, no telemetry, no identifiers.
+
+### 12.1 The link
+
+One universal URL for every platform (the page picks the right download, and can change without
+an app release):
+
+```rust
+// TODO: Owner will confirm the real page (the CalcCraft section of the Rapalon site).
+pub const SHARE_URL: &str = "https://rapalon.com/calccraft";
+```
+
+`share_url(base, &ShareContext)` (`src/support/share.rs`, pure, tested) adds
+`utm_source=calccraft&utm_medium=share&utm_content=<platform>_<version>` (same sanitizing as the
+donate link), e.g. `https://rapalon.com/calccraft?utm_source=calccraft&utm_medium=share&utm_content=win_1-3-2`.
+It carries no cycle count, no age bucket and no `client_reference_id`: whoever opens a shared link
+is somebody else, and the sender is not identified.
+
+### 12.2 Where it shows
+
+- **Popup:** under Donate (and under "I already supported" when that shows), a text-style action
+  with the share glyph and **"Tell a friend"**: no fill, no outline, secondary text color. It is in
+  every variant of the popup (not in the 1.5 s "Thank you!" state).
+- **Supporter state:** a small 32 px share glyph button (Fluent `ICON_SHARE`) at the right end of
+  the "Supported by you" line, tooltip and accessible name **"Share CalcCraft"**. The line keeps
+  wrapping in the remaining width.
+- Both are `access::control`s: reachable with Tab, pressed with Enter or Space, no focus trap.
+
+### 12.3 What it does, per platform
+
+The text is `"<ShareMessage> <share_url>"`. `ShareChannel` (like `DonationChannel`) is the seam.
+
+| Platform | Today |
+| --- | --- |
+| Windows, macOS, Linux | Copies the text to the clipboard (`Context::copy_text`) and shows "Link copied" for 2 s. |
+| Web | The same: the browser's clipboard (works in the click's gesture). |
+| Android | The same clipboard copy. A system share sheet (`ACTION_SEND` through JNI, next to `src/app/android.rs`) isn't implemented yet. |
+
+The existing `src/app/share.rs` is the Graphing mode's Windows-only share sheet for an image and
+HTML, so it isn't reused. "Link copied" is a small non-modal note at the bottom of the window,
+announced politely to screen readers, that disappears by itself.
+
+### 12.4 Policy effect
+
+`SupportEvent::ShareClicked`: if a cycle is running (the dot shows) it completes like "seen";
+then, once per cycle (`last_share_cycle`), the ladder moves one extra step and the next cycle
+starts no earlier than the longer interval (the same arithmetic as an "annoyed" close). It sets
+neither `donate_clicked_ever` nor the supporter state, and starts no pause. `shares` counts the
+clicks.
+
+### 12.5 Demo
+
+`CALCCRAFT_SUPPORT_DEMO=popup` and `popup-supported` show "Tell a friend"; `supporter` shows the
+glyph on the thank-you line. `CALCCRAFT_SUPPORT_DEMO=share` is the popup with the "Link copied"
+note already showing (for screenshots).

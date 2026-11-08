@@ -1320,6 +1320,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     line, "Supported by you" followed by a green heart, instead of the amber button; it wraps in
     narrow menus, is a focusable button that opens the popup without touching the pause, and the
     button returns after the 365 days. A Donate click alone doesn't make a supporter.
+  - "Tell a friend" under Donate in every popup variant, and a small share glyph ("Share
+    CalcCraft") on the supporter line: copies "message + `SHARE_URL`" (with `utm_medium=share`) to
+    the clipboard and shows "Link copied" for 2 s. A share completes the running cycle and adds
+    one ladder step, but is no Donate and no supporter state (docs/support-prompt.md, section 12).
   - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
   - `CALCCRAFT_SUPPORT_FAST=1` demo mode (a day is a minute).
   - Compiles cleanly and tests pass with `--no-default-features`.
