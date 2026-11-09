@@ -394,7 +394,7 @@ impl SupportState {
             PopupAction::Close => self.close_popup(now),
             PopupAction::Donate => self.donate(ctx),
             // No reaction for the policy: it's a link, like any other in the app.
-            PopupAction::OpenCompany => ctx.open_url(egui::OpenUrl::new_tab(brand::URL)),
+            PopupAction::OpenCompany => crate::app::open_link(ctx, brand::URL),
             PopupAction::AlreadySupported => {
                 self.apply(SupportEvent::AlreadySupported);
                 if let Some(popup) = &mut self.popup {

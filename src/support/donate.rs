@@ -121,7 +121,7 @@ impl DonationChannel for ExternalLink {
         if super::clock::fast_mode() {
             eprintln!("support: donate URL {url}");
         }
-        ctx.open_url(egui::OpenUrl::new_tab(url));
+        crate::app::open_link(ctx, url);
     }
 }
 

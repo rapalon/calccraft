@@ -2196,7 +2196,7 @@ impl CalculatorApp {
         match action {
             Some(SettingsAction::ToggleTheme) => self.theme_expanded = !self.theme_expanded,
             Some(SettingsAction::SetTheme(theme)) => self.set_theme(&ctx, theme),
-            Some(SettingsAction::OpenUrl(url)) => ctx.open_url(egui::OpenUrl::new_tab(url)),
+            Some(SettingsAction::OpenUrl(url)) => open_link(&ctx, url),
             Some(SettingsAction::OpenList(list, anchor)) => {
                 self.settings_popup = Some(SettingsPopup {
                     list,
@@ -3043,6 +3043,17 @@ impl CalculatorApp {
 /// this turns them into the region's format for the screen, and pasted text back.
 fn numbers() -> &'static crate::locale::NumberFormat {
     &region::formats().numbers
+}
+
+/// Opens `url` in the system browser, in a new tab on the web. On Android egui's `open_url`
+/// does nothing (eframe has no `webbrowser` there), so an `ACTION_VIEW` intent does it.
+pub(crate) fn open_link(ctx: &Context, url: impl Into<String>) {
+    let url = url.into();
+    #[cfg(target_os = "android")]
+    if android::open_url(&url) {
+        return;
+    }
+    ctx.open_url(egui::OpenUrl::new_tab(url));
 }
 
 pub(crate) fn semibold() -> FontFamily {

@@ -205,3 +205,136 @@ pub(super) fn languages() -> Vec<String> {
     })
     .unwrap_or_default()
 }
+
+/// `Intent.FLAG_ACTIVITY_NEW_TASK`: harmless from an activity, needed from any other context.
+const FLAG_ACTIVITY_NEW_TASK: i32 = 0x1000_0000;
+
+/// A new `Intent` with `action`, as a local reference.
+fn new_intent<'local>(
+    env: &mut JNIEnv<'local>,
+    action: &str,
+) -> jni::errors::Result<JObject<'local>> {
+    let action = env.new_string(action)?;
+    env.new_object(
+        "android/content/Intent",
+        "(Ljava/lang/String;)V",
+        &[JValue::Object(&action)],
+    )
+}
+
+/// Starts `intent` from the activity, in a new task.
+fn start_activity(
+    env: &mut JNIEnv,
+    activity: &JObject,
+    intent: &JObject,
+) -> jni::errors::Result<()> {
+    env.call_method(
+        intent,
+        "addFlags",
+        "(I)Landroid/content/Intent;",
+        &[JValue::Int(FLAG_ACTIVITY_NEW_TASK)],
+    )?;
+    env.call_method(
+        activity,
+        "startActivity",
+        "(Landroid/content/Intent;)V",
+        &[JValue::Object(intent)],
+    )?;
+    Ok(())
+}
+
+/// Opens `url` in the default browser (`ACTION_VIEW`). egui's `open_url` does nothing here:
+/// eframe's Android build has no `webbrowser`. Returns whether the intent started.
+pub(crate) fn open_url(url: &str) -> bool {
+    with_activity(|env, activity| {
+        let text = env.new_string(url)?;
+        let uri = env
+            .call_static_method(
+                "android/net/Uri",
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[JValue::Object(&text)],
+            )?
+            .l()?;
+        let intent = new_intent(env, "android.intent.action.VIEW")?;
+        env.call_method(
+            &intent,
+            "setData",
+            "(Landroid/net/Uri;)Landroid/content/Intent;",
+            &[JValue::Object(&uri)],
+        )?;
+        start_activity(env, activity, &intent)
+    })
+    .is_some()
+}
+
+/// Opens the system share sheet with `text` (`ACTION_SEND`, `text/plain`, in a chooser).
+/// Returns whether it started.
+pub(crate) fn share_sheet(text: &str) -> bool {
+    with_activity(|env, activity| {
+        let send = new_intent(env, "android.intent.action.SEND")?;
+        let mime = env.new_string("text/plain")?;
+        env.call_method(
+            &send,
+            "setType",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&mime)],
+        )?;
+        let key = env.new_string("android.intent.extra.TEXT")?;
+        let body = env.new_string(text)?;
+        env.call_method(
+            &send,
+            "putExtra",
+            "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Object(&body)],
+        )?;
+        let chooser = env
+            .call_static_method(
+                "android/content/Intent",
+                "createChooser",
+                "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
+                &[JValue::Object(&send), JValue::Object(&JObject::null())],
+            )?
+            .l()?;
+        start_activity(env, activity, &chooser)
+    })
+    .is_some()
+}
+
+/// Puts `text` on the Android clipboard (`ClipboardManager.setPrimaryClip`). egui-winit's
+/// clipboard is compiled out for Android, so `Context::copy_text` never reaches the system.
+/// Returns whether it was set.
+pub(crate) fn copy_text(text: &str) -> bool {
+    with_activity(|env, activity| {
+        let service = env.new_string("clipboard")?;
+        let manager = env
+            .call_method(
+                activity,
+                "getSystemService",
+                "(Ljava/lang/String;)Ljava/lang/Object;",
+                &[JValue::Object(&service)],
+            )?
+            .l()?;
+        if manager.is_null() {
+            return Ok(false);
+        }
+        let label = env.new_string("CalcCraft")?;
+        let body = env.new_string(text)?;
+        let clip = env
+            .call_static_method(
+                "android/content/ClipData",
+                "newPlainText",
+                "(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;",
+                &[JValue::Object(&label), JValue::Object(&body)],
+            )?
+            .l()?;
+        env.call_method(
+            &manager,
+            "setPrimaryClip",
+            "(Landroid/content/ClipData;)V",
+            &[JValue::Object(&clip)],
+        )?;
+        Ok(true)
+    })
+    .unwrap_or(false)
+}
