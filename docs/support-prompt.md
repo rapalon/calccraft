@@ -105,6 +105,13 @@ short for the card, its contents scroll inside it rather than move up over the d
 The look is v1's: semi-transparent amber card, green Donate button, Fluent close X. It stays
 non-modal (the calculator keeps working under it), never stacks, and closes with Esc or X.
 
+Under the card's buttons is the company's credit: the Rapalon Labs logo (the "R" monogram of
+rapalon.com, `monogram` in the website's `src/lib/brand.ts`, drawn in code by
+`src/support/logo.rs`, so no image file ships) with the name **Rapalon Labs** after it. The two
+are one quiet link to <https://rapalon.com>: no fill or outline until hovered, a focusable
+control whose accessible name is "Rapalon Labs". The name isn't translated. Following the link
+leaves the popup open and is no reaction for the policy (2.8). The thank-you text has no credit.
+
 ### 2.7 Cycles and backoff
 
 After a complete cycle (dot seen, or popup shown), the next cycle waits an interval, then starts

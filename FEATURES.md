@@ -1257,10 +1257,15 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Depends On:** None
 - **Windows ref:** `src/Calculator/Package.appxmanifest`, `src/Calculator/Views/TitleBar.xaml.cs`
 - **Rust:** `src/icon.rs`, `build.rs`, `src/main.rs`, `src/app.rs` (`TitleBar`)
-- **Description:** Window title "CalcCraft"; one icon drawing used as the window icon and embedded
-  in `calculator.exe` (16–256 px) with version information; title bar tinted with the theme background.
+- **Description:** Window title "CalcCraft by Rapalon Labs" (`brand::TITLE`, not translated; also
+  the web page's title and the installed web app's full name); one icon drawing used as the window
+  icon and embedded in `calculator.exe` (16–256 px) with version information; title bar tinted with
+  the theme background. The About card credits "by Rapalon Labs", with the name linking to
+  rapalon.com. Where only a short label fits (Android and web app launchers, the macOS menu bar),
+  the name stays "CalcCraft".
 - **Acceptance Criteria:**
-  - Explorer, the taskbar and Task Manager show the icon and "CalcCraft".
+  - Explorer and the taskbar show the icon and "CalcCraft"; the window title, the file description
+    and Task Manager show "CalcCraft by Rapalon Labs".
 - **Differences:** Windows' title bar is part of the app (Mica, custom buttons). CalcCraft keeps
   the system title bar and only recolors it.
 
@@ -1367,3 +1372,4 @@ Windows source in `../win-calculator`.
 | 2026-11-07 | Antigravity AI | `FEAT-SHELL-012` | Polished support popup: wrapped body text inside inner area with horizontal padding, cohesive vertical block layout with dynamic card height, and replaced close button with Fluent 'X' dismiss glyph (`ICON_CLOSE`) |
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |
+| 2026-11-09 | Claude Code | `FEAT-SHELL-009`, `FEAT-SHELL-012` | Company credit: "CalcCraft by Rapalon Labs" as the window and page title, in the file properties and on the About card, and the Rapalon Labs logo with a link to rapalon.com in the support popup |
