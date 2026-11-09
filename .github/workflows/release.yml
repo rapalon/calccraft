@@ -191,6 +191,7 @@ jobs:
             <key>CFBundleShortVersionString</key><string>$version</string>
             <key>CFBundleVersion</key><string>$version</string>
             <key>NSHighResolutionCapable</key><true/>
+            <key>NSHumanReadableCopyright</key><string>CalcCraft by Rapalon Labs</string>
           </dict>
           </plist>
           EOF

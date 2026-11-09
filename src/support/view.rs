@@ -5,19 +5,23 @@ use std::sync::Arc;
 
 use eframe::Storage;
 use eframe::egui::{
-    self, Align, Align2, Color32, Context, CornerRadius, Event, FontId, Galley, Id, Key, Modifiers,
-    Painter, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, scroll_area::ScrollArea,
+    self, Align, Align2, Color32, ColorImage, Context, CornerRadius, CursorIcon, Event, FontId,
+    Galley, Id, Key, Modifiers, Painter, Rect, Sense, Stroke, StrokeKind, TextureHandle, TextureId,
+    TextureOptions, Ui, UiBuilder, WidgetInfo, WidgetType, pos2, scroll_area::ScrollArea,
     text::LayoutJob, vec2,
 };
+use eframe::emath::GuiRounding;
 
 use crate::app::access;
 use crate::app::icons::{ICON_CLOSE, ICON_HEART, ICON_SHARE, icon_label};
 use crate::app::palette::Palette;
 use crate::app::strings::tr;
+use crate::brand;
 use crate::engine::Command;
 
 use super::clock::Clock;
 use super::donate::{DonateContext, DonateSource, DonationChannel, ExternalLink, platform};
+use super::logo;
 use super::policy::{
     self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
 };
@@ -71,6 +75,7 @@ pub(super) enum PopupAction {
     Donate,
     AlreadySupported,
     Share,
+    OpenCompany,
 }
 
 /// The support prompt's state for one app session.
@@ -94,6 +99,9 @@ pub struct SupportState {
     seen_in_menu: bool,
     /// `CALCCRAFT_SUPPORT_DEMO=menu`.
     demo_menu: bool,
+    /// The company's logo and the size in pixels it was drawn at, made when the popup first
+    /// shows and again when the display's scale changes.
+    logo: Option<(u32, TextureHandle)>,
 }
 
 impl SupportState {
@@ -123,6 +131,7 @@ impl SupportState {
             menu_open: false,
             seen_in_menu: false,
             demo_menu: false,
+            logo: None,
         };
         state.apply(SupportEvent::AppLaunched);
         // Developer aids for screenshots: the popup open at start (as if from the menu), and
@@ -384,6 +393,8 @@ impl SupportState {
             PopupAction::Share => self.share(ctx),
             PopupAction::Close => self.close_popup(now),
             PopupAction::Donate => self.donate(ctx),
+            // No reaction for the policy: it's a link, like any other in the app.
+            PopupAction::OpenCompany => ctx.open_url(egui::OpenUrl::new_tab(brand::URL)),
             PopupAction::AlreadySupported => {
                 self.apply(SupportEvent::AlreadySupported);
                 if let Some(popup) = &mut self.popup {
@@ -509,11 +520,28 @@ impl SupportState {
         let display = noted_display(ui.ctx());
         let width = card_width(display.unwrap_or(window).width());
         let already = policy::show_already_supported_button(&self.stats);
-        let content = Content::new(ui, popup, already, width);
+        let logo = self.logo_texture(ui.ctx());
+        let content = Content::new(ui, popup, already, width, logo);
         let card = card_rect(window, display, width, content.height());
         if let Some(action) = draw_card(ui, p, card, &content) {
             self.handle(ui.ctx(), action);
         }
+    }
+
+    /// The company's logo, in pixels of the display, so it stays sharp at every scale.
+    fn logo_texture(&mut self, ctx: &Context) -> TextureId {
+        let size = (LOGO_SIZE * ctx.pixels_per_point()).ceil() as u32;
+        if let Some((drawn, texture)) = &self.logo
+            && *drawn == size
+        {
+            return texture.id();
+        }
+        let side = size as usize;
+        let image = ColorImage::from_rgba_unmultiplied([side, side], &logo::rgba(size));
+        let texture = ctx.load_texture("support-rapalon-logo", image, TextureOptions::LINEAR);
+        let id = texture.id();
+        self.logo = Some((size, texture));
+        id
     }
 
     /// "Link copied": a small note near the window's bottom that goes away by itself. It lives
@@ -748,6 +776,10 @@ const GAP_BUTTONS: f32 = 8.0;
 const DONATE_HEIGHT: f32 = 36.0;
 const SECONDARY_HEIGHT: f32 = 32.0;
 const SHARE_HEIGHT: f32 = 28.0;
+const GAP_CREDIT: f32 = 10.0;
+const CREDIT_HEIGHT: f32 = 30.0;
+const LOGO_SIZE: f32 = 22.0;
+const LOGO_GAP: f32 = 7.0;
 const MIN_CARD_HEIGHT: f32 = 200.0;
 /// The space kept between the display and the card, and around the card.
 const CARD_MARGIN: f32 = 12.0;
@@ -761,10 +793,17 @@ struct Content {
     buttons: Option<bool>,
     title_color: Color32,
     body_color: Color32,
+    logo: TextureId,
 }
 
 impl Content {
-    fn new(ui: &Ui, popup: OpenPopup, already_supported: bool, width: f32) -> Self {
+    fn new(
+        ui: &Ui,
+        popup: OpenPopup,
+        already_supported: bool,
+        width: f32,
+        logo: TextureId,
+    ) -> Self {
         let dark = dark(ui.ctx());
         let title_color = if dark {
             Color32::from_rgb(255, 238, 185)
@@ -819,6 +858,7 @@ impl Content {
             buttons: (!thank_you).then_some(already_supported),
             title_color,
             body_color,
+            logo,
         }
     }
 
@@ -834,6 +874,7 @@ impl Content {
                 height += GAP_BUTTONS + SECONDARY_HEIGHT;
             }
             height += GAP_BUTTONS + SHARE_HEIGHT;
+            height += GAP_CREDIT + CREDIT_HEIGHT;
         }
         height
     }
@@ -958,6 +999,10 @@ fn draw_content(
     let rect = Rect::from_min_size(pos2(center_x - width / 2.0, y), vec2(width, SHARE_HEIGHT));
     if share_link(ui, p, painter, rect) {
         action = Some(PopupAction::Share);
+    }
+    y += SHARE_HEIGHT + GAP_CREDIT;
+    if company_link(ui, p, painter, pos2(center_x, y), content) {
+        action = Some(PopupAction::OpenCompany);
     }
     action
 }
@@ -1137,6 +1182,61 @@ fn share_link(ui: &Ui, p: &Palette, painter: &Painter, rect: Rect) -> bool {
         color,
     );
     response.clicked()
+}
+
+/// The company's credit, centered under `top_center`: its logo and name, one quiet link to its
+/// site.
+fn company_link(
+    ui: &Ui,
+    p: &Palette,
+    painter: &Painter,
+    top_center: egui::Pos2,
+    content: &Content,
+) -> bool {
+    let name = painter.layout_no_wrap(
+        brand::COMPANY.to_owned(),
+        FontId::new(13.0, crate::app::semibold()),
+        content.body_color,
+    );
+    let total = LOGO_SIZE + LOGO_GAP + name.size().x;
+    let rect = Rect::from_min_size(
+        pos2(top_center.x - total / 2.0 - 8.0, top_center.y),
+        vec2(total + 16.0, CREDIT_HEIGHT),
+    );
+    let info = || WidgetInfo::labeled(WidgetType::Link, true, brand::COMPANY);
+    let response = access::control(ui, p, rect, Id::new("support-company"), true, 6.0, info);
+    let fill = match (
+        response.is_pointer_button_down_on(),
+        response.hovered(),
+        dark(ui.ctx()),
+    ) {
+        (true, _, true) => Color32::from_white_alpha(25),
+        (true, _, false) => Color32::from_black_alpha(20),
+        (false, true, true) => Color32::from_white_alpha(14),
+        (false, true, false) => Color32::from_black_alpha(10),
+        _ => Color32::TRANSPARENT,
+    };
+    painter.rect_filled(rect, CornerRadius::same(6), fill);
+    let left = rect.left() + 8.0;
+    let logo = Rect::from_min_size(
+        pos2(left, rect.center().y - LOGO_SIZE / 2.0),
+        vec2(LOGO_SIZE, LOGO_SIZE),
+    )
+    .round_to_pixels(painter.pixels_per_point());
+    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+    painter.image(content.logo, logo, uv, Color32::WHITE);
+    painter.galley(
+        pos2(
+            left + LOGO_SIZE + LOGO_GAP,
+            rect.center().y - name.size().y / 2.0,
+        ),
+        name,
+        content.body_color,
+    );
+    response
+        .on_hover_cursor(CursorIcon::PointingHand)
+        .on_hover_text("rapalon.com")
+        .clicked()
 }
 
 #[cfg(test)]

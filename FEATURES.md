@@ -1264,8 +1264,7 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   rapalon.com. Where only a short label fits (Android and web app launchers, the macOS menu bar),
   the name stays "CalcCraft".
 - **Acceptance Criteria:**
-  - Explorer and the taskbar show the icon and "CalcCraft"; the window title, the file description
-    and Task Manager show "CalcCraft by Rapalon Labs".
+  - Explorer, the taskbar and Task Manager show the icon and "CalcCraft by Rapalon Labs".
 - **Differences:** Windows' title bar is part of the app (Mica, custom buttons). CalcCraft keeps
   the system title bar and only recolors it.
 

@@ -1,5 +1,5 @@
 //! Embeds the app icon and version information in the Windows executable, so
-//! Explorer, the taskbar and Task Manager show the calculator icon and "CalcCraft".
+//! Explorer, the taskbar and Task Manager show the calculator icon and the company's credit.
 //!
 //! The icon is rendered from `src/icon.rs`, the same drawing as the window icon,
 //! into an .ico file with one image per size Windows asks for.
@@ -26,8 +26,9 @@ fn main() {
     resource
         .set_icon(ico_path.to_str().expect("OUT_DIR is valid UTF-8"))
         .set("ProductName", "CalcCraft")
+        .set("CompanyName", "Rapalon Labs, Inc.")
         // Task Manager shows the file description as the app's name.
-        .set("FileDescription", "CalcCraft");
+        .set("FileDescription", "CalcCraft by Rapalon Labs");
     resource
         .compile()
         .expect("embedding the icon needs rc.exe from the Windows SDK");

@@ -29,6 +29,7 @@ use eframe::egui::{
     WidgetType, WindowLevel, pos2, text::LayoutJob, vec2,
 };
 
+use crate::brand;
 use crate::converter::Category;
 use crate::engine::{Angle, Calculator, Command, Func, HistoryEntry, Op, Radix};
 use icons::{
@@ -2444,7 +2445,7 @@ impl CalculatorApp {
             }
         }
 
-        // About: the app's name, icon and version
+        // About: the app's name with the company's credit under it, the icon and the version
         section_label(
             p,
             &painter,
@@ -2468,13 +2469,38 @@ impl CalculatorApp {
         );
         let uv = Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0));
         painter.image(self.app_icon.id(), icon, uv, Color32::WHITE);
-        painter.text(
-            pos2(card.left() + TEXT_X, card.center().y),
-            Align2::LEFT_CENTER,
-            "CalcCraft",
-            body.clone(),
-            p.text,
-        );
+        let name = painter.layout_no_wrap("CalcCraft".to_owned(), body.clone(), p.text);
+        let by = brand::CREDIT
+            .strip_suffix(brand::COMPANY)
+            .unwrap_or_default();
+        let credit = |link_color: Color32| {
+            let mut job = LayoutJob::default();
+            for (part, color) in [(by, p.text_secondary), (brand::COMPANY, link_color)] {
+                let font = FontId::proportional(12.0);
+                job.append(part, 0.0, TextFormat::simple(font, color));
+            }
+            painter.layout_job(job)
+        };
+        let mut credit_text = credit(p.link);
+        let text_left = card.left() + TEXT_X;
+        let text_top = card.center().y - (name.size().y + credit_text.size().y) / 2.0;
+        let credit_origin = pos2(text_left, text_top + name.size().y);
+        painter.galley(pos2(text_left, text_top), name, p.text);
+        let start = by.chars().count();
+        let link = char_range_rect(&credit_text, start..start + brand::COMPANY.chars().count());
+        let info = || WidgetInfo::labeled(WidgetType::Link, true, brand::COMPANY);
+        let link = link.translate(credit_origin.to_vec2());
+        let response = access::control(ui, p, link, Id::new("rapalon-labs"), true, RADIUS, info)
+            .on_hover_cursor(CursorIcon::PointingHand);
+        if response.is_pointer_button_down_on() {
+            credit_text = credit(p.link_pressed);
+        } else if response.hovered() {
+            credit_text = credit(p.link_hover);
+        }
+        painter.galley(credit_origin, credit_text, p.text);
+        if response.clicked() {
+            action = Some(SettingsAction::OpenUrl(brand::URL));
+        }
         painter.text(
             pos2(card.right() - 20.0, card.center().y),
             Align2::RIGHT_CENTER,
@@ -4165,6 +4191,21 @@ mod tests {
     }
 
     #[test]
+    fn about_card_links_to_the_company() {
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let mut app = start_in(&ctx);
+        app.page = Page::Settings;
+        let size = vec2(1000.0, 900.0);
+        run(&ctx, &mut app, size, vec![]);
+        let nodes = accesskit_nodes(&ctx, &mut app, size);
+        let credited = |(_, node): &(_, egui::accesskit::Node)| {
+            node.role() == Role::Link && node.label() == Some(brand::COMPANY)
+        };
+        assert!(nodes.iter().any(credited));
+    }
+
+    #[test]
     fn modes_are_saved_with_windows_ids() {
         // `NavCategory`'s `SerializationId`s.
         let ids = [
@@ -5344,6 +5385,7 @@ mod tests {
                     "support-donate",
                     "support-already",
                     "support-share",
+                    "support-company",
                 ] {
                     let rect = ctx.read_response(Id::new(id)).unwrap().rect;
                     assert!(

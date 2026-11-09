@@ -10,6 +10,7 @@
 
 pub mod clock;
 pub mod donate;
+mod logo;
 pub mod policy;
 pub mod share;
 pub mod stats;
@@ -271,6 +272,24 @@ mod tests {
             version = env!("CARGO_PKG_VERSION").replace('.', "-"),
         );
         assert_eq!(url.as_deref(), Some(expected.as_str()));
+    }
+
+    #[test]
+    fn the_company_link_opens_the_site_and_leaves_the_popup_as_it_is() {
+        let ctx = Context::default();
+        let mut state = regular();
+        state.open_on_demand();
+        let before = state.stats.clone();
+        state.handle(&ctx, PopupAction::OpenCompany);
+        assert!(state.is_open());
+        assert_eq!(state.stats, before);
+        let url = ctx.output(|o| {
+            o.commands.iter().find_map(|command| match command {
+                egui::OutputCommand::OpenUrl(open) => Some(open.url.clone()),
+                _ => None,
+            })
+        });
+        assert_eq!(url.as_deref(), Some(crate::brand::URL));
     }
 
     /// A supporter at day 10: "I already supported" was pressed on day 10.

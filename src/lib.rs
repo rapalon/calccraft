@@ -2,6 +2,7 @@
 //! browser; on Android, the system loads this library and calls `android_main`.
 
 mod app;
+mod brand;
 mod converter;
 mod dates;
 mod engine;
@@ -30,7 +31,7 @@ pub fn run() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("CalcCraft")
+            .with_title(brand::TITLE)
             .with_inner_size([w, h])
             .with_min_inner_size(app::MIN_SIZE)
             .with_icon(app::window_icon()),
