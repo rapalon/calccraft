@@ -5,8 +5,8 @@ use eframe::egui;
 use super::donate::{UTM_MAX, sanitize};
 
 /// The one link people share, for every platform: the page picks the right download and can
-/// change without an app release.
-// TODO: Owner will confirm the real page (the CalcCraft section of the Rapalon site).
+/// change without an app release. It is CalcCraft's page on rapalon.com, where the donate link
+/// (`DONATE_URL`, under `/donate`) lives too.
 pub const SHARE_URL: &str = "https://rapalon.com/calccraft";
 
 /// The coarse, non-identifying context of a share link.

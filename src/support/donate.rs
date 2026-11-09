@@ -3,9 +3,10 @@
 
 use eframe::egui;
 
-/// Donation URL for supporting the project.
-// TODO: Owner will confirm the real Stripe page URL.
-pub const DONATE_URL: &str = "https://rapalon.com/donate";
+/// Donation URL for supporting the project. It is CalcCraft's own page on rapalon.com, which
+/// redirects to the Stripe payment link and keeps `utm_*` and `client_reference_id`: the target
+/// can change in one place, without an app release, and campaigns stay trackable.
+pub const DONATE_URL: &str = "https://rapalon.com/calccraft/donate";
 
 /// Stripe's limits: 150 characters for the UTM values, 200 for `client_reference_id`.
 pub(super) const UTM_MAX: usize = 150;
@@ -142,7 +143,7 @@ mod tests {
     fn url_with_tracking_parameters() {
         assert_eq!(
             donate_url(DONATE_URL, &context(DonateSource::Popup, 3, Some(45))),
-            "https://rapalon.com/donate?utm_source=calccraft&utm_medium=popup\
+            "https://rapalon.com/calccraft/donate?utm_source=calccraft&utm_medium=popup\
              &utm_campaign=support&utm_content=win_1-4-0\
              &client_reference_id=cc_win_1-4-0_popup_c3_d30-90"
         );
