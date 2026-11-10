@@ -211,13 +211,15 @@ UI code and is covered by unit tests.*
 - **Status:** `[x] COMPLETED`
 - **Priority:** `P0`
 - **Depends On:** `FEAT-CORE-001`
-- **Windows ref:** `src/CalcManager/CEngine/scicomm.cpp`
-- **Rust:** `src/engine.rs` (`CalcError`, `Calculator::display_error`, `is_enabled`)
+- **Windows ref:** `src/CalcManager/CEngine/scicomm.cpp`, `scidisp.cpp` (`DisplayNum`,
+  `IsNumberInvalid`)
+- **Rust:** `src/engine.rs` (`CalcError`, `Calculator::display_error`, `display_num`, `is_enabled`)
 - **Description:** Errors and their display strings:
   - `Cannot divide by zero` (`1 ÷ 0`, `1/x` of 0).
   - `Result is undefined` (`0 ÷ 0`).
   - `Invalid input` (square root of a negative number, or pasted text that isn't valid).
-  - `Overflow` (decimal exponent beyond ±9999, in both directions).
+  - `Overflow` (decimal exponent beyond ±9999, in both directions, as the display rounds the
+    number: `9.99…9e+9999` is `Overflow`, `9.99…9e-10000` shows as `1.e-9999`).
 - **Acceptance Criteria:**
   - In the error state only digits, `C`, `CE`, `⌫` and `=` work; pressing any of them leaves the
     error state (`=` does nothing else). The decimal point is disabled, as the number pad's
