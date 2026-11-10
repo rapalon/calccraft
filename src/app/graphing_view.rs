@@ -194,7 +194,7 @@ pub(super) fn g6(v: f64) -> String {
 /// stays finite on a slider from −1e308 to 1e308.
 fn slider_value(t: f64, min: f64, max: f64, step: f64) -> f64 {
     let raw = min * (1.0 - t) + max * t;
-    let snapped = clean(min + ((raw - min) / step).round() * step);
+    let snapped = clean(min + ((raw - min) / step).round() * step, min, step);
     let value = if snapped.is_finite() { snapped } else { raw };
     value.max(min).min(max)
 }
@@ -206,9 +206,23 @@ fn slider_fraction(value: f64, min: f64, max: f64) -> f64 {
     if t.is_nan() { 0.0 } else { t.clamp(0.0, 1.0) }
 }
 
-/// `v` without the floating point noise steps add up to (0.30000000000000004).
-fn clean(v: f64) -> f64 {
-    format!("{v:.12}").parse().unwrap_or(v)
+/// `v`, which is `base` plus whole steps, without the floating point noise of the sum
+/// (0.1 + 0.2 = 0.30000000000000004). The exact sum has no more decimals than `base` or
+/// `step`, so `v` is rounded to theirs. Windows' slider keeps plain doubles, so a step
+/// keeps all its digits too (1e-14, 1.23456789012345e-14).
+fn clean(v: f64, base: f64, step: f64) -> f64 {
+    let decimals = decimals(base).max(decimals(step));
+    format!("{v:.decimals$}").parse().unwrap_or(v)
+}
+
+/// The decimals of `x`'s shortest representation: 1 for 0.1, 28 for 1.23456789012345e-14.
+fn decimals(x: f64) -> usize {
+    let text = format!("{x:e}");
+    let (mantissa, exponent) = text.split_once('e').unwrap_or((&text, "0"));
+    let fraction = mantissa
+        .split_once('.')
+        .map_or(0, |(_, digits)| digits.len()) as i64;
+    (fraction - exponent.parse::<i64>().unwrap_or(0)).max(0) as usize
 }
 
 fn trim_zeros(s: &mut String) {
@@ -1704,10 +1718,10 @@ impl CalculatorApp {
                 )
             });
             if left {
-                v.value = clean(v.value - v.step).max(v.min);
+                v.value = clean(v.value - v.step, v.value, v.step).max(v.min);
             }
             if right {
-                v.value = clean(v.value + v.step).min(v.max);
+                v.value = clean(v.value + v.step, v.value, v.step).min(v.max);
             }
         }
         let t = slider_fraction(v.value, v.min, v.max) as f32;
@@ -3173,6 +3187,33 @@ mod tests {
         assert_eq!(slider_value(0.62, -5.0, 5.0, 0.1), 1.2);
         assert_eq!(slider_value(1.0, -5.0, 5.0, 3.0), 4.0);
         assert_eq!(slider_fraction(1.0, -5.0, 5.0), 0.6);
+    }
+
+    #[test]
+    fn small_slider_steps() {
+        // A slider for a small parameter: 0 to 1e-12 in steps of 1e-14. Dragging
+        // reaches every step.
+        assert_eq!(slider_value(0.52, 0.0, 1e-12, 1e-14), 5.2e-13);
+        let values: std::collections::BTreeSet<u64> = (0..=100)
+            .map(|i| slider_value(i as f64 / 100.0, 0.0, 1e-12, 1e-14).to_bits())
+            .collect();
+        assert_eq!(values.len(), 101);
+        // The arrow keys move it by a step (`SmallChange`): from 5e-13, two up and one
+        // down, as `draw_slider` adds them.
+        let up = |v: f64| clean(v + 1e-14, v, 1e-14);
+        let down = |v: f64| clean(v - 1e-14, v, 1e-14);
+        assert_eq!(up(up(5e-13)), 5.2e-13);
+        assert_eq!(down(up(up(5e-13))), 5.1e-13);
+        // Ordinary steps still lose the noise: 0.1 + 0.2 is 0.3, and −100000 plus 1000001
+        // steps of 0.1 is 0.1 (to 12 decimals it was 0.100000000006).
+        assert_eq!(clean(0.1 + 0.2, 0.1, 0.1), 0.3);
+        assert_eq!(clean(-100000.0 + 1000001.0 * 0.1, -100000.0, 0.1), 0.1);
+        // A step keeps all its digits: dragging to the end, or one step from the start,
+        // reaches a maximum one step away.
+        let step = 1.23456789012345e-14;
+        assert_eq!(slider_value(1.0, 0.0, step, step), step);
+        assert_eq!(clean(0.0 + step, 0.0, step), step);
+        assert_eq!((decimals(0.1), decimals(-5.0), decimals(step)), (1, 0, 28));
     }
 
     #[test]
