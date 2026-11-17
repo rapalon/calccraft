@@ -9,6 +9,7 @@ CalcCraft.Language=Language
 CalcCraft.LanguageDescription=Select which language to display
 CalcCraft.RegionalFormat=Regional format
 CalcCraft.Contribute=To learn how you can contribute to CalcCraft, check out the project on %1.
+CalcCraft.PrivacyPolicy=Privacy policy
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -28,291 +29,340 @@ CalcCraft.Language=Language
 CalcCraft.LanguageDescription=Select which language to display
 CalcCraft.RegionalFormat=Regional format
 CalcCraft.Contribute=To learn how you can contribute to CalcCraft, check out the project on %1.
+CalcCraft.PrivacyPolicy=Privacy policy
 
 [af-ZA]
 CalcCraft.Language=Taal
 CalcCraft.LanguageDescription=Kies watter taal om te vertoon
 CalcCraft.RegionalFormat=Streekformaat
 CalcCraft.Contribute=Om uit te vind hoe om tot CalcCraft by te dra, gaan kyk na die projek op %1.
+CalcCraft.PrivacyPolicy=Privaatheidsbeleid
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
 CalcCraft.LanguageDescription=የትኛው ቋንቋ ለእይታ እንደሚቀርብ ይምረጡ
 CalcCraft.RegionalFormat=ክልላዊ ቅርጸት
 CalcCraft.Contribute=ለ CalcCraft እንዴት ማበርከት እንደሚችሉ ለማወቅ ፕሮጀክቱን %1 ላይ ይመልከቱ።
+CalcCraft.PrivacyPolicy=የግላዊነት መመሪያ
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
 CalcCraft.LanguageDescription=Göstəriləcək dili seçin
 CalcCraft.RegionalFormat=Regional format
 CalcCraft.Contribute=CalcCraft tətbiqinə necə töhfə verməyi öyrənmək üçün layihəni %1-da yoxlayın.
+CalcCraft.PrivacyPolicy=Məxfilik siyasəti
 
 [bg-BG]
 CalcCraft.Language=Език
 CalcCraft.LanguageDescription=Изберете кой език да се показва
 CalcCraft.RegionalFormat=Регионален формат
 CalcCraft.Contribute=За да научите как можете да участвате в CalcCraft, прегледайте проекта на %1.
+CalcCraft.PrivacyPolicy=Политика за поверителност
 
 [ca-ES]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Selecciona l'idioma que vols que es mostri.
 CalcCraft.RegionalFormat=Format regional
 CalcCraft.Contribute=Per obtenir informació sobre com podeu contribuir al CalcCraft, doneu una ullada al projecte al %1.
+CalcCraft.PrivacyPolicy=Política de privadesa
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
 CalcCraft.LanguageDescription=Vyberte jazyk, který se má zobrazit.
 CalcCraft.RegionalFormat=Místní formát
 CalcCraft.Contribute=Pokud se chcete dozvědět, jak můžete přispívat do aplikace CalcCraft, podívejte se na projekt na %1.
+CalcCraft.PrivacyPolicy=Zásady ochrany osobních údajů
 
 [da-DK]
 CalcCraft.Language=Sprog
 CalcCraft.LanguageDescription=Vælg, hvilket sprog der skal vises
 CalcCraft.RegionalFormat=Områdeformat
 CalcCraft.Contribute=Du kan få mere at vide om, hvordan du kan bidrage til CalcCraft, ved at tjekke projektet ud på %1.
+CalcCraft.PrivacyPolicy=Privatlivspolitik
 
 [de-DE]
 CalcCraft.Language=Sprache
 CalcCraft.LanguageDescription=Auswählen der anzuzeigenden Sprache
 CalcCraft.RegionalFormat=Regionales Format
 CalcCraft.Contribute=Um zu erfahren, wie Sie an CalcCraft mitwirken können, checken Sie das Projekt auf %1 aus.
+CalcCraft.PrivacyPolicy=Datenschutzrichtlinie
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
 CalcCraft.LanguageDescription=Επιλέξτε τη γλώσσα που θα εμφανίζεται
 CalcCraft.RegionalFormat=Μορφή περιοχής
 CalcCraft.Contribute=Για να μάθετε πώς μπορείτε να συμβάλετε στο CalcCraft, αναλάβετε τον έλεγχο του έργου σε %1.
+CalcCraft.PrivacyPolicy=Πολιτική απορρήτου
 
 [es-ES]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Seleccionar el idioma que se va a mostrar
 CalcCraft.RegionalFormat=Formato regional
 CalcCraft.Contribute=Para saber cómo puede contribuir a CalcCraft, consulte el proyecto en %1.
+CalcCraft.PrivacyPolicy=Política de privacidad
 
 [es-MX]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Seleccionar el idioma para mostrar
 CalcCraft.RegionalFormat=Formato regional
 CalcCraft.Contribute=Para obtener información sobre cómo puede contribuir a CalcCraft, consulta el proyecto en %1.
+CalcCraft.PrivacyPolicy=Política de privacidad
 
 [et-EE]
 CalcCraft.Language=Keel
 CalcCraft.LanguageDescription=Valige kuvatav keel
 CalcCraft.RegionalFormat=Piirkondlik vorming
 CalcCraft.Contribute=Kui soovite teada, kuidas saate rakendusse CalcCraft panustada, vaadake projekti %1.
+CalcCraft.PrivacyPolicy=Privaatsuspoliitika
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
 CalcCraft.LanguageDescription=Hautatu bistaratu beharreko hizkuntza
 CalcCraft.RegionalFormat=Eskualdeko formatua
 CalcCraft.Contribute=CalcCraft aplikazioari ekarpenak egiten ikasteko, begiratu proiektua hemen: %1.
+CalcCraft.PrivacyPolicy=Pribatutasun-politika
 
 [fi-FI]
 CalcCraft.Language=Kieli
 CalcCraft.LanguageDescription=Valitse näytettävä kieli
 CalcCraft.RegionalFormat=Alueellinen muoto
 CalcCraft.Contribute=Katso, miten voit osallistua CalcCraft-sovelluksen kehittämiseen, tutustu projektiin %1.
+CalcCraft.PrivacyPolicy=Tietosuojakäytäntö
 
 [fil-PH]
 CalcCraft.Language=Wika
 CalcCraft.LanguageDescription=Piliin kung aling wika ang ipapakita
 CalcCraft.RegionalFormat=Format ng rehiyon
 CalcCraft.Contribute=Para malaman kung paano ka makakapag-ambag sa CalcCraft, tingnan ang proyekto sa %1.
+CalcCraft.PrivacyPolicy=Patakaran sa privacy
 
 [fr-CA]
 CalcCraft.Language=Langue
 CalcCraft.LanguageDescription=Sélectionner la langue de l’appli
 CalcCraft.RegionalFormat=Format régional
 CalcCraft.Contribute=Pour savoir comment vous pouvez contribuer à CalcCraft, consultez le projet sur %1.
+CalcCraft.PrivacyPolicy=Politique de confidentialité
 
 [fr-FR]
 CalcCraft.Language=Langue
 CalcCraft.LanguageDescription=Sélectionner la langue de l’application
 CalcCraft.RegionalFormat=Format régional
 CalcCraft.Contribute=Pour découvrir comment vous pouvez contribuer à CalcCraft, extrayez le projet sur %1.
+CalcCraft.PrivacyPolicy=Politique de confidentialité
 
 [gl-ES]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Seleccionar que idioma se vai mostrar
 CalcCraft.RegionalFormat=Formato rexional
 CalcCraft.Contribute=Para obter máis información sobre como podes contribuír a CalcCraft, consulta o proxecto en %1.
+CalcCraft.PrivacyPolicy=Política de privacidade
 
 [hr-HR]
 CalcCraft.Language=Jezik
 CalcCraft.LanguageDescription=Odaberite jezik koji će se prikazati
 CalcCraft.RegionalFormat=Regionalni format
 CalcCraft.Contribute=Da biste saznali kako možete sudjelovati u razvoju aplikacije CalcCraft, pogledajte projekt na %1.
+CalcCraft.PrivacyPolicy=Pravila o privatnosti
 
 [hu-HU]
 CalcCraft.Language=Nyelv
 CalcCraft.LanguageDescription=Válassza ki a megjelenítendő nyelvet
 CalcCraft.RegionalFormat=Területi formátum
 CalcCraft.Contribute=Ha tudni szeretné, hogy miként működhet közre a CalcCraft számára, nézze meg a projektet a %1 szolgáltatásban.
+CalcCraft.PrivacyPolicy=Adatvédelmi irányelvek
 
 [id-ID]
 CalcCraft.Language=Bahasa
 CalcCraft.LanguageDescription=Pilih bahasa yang akan ditampilkan
 CalcCraft.RegionalFormat=Format regional
 CalcCraft.Contribute=Untuk mempelajari bagaimana Anda dapat berkontribusi ke CalcCraft, lihat proyek di %1.
+CalcCraft.PrivacyPolicy=Kebijakan privasi
 
 [is-IS]
 CalcCraft.Language=Tungumál
 CalcCraft.LanguageDescription=Velja hvaða tungumál á að birta
 CalcCraft.RegionalFormat=Svæðissnið
 CalcCraft.Contribute=Kynntu þér verkefnið á %1 til að fá upplýsingar um hvernig þú getur lagt þitt af mörkum í CalcCraft.
+CalcCraft.PrivacyPolicy=Persónuverndarstefna
 
 [it-IT]
 CalcCraft.Language=Lingua
 CalcCraft.LanguageDescription=Seleziona la lingua da mostrare
 CalcCraft.RegionalFormat=Formato regionale
 CalcCraft.Contribute=Per informazioni su come contribuire a CalcCraft, controllare il progetto in %1.
+CalcCraft.PrivacyPolicy=Informativa sulla privacy
 
 [ja-JP]
 CalcCraft.Language=言語
 CalcCraft.LanguageDescription=表示する言語を選択します
 CalcCraft.RegionalFormat=地域設定
 CalcCraft.Contribute=CalcCraft への投稿方法については、%1 でプロジェクトをご覧ください。
+CalcCraft.PrivacyPolicy=プライバシー ポリシー
 
 [kk-KZ]
 CalcCraft.Language=Тіл
 CalcCraft.LanguageDescription=Көрсетілетін тілді таңдау
 CalcCraft.RegionalFormat=Аймақтық пішім
 CalcCraft.Contribute=CalcCraft қолданбасына қалай іскерлесуге болатындығын білу үшін, %1 қоймасында жобаны тексеріңіз.
+CalcCraft.PrivacyPolicy=Құпиялылық саясаты
 
 [ko-KR]
 CalcCraft.Language=언어
 CalcCraft.LanguageDescription=표시할 언어 선택
 CalcCraft.RegionalFormat=국가별 형식
 CalcCraft.Contribute=CalcCraft에 기여할 수 있는 방법을 알아보려면 %1 프로젝트를 확인하세요.
+CalcCraft.PrivacyPolicy=개인정보 처리방침
 
 [lt-LT]
 CalcCraft.Language=Kalba
 CalcCraft.LanguageDescription=Pasirinkite, kurią kalbą rodyti
 CalcCraft.RegionalFormat=Regiono formatas
 CalcCraft.Contribute=Norėdami sužinoti, kaip galite prisidėti prie programėlės CalcCraft, peržiūrėkite projektą %1.
+CalcCraft.PrivacyPolicy=Privatumo politika
 
 [lv-LV]
 CalcCraft.Language=Valoda
 CalcCraft.LanguageDescription=Atlasiet, kuru valodu rādīt
 CalcCraft.RegionalFormat=Reģionālais formāts
 CalcCraft.Contribute=Lai uzzinātu, kā varat piedalīties CalcCraft izstrādē, skatiet projektu %1.
+CalcCraft.PrivacyPolicy=Privātuma politika
 
 [mk-MK]
 CalcCraft.Language=Јазик
 CalcCraft.LanguageDescription=Изберете кој јазик да се прикажува
 CalcCraft.RegionalFormat=Регионален формат
 CalcCraft.Contribute=За да дознаете како можете да придонесете за CalcCraft, проверете го проектот на %1.
+CalcCraft.PrivacyPolicy=Политика за приватност
 
 [ms-MY]
 CalcCraft.Language=Bahasa
 CalcCraft.LanguageDescription=Pilih bahasa untuk dipaparkan
 CalcCraft.RegionalFormat=Format serantau
 CalcCraft.Contribute=Untuk mengetahui cara anda boleh menyumbang kepada CalcCraft, lihat projek pada %1.
+CalcCraft.PrivacyPolicy=Dasar privasi
 
 [nb-NO]
 CalcCraft.Language=Språk
 CalcCraft.LanguageDescription=Velg hvilket språk som skal vises
 CalcCraft.RegionalFormat=Regionalt format
 CalcCraft.Contribute=Hvis du vil lære hvordan du kan bidra til CalcCraft, sjekker du prosjektet på %1.
+CalcCraft.PrivacyPolicy=Personvernerklæring
 
 [nl-NL]
 CalcCraft.Language=Taal
 CalcCraft.LanguageDescription=Selecteer welke taal moet worden weergegeven
 CalcCraft.RegionalFormat=Landinstellingen
 CalcCraft.Contribute=Voor meer informatie over hoe u kunt bijdragen aan CalcCraft, bekijkt u het project op %1.
+CalcCraft.PrivacyPolicy=Privacybeleid
 
 [pl-PL]
 CalcCraft.Language=Język
 CalcCraft.LanguageDescription=Wybierz język do wyświetlenia
 CalcCraft.RegionalFormat=Format regionalny
 CalcCraft.Contribute=Aby dowiedzieć się, jak można uczestniczyć w programie CalcCraft, wyewidencjonuj projekt na stronie %1.
+CalcCraft.PrivacyPolicy=Zasady ochrony prywatności
 
 [pt-BR]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Selecionar o idioma a ser exibido
 CalcCraft.RegionalFormat=Formato regional
 CalcCraft.Contribute=Para saber como você pode contribuir para o CalcCraft, faça check-out no projeto em %1.
+CalcCraft.PrivacyPolicy=Política de privacidade
 
 [pt-PT]
 CalcCraft.Language=Idioma
 CalcCraft.LanguageDescription=Selecionar o idioma a apresentar
 CalcCraft.RegionalFormat=Formato regional
 CalcCraft.Contribute=Para saber como pode contribuir para o CalcCraft, consulte o projeto no %1.
+CalcCraft.PrivacyPolicy=Política de privacidade
 
 [ro-RO]
 CalcCraft.Language=Limbă
 CalcCraft.LanguageDescription=Selectați ce limbă să afișați
 CalcCraft.RegionalFormat=Format regional
 CalcCraft.Contribute=Pentru a afla cum puteți contribui la CalcCraft, extrageți proiectul pe %1.
+CalcCraft.PrivacyPolicy=Politica de confidențialitate
 
 [ru-RU]
 CalcCraft.Language=Язык
 CalcCraft.LanguageDescription=Выберите язык для отображения
 CalcCraft.RegionalFormat=Региональный формат
 CalcCraft.Contribute=Чтобы узнать, как вы можете участвовать в разработке CalcCraft, изучите проект на %1.
+CalcCraft.PrivacyPolicy=Политика конфиденциальности
 
 [sk-SK]
 CalcCraft.Language=Jazyk
 CalcCraft.LanguageDescription=Vyberte, ktorý jazyk sa má zobraziť
 CalcCraft.RegionalFormat=Miestny formát
 CalcCraft.Contribute=Ak chcete zistiť, ako môžete prispievať do programu CalcCraft, vezmite projekt na %1.
+CalcCraft.PrivacyPolicy=Zásady ochrany osobných údajov
 
 [sl-SI]
 CalcCraft.Language=Jezik
 CalcCraft.LanguageDescription=Izberite jezik za prikaz
 CalcCraft.RegionalFormat=Regionalna oblika
 CalcCraft.Contribute=Če želite izvedeti, kako lahko prispevate v CalcCraft, si oglejte projekt v %1.
+CalcCraft.PrivacyPolicy=Pravilnik o zasebnosti
 
 [sq-AL]
 CalcCraft.Language=Gjuha
 CalcCraft.LanguageDescription=Zgjidh gjuhën për t'u shfaqur
 CalcCraft.RegionalFormat=Formati rajonal
 CalcCraft.Contribute=Për të mësuar se si mund të kontribuosh në CalcCraft, shiko projektin në %1.
+CalcCraft.PrivacyPolicy=Politika e privatësisë
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
 CalcCraft.LanguageDescription=Izaberite jezik koji želite da prikažete
 CalcCraft.RegionalFormat=Regionalni format
 CalcCraft.Contribute=Da biste saznali kako možete da date doprinos za CalcCraft, pogledajte projekat na %1.
+CalcCraft.PrivacyPolicy=Politika privatnosti
 
 [sv-SE]
 CalcCraft.Language=Språk
 CalcCraft.LanguageDescription=Välj vilket språk som ska visas
 CalcCraft.RegionalFormat=Regionalt format
 CalcCraft.Contribute=Om du vill veta hur du kan bidra till CalcCraft kan du checka ut projektet på %1.
+CalcCraft.PrivacyPolicy=Integritetspolicy
 
 [th-TH]
 CalcCraft.Language=ภาษา
 CalcCraft.LanguageDescription=เลือกภาษาที่จะแสดง
 CalcCraft.RegionalFormat=รูปแบบภูมิภาค
 CalcCraft.Contribute=เมื่อต้องการเรียนรู้วิธีที่คุณสามารถให้ความช่วยเหลือกับ CalcCraft ได้ให้ตรวจสอบโครงการบน %1
+CalcCraft.PrivacyPolicy=นโยบายความเป็นส่วนตัว
 
 [tr-TR]
 CalcCraft.Language=Dil
 CalcCraft.LanguageDescription=Görüntülenecek dili seçin
 CalcCraft.RegionalFormat=Bölgesel biçim
 CalcCraft.Contribute=CalcCraft uygulamasına nasıl katkıda bulunabileceğinizi öğrenmek için %1 projeyi kullanıma alın.
+CalcCraft.PrivacyPolicy=Gizlilik politikası
 
 [uk-UA]
 CalcCraft.Language=Мова
 CalcCraft.LanguageDescription=Виберіть мову для відображення
 CalcCraft.RegionalFormat=Регіональний формат
 CalcCraft.Contribute=Щоб дізнатися, як можна брати участь у CalcCraft, візьміть проект на редагування %1.
+CalcCraft.PrivacyPolicy=Політика конфіденційності
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
 CalcCraft.LanguageDescription=Chọn ngôn ngữ để hiển thị
 CalcCraft.RegionalFormat=Định dạng khu vực
 CalcCraft.Contribute=Để tìm hiểu cách bạn có thể đóng góp vào CalcCraft, hãy kiểm tra dự án trên %1.
+CalcCraft.PrivacyPolicy=Chính sách quyền riêng tư
 
 [zh-CN]
 CalcCraft.Language=语言
 CalcCraft.LanguageDescription=选择要显示的语言
 CalcCraft.RegionalFormat=区域格式
 CalcCraft.Contribute=若要了解如何参与 CalcCraft，请在 %1 上查看该项目。
+CalcCraft.PrivacyPolicy=隐私政策
 
 [zh-TW]
 CalcCraft.Language=語言
 CalcCraft.LanguageDescription=選取要顯示的語言
 CalcCraft.RegionalFormat=地區格式
 CalcCraft.Contribute=若要了解如何對 CalcCraft 有所貢獻，請查看 %1 上的專案。
+CalcCraft.PrivacyPolicy=隱私權政策

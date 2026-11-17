@@ -492,6 +492,7 @@ mod tests {
             "CalcCraft.LanguageDescription",
             "CalcCraft.RegionalFormat",
             "CalcCraft.Contribute",
+            "CalcCraft.PrivacyPolicy",
         ];
         for language in languages() {
             let table = parse(own(language));

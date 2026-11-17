@@ -79,7 +79,7 @@ All go through `open_link` (`src/app.rs:3050-3057`): the system browser on deskt
 | --- | --- | --- | --- |
 | Rapalon Labs (About card) | `https://rapalon.com` | none | `src/app.rs:2502`, `src/brand.rs:13` |
 | Rapalon Labs (support popup) | `https://rapalon.com` | none | `src/support/view.rs:397` |
-| Privacy policy (Settings) | `https://rapalon.com/calccraft/privacy` | none | `src/app.rs` (`PRIVACY_URL`) |
+| Privacy policy (Settings) | `https://rapalon.com/calccraft/privacy` | none | added after the audit: `PRIVACY_URL`, the link under Send feedback on the Settings page (`src/app.rs`) |
 | Send feedback | `https://github.com/rapalon/calccraft/issues` | none | `src/app.rs:91`, `:2520` |
 | GitHub | `https://github.com/rapalon/calccraft` | none | `src/app.rs:90`, `:2538` |
 | Donate | `https://rapalon.com/calccraft/donate` (redirects to a Stripe Payment Link, keeping the query) | see below | `src/support/donate.rs:9`, `:88-106`; `src/support/view.rs:351-369` |
