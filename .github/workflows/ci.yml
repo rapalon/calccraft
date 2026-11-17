@@ -148,9 +148,8 @@ jobs:
           java -jar "$jar" build-apks --mode=universal --bundle="$aab" --output=target/android/universal.apks
           unzip -o -q target/android/universal.apks universal.apk -d target/android
           tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
-          "$tools/aapt2" dump badging target/android/universal.apk
-          "$tools/aapt2" dump xmltree --file AndroidManifest.xml target/android/universal.apk
-          "$tools/aapt2" dump badging target/android/universal.apk | grep -q "^native-code: 'arm64-v8a'"
+          "$tools/aapt2" dump badging target/android/universal.apk | tee target/android/badging.txt
+          grep -q "^native-code: 'arm64-v8a'" target/android/badging.txt
           "$tools/zipalign" -c -P 16 4 target/android/universal.apk
 
       - uses: actions/upload-artifact@v4

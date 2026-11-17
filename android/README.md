@@ -84,8 +84,9 @@ for Play, which only takes bundles signed with the upload key (see below).
 
 - **CI** (the `android` job in `.github/workflows/ci.yml`) runs clippy for Android and builds
   the APK and the App Bundle for every push and pull request, both signed with a new debug key.
-  It then builds the universal APK from the bundle and checks its package name, version code,
-  version name, minimum and target SDK and the library's 16 KB alignment. The APK and the bundle
+  It then checks the bundle's manifest (package name, version code and name, minimum and target
+  SDK) and builds the universal APK from the bundle, with the arm64 library on 16 KB pages. The
+  APK and the bundle
   are the run's `CalcCraft-android-arm64` artifact; uninstall the app before installing an APK
   from another run (another debug key).
 - **Releases** (`.github/workflows/release.yml`) attach
