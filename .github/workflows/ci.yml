@@ -46,6 +46,15 @@ jobs:
       - name: Test
         run: cargo test
 
+      # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
+      # differently: their own tests, with and without the paid app's ID.
+      - name: Test the Google Play channels
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --lib --features play-free support
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free support
+          cargo test --lib --features play-paid support
+
   licenses:
     name: licenses (cargo-deny)
     # Every library in Cargo.lock must have a license from deny.toml's allow-list: permissive
@@ -121,7 +130,12 @@ jobs:
           "platforms;android-36" "build-tools;$BUILD_TOOLS" "ndk;$NDK" > /dev/null
 
       - name: Clippy (Android)
-        run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK" cargo ndk -t arm64-v8a -P 24 clippy --all-targets -- -D warnings
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK"
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets -- -D warnings
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-free -- -D warnings
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-free -- -D warnings
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-paid -- -D warnings
 
       - name: Build the APK and the App Bundle
         shell: pwsh
@@ -159,3 +173,21 @@ jobs:
             target/android/*.apk
             target/android/*.aab
           if-no-files-found: error
+
+      # The Google Play App Bundles (docs/support-prompt.md, section 8), after the upload above:
+      # build-apk.ps1 starts each build with an empty target/android. It fails when a Play
+      # library contains the donate page's or Stripe's address. The paid bundle must carry the
+      # paid app's ID.
+      - name: Build and check the Google Play free and paid App Bundles
+        shell: pwsh
+        run: |
+          $common = @('-Ndk', $env:NDK, '-BuildTools', $env:BUILD_TOOLS, '-Bundle')
+          android/build-apk.ps1 @common -Channel play-free
+          android/build-apk.ps1 @common -Channel play-free -PaidApplicationId com.rapalon.calccraft.pro
+          android/build-apk.ps1 @common -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro
+          $jar = (Get-ChildItem .tools/bundletool-all-*.jar).FullName
+          $aab = (Get-ChildItem target/android/CalcCraft-Pro-*-arm64.aab).FullName
+          $package = java -jar $jar dump manifest "--bundle=$aab" --xpath /manifest/@package
+          if ($package -ne 'com.rapalon.calccraft.pro') {
+              throw "The paid bundle's package is '$package', not com.rapalon.calccraft.pro."
+          }
