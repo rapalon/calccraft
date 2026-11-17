@@ -91,11 +91,12 @@ jobs:
   android:
     name: Android build (arm64)
     # The Android app (android/README.md) builds from the same code, so every push and pull
-    # request checks it and builds an APK, signed with a debug key, which the run keeps as an
-    # artifact for `adb install`.
+    # request checks it and builds an APK and an App Bundle, signed with a debug key, which the
+    # run keeps as an artifact for `adb install`.
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865
+      BUILD_TOOLS: 36.0.0
       APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
     steps:
       - uses: actions/checkout@v7
@@ -117,17 +118,38 @@ jobs:
       - name: Install the Android SDK packages
         run: >
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install
-          "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK" > /dev/null
+          "platforms;android-36" "build-tools;$BUILD_TOOLS" "ndk;$NDK" > /dev/null
 
       - name: Clippy (Android)
         run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK" cargo ndk -t arm64-v8a -P 24 clippy --all-targets -- -D warnings
 
-      - name: Build the APK
+      - name: Build the APK and the App Bundle
         shell: pwsh
-        run: android/build-apk.ps1 -Ndk $env:NDK
+        run: android/build-apk.ps1 -Ndk $env:NDK -BuildTools $env:BUILD_TOOLS -Bundle
+
+      # What Google Play would make of the bundle: the universal APK bundletool builds from it
+      # must carry the manifest values of android/README.md, with the library on 16 KB pages.
+      - name: Check the App Bundle
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          IFS=. read -r major minor patch <<< "$version"
+          code=$((major * 10000 + minor * 100 + patch))
+          java -jar .tools/bundletool-all-*.jar build-apks --mode=universal \
+            --bundle=target/android/CalcCraft-$version-arm64.aab --output=target/android/universal.apks
+          unzip -o -q target/android/universal.apks universal.apk -d target/android
+          tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
+          "$tools/aapt2" dump badging target/android/universal.apk > target/android/badging.txt
+          grep -E "^(package|sdkVersion|targetSdkVersion|native-code)" target/android/badging.txt
+          grep -q "^package: name='$APPLICATION_ID' versionCode='$code' versionName='$version'" target/android/badging.txt
+          grep -q "^sdkVersion:'24'" target/android/badging.txt
+          grep -q "^targetSdkVersion:'36'" target/android/badging.txt
+          grep -q "^native-code: 'arm64-v8a'" target/android/badging.txt
+          "$tools/zipalign" -c -P 16 4 target/android/universal.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: CalcCraft-android-arm64
-          path: target/android/*.apk
+          path: |
+            target/android/*.apk
+            target/android/*.aab
           if-no-files-found: error
