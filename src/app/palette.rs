@@ -8,7 +8,7 @@
 use eframe::egui::Color32;
 
 /// Every color the interface paints with, for one theme.
-pub(super) struct Palette {
+pub(crate) struct Palette {
     pub background: Color32,
     pub digit: Color32,
     pub digit_hover: Color32,
@@ -220,7 +220,7 @@ const DARK_BACKGROUND: Color32 = Color32::from_rgb(0x29, 0x1A, 0x29);
 /// Not sampled: Mica in light mode with the same purple wallpaper tint.
 const LIGHT_BACKGROUND: Color32 = Color32::from_rgb(0xF3, 0xEB, 0xF3);
 
-pub(super) const DARK: Palette = Palette {
+pub(crate) const DARK: Palette = Palette {
     background: DARK_BACKGROUND,
     digit: white(DARK_BACKGROUND, 0.125),
     digit_hover: white(DARK_BACKGROUND, 0.0852),
@@ -302,7 +302,7 @@ pub(super) const DARK: Palette = Palette {
     smoke: Color32::from_black_alpha(0x4D),
 };
 
-pub(super) const LIGHT: Palette = Palette {
+pub(crate) const LIGHT: Palette = Palette {
     background: LIGHT_BACKGROUND,
     digit: Color32::WHITE,
     digit_hover: white(LIGHT_BACKGROUND, 0.75),

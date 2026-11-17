@@ -74,6 +74,7 @@ ICONS = {
     0xE949: "subtract",
     0xE94F: "backspace",
     0xE9CA: "temperature",
+    0xEB52: "heart!",  # HeartFill: the support prompt's thank-you line
     0xEC4A: "gauge",  # Pressure
     0xECAD: "fire",  # Energy
     0xECC6: "ruler",  # Length

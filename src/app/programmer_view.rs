@@ -761,6 +761,8 @@ impl CalculatorApp {
             };
             if self.button_flash(ui, cell, key_id(i), kind, enabled, label, name, flash) {
                 self.programmer.calc.execute(command);
+                #[cfg(feature = "support-prompt")]
+                self.check_calculation_trigger(command);
             }
             // The count sits right of and below the `(` (`ParenthesisCount`).
             if command == OpenParen && open_parentheses > 0 {

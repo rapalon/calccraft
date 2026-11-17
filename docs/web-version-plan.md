@@ -24,7 +24,7 @@ the date picker, the function analysis, and F5 in the Programmer mode (HEX, no r
 
 CalcCraft runs in the browser, compiled to WebAssembly from the same Rust code as the desktop
 app. GitHub Actions builds it and deploys it to GitHub Pages automatically, at
-**https://gavrilov.github.io/calccraft/**.
+**https://rapalon.github.io/calccraft/**.
 
 Done means:
 
@@ -77,7 +77,7 @@ dependencies, so they don't take part.
 | Build tool | **Trunk** (eframe's official template: bundles the wasm, runs `wasm-bindgen` and `wasm-opt`, adds hashed file names), or `wasm-pack` plus a hand-written loader | **Trunk.** It's the standard for eframe, one command, and it downloads the matching `wasm-bindgen` and `wasm-opt` itself. |
 | Renderer | eframe 0.36's default is **wgpu** (WebGPU with a WebGL fallback); **glow** is WebGL 2 | **glow on the web.** Every current browser supports it, the download is smaller, and the app's custom painting needs nothing more. Desktop keeps its current renderer. |
 | When to deploy | (a) on every `v*` tag, together with the desktop release; (b) on every push to `main` | **(a), plus a manual "Run workflow" button.** The site then always matches the latest release. Pull requests and `main` still build the web version, without deploying it. |
-| Address | `gavrilov.github.io/calccraft/` or a custom domain | Start with the GitHub address; a custom domain is only a `CNAME` away later. |
+| Address | `rapalon.github.io/calccraft/` or a custom domain | Start with the GitHub address; a custom domain is only a `CNAME` away later. |
 | Non-Latin languages (zh, ja, ko, th, am …) | Load their fonts from the site when that language is picked; or leave those languages out of the web build | **Load on demand.** Host font subsets next to the app and fetch them the first time they're needed. As a first step, they can be left out of the web language list. |
 | Native code layout | One crate with `cfg(target_arch = "wasm32")` blocks, or a separate `web` crate | **One crate**, the way eframe's template does it. Platform code is already split with `cfg(windows)`. |
 
@@ -239,7 +239,7 @@ trunk serve --open
 
 3.1. **Settings that persist.** eframe stores `persistence` data in `localStorage` under the
 page's origin. Check theme, mode, language, region, memory, history and converter units across
-reloads. Every project page of `gavrilov.github.io` shares that origin and its
+reloads. Every project page of `rapalon.github.io` shares that origin and its
 `localStorage`, so make sure the keys can't collide with another egui app there; eframe's keys
 aren't prefixed per app.
 
@@ -450,7 +450,7 @@ jobs:
         with:
           tool: trunk
 
-      # The site lives at https://gavrilov.github.io/calccraft/, so every URL starts there.
+      # The site lives at https://rapalon.github.io/calccraft/, so every URL starts there.
       - name: Build
         run: trunk build --release --public-url "/${GITHUB_REPOSITORY#*/}/"
 
@@ -573,6 +573,6 @@ macOS work, which has the same gaps.
 | No real screen reader support in egui on the web | Narrator users are better served by the desktop app. | Document it; keep `web_screen_reader`'s speech output. |
 | `libm` differences in the last digit | Some Graphing analysis values may differ from the desktop. | Wasm test run (8.2); the engine's exact maths isn't affected. |
 | Long computations on the main thread | A frozen tab instead of a frozen window. | Time budgets (4.3). |
-| Shared `localStorage` on `gavrilov.github.io` | Settings could mix with another egui app on the same account. | Check the keys (3.1), or use a custom domain. |
+| Shared `localStorage` on `rapalon.github.io` | Settings could mix with another egui app on the same account. | Check the keys (3.1), or use a custom domain. |
 | The Pages environment rejects tag deploys | The first release deploy fails. | Happened with v1.2.0; `pages.yml` now deploys from `main` after the release (6.1). |
 | A contributor PR breaks the web build | Silent until the next release. | The CI `web` job (phase 5) runs on every PR. |

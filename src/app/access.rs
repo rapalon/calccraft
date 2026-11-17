@@ -51,7 +51,7 @@ pub(super) fn draw_covered(ui: &Ui, draw: impl FnOnce()) {
 /// Registers a control drawn in `rect`: clickable and focusable when enabled, unless a
 /// popup covers it, and described by `info`. Draws the focus visual when it has the
 /// keyboard focus, with corners of `radius`.
-pub(super) fn control(
+pub(crate) fn control(
     ui: &Ui,
     p: &Palette,
     rect: Rect,
@@ -113,7 +113,7 @@ pub(super) fn scroll_source(ui: &Ui, source: ScrollSource) -> ScrollSource {
 }
 
 /// A button's description.
-pub(super) fn button(enabled: bool, name: &str) -> impl Fn() -> WidgetInfo + '_ {
+pub(crate) fn button(enabled: bool, name: &str) -> impl Fn() -> WidgetInfo + '_ {
     move || WidgetInfo::labeled(WidgetType::Button, enabled, name)
 }
 
@@ -133,7 +133,7 @@ pub(super) fn combo_box<'a>(name: &'a str, value: &'a str) -> impl Fn() -> Widge
 
 /// Text that isn't a control, like a result, for screen readers. A `live` text is
 /// read out when it changes, as Windows' `LiveSetting="Polite"` results are.
-pub(super) fn text(ui: &Ui, rect: Rect, id: Id, name: &str, live: bool) {
+pub(crate) fn text(ui: &Ui, rect: Rect, id: Id, name: &str, live: bool) {
     ui.interact(rect, id, Sense::hover());
     ui.ctx().accesskit_node_builder(id, |node| {
         // AccessKit names a label by its value.

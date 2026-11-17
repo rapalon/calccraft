@@ -1,7 +1,7 @@
 name: Web
 
 # Builds the web version (index.html, Trunk) and deploys it to GitHub Pages, at
-# https://gavrilov.github.io/calccraft/. It runs after every successful release (release.yml),
+# https://rapalon.github.io/calccraft/. It runs after every successful release (release.yml),
 # so the site matches the latest desktop release, and on demand from the Actions tab (from main).
 #
 # After a release it builds the release's commit, but the run itself is on the default branch,

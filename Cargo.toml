@@ -7,6 +7,10 @@ description = "A clone of the Windows 11 Calculator (Standard, Scientific, Graph
 readme = "README.md"
 publish = false
 
+[features]
+default = ["support-prompt"]
+support-prompt = []
+
 # The app is a library that `main.rs` starts on desktops and in the browser, and that Android
 # loads as `libcalculator.so` (see android/README.md).
 [lib]
