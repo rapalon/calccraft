@@ -181,7 +181,8 @@ jobs:
       - name: Build and check the Google Play free and paid App Bundles
         shell: pwsh
         run: |
-          $common = @('-Ndk', $env:NDK, '-BuildTools', $env:BUILD_TOOLS, '-Bundle')
+          # A hashtable: an array splat would pass '-Ndk' to a script as a positional value.
+          $common = @{ Ndk = $env:NDK; BuildTools = $env:BUILD_TOOLS; Bundle = $true }
           android/build-apk.ps1 @common -Channel play-free
           android/build-apk.ps1 @common -Channel play-free -PaidApplicationId com.rapalon.calccraft.pro
           android/build-apk.ps1 @common -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro
