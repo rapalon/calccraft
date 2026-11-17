@@ -44,6 +44,7 @@ index.html, Trunk.toml   the web version's page and its Trunk build (deployed by
 android/                 the Android app (prototype): manifest, icons, themes, build-apk.ps1
 assets/web/              the web version's icons, app manifest and service worker (sw.js): a PWA
 src/icon.rs              the app icon, drawn in code with std only (also compiled into build.rs)
+src/brand.rs             the company credit: "CalcCraft by Rapalon Labs", the company's name and URL
 build.rs                 embeds the icon and version info into calculator.exe (Windows only)
 src/engine.rs            calculator logic, no UI dependencies, unit tests at the bottom
 src/engine/math.rs       the Scientific mode's functions (a child module of engine.rs), unit tests

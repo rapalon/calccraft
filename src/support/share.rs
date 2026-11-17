@@ -87,13 +87,36 @@ impl ShareChannel for WebShare {
     }
 }
 
+/// Android's share sheet (`ACTION_SEND`). egui's clipboard does nothing on Android, so when
+/// the sheet can't open the text goes to the system clipboard directly, and only a failure of
+/// both is `Failed`.
+#[cfg(target_os = "android")]
+pub struct AndroidShare;
+
+#[cfg(target_os = "android")]
+impl ShareChannel for AndroidShare {
+    fn share(&self, _ctx: &egui::Context, text: &str) -> ShareOutcome {
+        if crate::app::android::share_sheet(text) {
+            ShareOutcome::Sheet
+        } else if crate::app::android::copy_text(text) {
+            ShareOutcome::Copied
+        } else {
+            ShareOutcome::Failed
+        }
+    }
+}
+
 /// The channel of this platform.
 pub fn platform_channel() -> &'static dyn ShareChannel {
     #[cfg(target_arch = "wasm32")]
     {
         &WebShare
     }
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(target_os = "android")]
+    {
+        &AndroidShare
+    }
+    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     {
         &ClipboardShare
     }

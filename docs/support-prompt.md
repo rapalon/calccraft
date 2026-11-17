@@ -105,6 +105,13 @@ short for the card, its contents scroll inside it rather than move up over the d
 The look is v1's: semi-transparent amber card, green Donate button, Fluent close X. It stays
 non-modal (the calculator keeps working under it), never stacks, and closes with Esc or X.
 
+Under the card's buttons is the company's credit: the Rapalon Labs logo (the "R" monogram of
+rapalon.com, `monogram` in the website's `src/lib/brand.ts`, drawn in code by
+`src/support/logo.rs`, so no image file ships) with the name **Rapalon Labs** after it. The two
+are one quiet link to <https://rapalon.com>: no fill or outline until hovered, a focusable
+control whose accessible name is "Rapalon Labs". The name isn't translated. Following the link
+leaves the popup open and is no reaction for the policy (2.8). The thank-you text has no credit.
+
 ### 2.7 Cycles and backoff
 
 After a complete cycle (dot seen, or popup shown), the next cycle waits an interval, then starts
@@ -438,7 +445,13 @@ The text is `"<ShareMessage> <share_url>"`. `ShareChannel` (like `DonationChanne
 | --- | --- |
 | Windows, macOS, Linux | Copies the text to the clipboard (`Context::copy_text`) and shows "Link copied" for 2 s. |
 | Web | `navigator.share` where the browser has it (`WebShare`): its sheet is the feedback, so no note (`ShareOutcome::Sheet`). Otherwise the same clipboard copy and note. A failed clipboard write has no manual-copy fallback yet (egui's `copy_text` can't report it): follow-up. |
-| Android | The same clipboard copy. A system share sheet (`ACTION_SEND` through JNI, next to `src/app/android.rs`) isn't implemented yet. |
+| Android | The system share sheet (`ACTION_SEND`, `text/plain`, in `Intent.createChooser`) through JNI (`android::share_sheet`, `AndroidShare`): its sheet is the feedback, no note. If it can't open, the text goes to the Android clipboard (`ClipboardManager`, `android::copy_text`) with the "Link copied" note; if that fails too, `ShareOutcome::Failed`. Never a silent no-op. |
+
+**Links on Android.** egui's `open_url` and `copy_text` do nothing there: eframe's Android build
+has no `webbrowser` feature, and egui-winit's clipboard is compiled out for Android (the text only
+stays in egui's memory). So every link of the popup (Donate, the company link) goes through
+`app::open_link`, which on Android starts an `ACTION_VIEW` intent (`android::open_url`) and
+elsewhere is `Context::open_url` in a new tab, as before.
 
 The existing `src/app/share.rs` is the Graphing mode's Windows-only share sheet for an image and
 HTML, so it isn't reused. `ShareChannel::share` returns a `ShareOutcome` (`Copied`, `Sheet`,
