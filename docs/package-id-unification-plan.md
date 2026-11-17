@@ -9,7 +9,7 @@ This document specifies the unification of application and bundle identifiers ac
    - Once an app with a given package name is uploaded to Google Play, that package name is permanent and cannot be changed.
    - Google Play strictly forbids converting a free app to a paid app.
    - The base open-source releases distributed via GitHub and F-Droid use `com.rapalon.calccraft`.
-   - To support publishing a paid variant to Google Play in the future without changing codebase files or diverging branches, the Android packaging pipeline must accept an arbitrary `applicationId` as a build parameter (e.g. `com.rapalon.calccraft.play`).
+   - To support publishing a paid variant to Google Play in the future without changing codebase files or diverging branches, the Android packaging pipeline must accept an arbitrary `applicationId` as a build parameter. The paid variant is **CalcCraft Pro**, `com.rapalon.calccraft.pro` (Konst's choice of 2026-11-17); `build-apk.ps1 -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro` builds it (android/README.md, "Channels").
 
 ## Specification of Changes
 
@@ -41,5 +41,5 @@ This document specifies the unification of application and bundle identifiers ac
 
 ### 3. Documentation
 - Document parameter usage in `android/README.md`:
-  - Show how to build with a custom ID: `pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.play` or via `$env:APPLICATION_ID`.
+  - Show how to build with a custom ID: `pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.pro` or via `$env:APPLICATION_ID`.
   - State the Google Play policy: package names are permanent once published and free apps cannot be changed to paid apps.

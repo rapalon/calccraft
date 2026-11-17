@@ -1331,6 +1331,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
   - `CALCCRAFT_SUPPORT_FAST=1` demo mode (a day is a minute).
   - Compiles cleanly and tests pass with `--no-default-features`.
+  - Google Play channels (docs/support-prompt.md, section 8), Cargo features with no donate link
+    in the binary: `play-free` leads "Get CalcCraft Pro" to the paid app's Play listing
+    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all); `play-paid` shows no prompt, only
+    "Supported by you". Both share the bare `SHARE_URL`.
 - **Differences:** Windows Calculator has no support prompt.
 
 ---
@@ -1372,3 +1376,4 @@ Windows source in `../win-calculator`.
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |
 | 2026-11-09 | Claude Code | `FEAT-SHELL-009`, `FEAT-SHELL-012` | Company credit: "CalcCraft by Rapalon Labs" as the window and page title, in the file properties and on the About card, and the Rapalon Labs logo with a link to rapalon.com in the support popup |
+| 2026-11-17 | Claude Code | `FEAT-SHELL-012` | Google Play channels `play-free` (the popup leads to CalcCraft Pro's Play listing, or is hidden without `CALCCRAFT_PAID_ID`) and `play-paid` (no prompt, always "Supported by you"), with `build-apk.ps1 -Channel` / `-PaidApplicationId` and a check that no Play library contains the donate or Stripe address |

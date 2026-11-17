@@ -25,6 +25,8 @@ Questions or requests about privacy: **[privacy@rapalon.com](mailto:privacy@rapa
   you close the app.
 - Something leaves your device only when you tap a link (such as Donate) or share something
   yourself, and then only what is described below.
+- The Google Play versions have no Donate link and put no parameters into any link they open
+  or share (see "Google Play versions").
 
 ## What the app uses on your device
 
@@ -46,13 +48,14 @@ CalcCraft saves a small settings file on your device:
 - your choices: app theme, language, regional format, the last calculator mode, the last
   converter category and units, the graph theme, the size of the keep-on-top window, and the
   app's own interface state (such as scroll positions);
-- in the free version, the counters behind the occasional "Please support us" reminder:
+- the counters behind the occasional "Please support us" reminder (kept by every version,
+  including those that never show the reminder):
   how many times the app was started, the number of calculations and of days with a
   calculation, day numbers (such as the day of the first start and when the next reminder may
   show), how many reminders were shown, whether you tapped Donate, Tell a friend or
   "I already supported". These are counters and dates only. They don't identify you or your
   device, and they never leave your device except as the coarse values described under
-  "Donate" below.
+  "Donate" below, which the Google Play versions don't send at all.
 
 Your calculations, history, memory, equations and dates are kept only while the app is open.
 
@@ -83,9 +86,10 @@ your IP address and your browser's usual information (see "Third-party services"
 | Privacy policy (Settings) | <https://rapalon.com/calccraft/privacy> | nothing |
 | Send feedback (Settings) | <https://github.com/rapalon/calccraft/issues> | nothing |
 | GitHub (Settings) | <https://github.com/rapalon/calccraft> | nothing |
-| Donate (support window, free version) | <https://rapalon.com/calccraft/donate>, which forwards you to Stripe's payment page | the parameters below |
+| Donate (support window; GitHub, F-Droid, desktop and web versions only) | <https://rapalon.com/calccraft/donate>, which forwards you to Stripe's payment page | the parameters below |
+| Get CalcCraft Pro (support window, free Google Play version, once CalcCraft Pro is published) | CalcCraft Pro's page in the Google Play Store app, or on <https://play.google.com> | nothing but the app's ID |
 
-**Donate.** The donate address carries these parameters, for example
+**Donate.** Only the GitHub, F-Droid, desktop and web versions have it. The donate address carries these parameters, for example
 `?utm_source=calccraft&utm_medium=popup&utm_campaign=support&utm_content=android_1-3-2&client_reference_id=cc_android_1-3-2_popup_c3_d30-90`:
 
 - `utm_source=calccraft` and `utm_campaign=support`: always the same;
@@ -103,14 +107,29 @@ keeps `client_reference_id` with a donation made from that page.
 `https://rapalon.com/calccraft?utm_source=calccraft&utm_medium=share&utm_content=<platform>_<version>`
 on your clipboard, or opens your system's share sheet, where you choose the app and the person
 to send it to. Nothing is sent until you do so, and then it goes through the app you chose.
+The Google Play versions share the plain link `https://rapalon.com/calccraft`, without
+parameters.
 
 **Sharing a graph.** In the Graphing mode, Share opens your system's share sheet (on Windows)
 or downloads a picture (in the browser), and Copy puts the graph on your clipboard. The picture
 and your equations go only to the app or the place you choose.
 
+## Google Play versions
+
+CalcCraft on Google Play comes as a free app and a paid app, CalcCraft Pro. Neither has a Donate
+link or sends the donate parameters above, and no link they open or share carries parameters:
+
+- The free app either shows no "Please support us" reminder at all, or, once CalcCraft Pro is
+  published, its reminder offers "Get CalcCraft Pro", which opens CalcCraft Pro's Google Play
+  page with nothing added but that app's ID. Buying it happens in Google Play, under Google's
+  terms and privacy policy; we receive from Google only what it reports to developers about
+  sales, not your payment details.
+- CalcCraft Pro shows no reminder.
+
 ## Donations
 
-Donations are optional and are made on Stripe's own payment page, not in the app. Stripe
+This section applies to the GitHub, F-Droid, desktop and web versions only. Donations are
+optional and are made on Stripe's own payment page, not in the app. Stripe
 collects the payment details you enter there under its own privacy policy. As the recipient,
 Rapalon Labs receives from Stripe what Stripe provides about a payment (such as the amount, the
 date, your name, email address and country, and the `client_reference_id` above), and uses it
@@ -131,12 +150,22 @@ distribute CalcCraft or deliver its web pages process data under their own polic
 - **F-Droid**, if you install CalcCraft from it. [F-Droid](https://f-droid.org)
 - **Cloudflare**, which delivers rapalon.com, including the donate and share pages.
   [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/)
-- **Stripe**, which handles donations. [Stripe Privacy Policy](https://stripe.com/privacy)
+- **Stripe**, which handles donations (not in the Google Play versions).
+  [Stripe Privacy Policy](https://stripe.com/privacy)
 
 ## Children
 
-CalcCraft is not directed to children under 13. It collects no personal data from anyone,
-children included.
+CalcCraft is a general-audience utility. It is not directed at children under 13, and on
+Google Play its target audience is ages 13–15, 16–17 and 18 and over. Google Play notes that in
+some countries users in these age groups count as children, so the rules that protect
+children, such as Google Play's Families policy, the U.S. Children's Online Privacy Protection
+Act (COPPA) and the EU's General Data Protection Regulation (GDPR), apply whenever a child uses
+the app.
+
+CalcCraft collects no personal data from anyone, children included. It has no ads, accounts,
+analytics or third-party SDKs, so it has no need to ask anyone's age, and it doesn't. Users
+below the age of digital consent in their country (up to 16 in parts of the EU) are treated
+exactly like everyone else: nothing is collected from them.
 
 ## Security
 

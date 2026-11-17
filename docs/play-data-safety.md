@@ -12,7 +12,7 @@ collected and isn't declared.
 
 | Question | Answer | Why |
 | --- | --- | --- |
-| Does your app collect or share any of the required user data types? | **No** | The app has no `INTERNET` permission and no network code or SDK (audit: "Android manifest", "Network"). Everything it stores stays in its private storage; history and memory aren't even stored. Links open in the user's browser only when tapped (but see "The donate link's parameters" below). |
+| Does your app collect or share any of the required user data types? | **No** | The app has no `INTERNET` permission and no network code or SDK (audit: "Android manifest", "Network"). Everything it stores stays in its private storage; history and memory aren't even stored. Links open in the user's browser only when tapped, and the Play builds' links carry no parameters (see "Link parameters in the Play builds" below). |
 | Is all of the user data collected by your app encrypted in transit? | Not asked when the answer above is No. If it ever is: **Yes** | Every link the app opens is HTTPS. |
 | Do you provide a way for users to request that their data is deleted? | Not asked when nothing is collected. If it ever is: **Yes**, by email to privacy@rapalon.com, and locally by clearing the app's storage | `PRIVACY.md`, "What is stored on your device, and how to delete it". |
 | Privacy policy URL | `https://rapalon.com/calccraft/privacy` | Must be live, public HTML, not geofenced, before the release is submitted. |
@@ -27,50 +27,43 @@ Notes for the form's fine print:
   backup, which Google handles under the user's account. It isn't collection by the developer,
   and `PRIVACY.md` mentions it.
 
-### The donate link's parameters
+### Link parameters in the Play builds
 
-The free build's Donate button opens
-`https://rapalon.com/calccraft/donate?...&client_reference_id=cc_android_1-3-2_popup_c3_d30-90`
-in the browser. The app itself sends nothing: the browser does, and only after the user taps.
-But the app composes the address, and three of its values are derived from the user's use of
-the app:
+The GitHub, F-Droid, desktop and web builds' Donate button opens
+`https://rapalon.com/calccraft/donate?...&client_reference_id=cc_android_1-3-2_popup_c3_d30-90`,
+whose `utm_medium`, cycle count (`c0`–`c10`) and age bucket (`d0-7` … `d365p`) come from the
+user's use of the app. A strict reviewer could read them as **App activity → App interactions,
+collected**.
 
-- `utm_medium` (`popup` or `menu`): which reminder the user tapped,
-- `c0`–`c10`: how many reminders the user has seen,
-- `d0-7` … `d365p`: how long ago the app was first started.
+The Google Play builds don't have that link at all (Konst's decision of 2026-11-17: Play's
+Payments policy forbids other payment methods). They are separate build channels, Cargo
+features (docs/support-prompt.md, section 8; android/README.md, "Channels"):
 
-They reach Rapalon Labs' server (through Cloudflare) and Stripe, and Stripe keeps
-`client_reference_id` with a donation, next to the donor's name and email. A strict reviewer
-can read that as **App activity → App interactions, collected** (optional, for Analytics),
-linked to the user when they donate. Answering "No data collected" with these values in place
-is defensible (user-initiated, coarse, no identifier) but not safe.
+- `play-free`, the free app: no support prompt until the paid app exists; then "Get CalcCraft
+  Pro" opens `market://details?id=com.rapalon.calccraft.pro` (or the same listing on
+  play.google.com), with nothing but the ID.
+- `play-paid`, CalcCraft Pro: no support prompt.
+- Both share `https://rapalon.com/calccraft` without parameters.
 
-**Proposed minimal change (not made in this task):** in the Play build, make the donate link's
-parameters static: `utm_source=calccraft&utm_medium=app&utm_campaign=support&utm_content=android_<version>&client_reference_id=cc_android_<version>`.
-Platform and version describe the build, not the user, so the app then sends nothing about
-how it was used, and "No data collected" is accurate without caveats. A Cargo feature (for
-example `play-store`) or a build-time flag in `donate.rs` can drop the medium, cycle and age
-values; `PRIVACY.md`'s Donate section then changes with it. The share link is already static
-(platform and version only) and needs no change.
-
-Until Konst decides, `PRIVACY.md` describes the current parameters exactly, so the policy and
-the form don't contradict each other either way: with "No data collected", the policy explains
-that only coarse, non-identifying values go out when the user taps Donate.
+`build-apk.ps1` fails a Play build whose library contains `rapalon.com/calccraft/donate` or
+`stripe.com`, and CI builds every Play variant. So the Play apps put nothing derived from their
+use into any link, and "No data collected" holds without caveats. The paid app answers the form
+the same way: it has the same code, minus the prompt.
 
 ## App content declarations
 
 | Declaration | Answer | Why |
 | --- | --- | --- |
 | Privacy policy | `https://rapalon.com/calccraft/privacy` | `PRIVACY.md`. |
-| Ads | **No, my app does not contain ads** | No ad SDK; the support reminder is the app's own request for donations, not an ad, and links only to the developer's page. |
+| Ads | **No, my app does not contain ads** | No ad SDK. In the free Play app the support reminder (once CalcCraft Pro exists) is the developer's own suggestion of its paid edition on Google Play, not a third-party ad; before that, and in the paid app, there is none. |
 | App access | **All functionality is available without special access** | No login, account, subscription or region lock. |
-| Content rating | Answer the IARC questionnaire with "No" to everything (no violence, sexuality, language, controlled substances, gambling, user interaction, sharing of location or personal information, or digital purchases inside the app) | A calculator. Donations happen on a web page, not as an in-app purchase. Expected rating: Everyone / PEGI 3. |
+| Content rating | Answer the IARC questionnaire with "No" to everything (no violence, sexuality, language, controlled substances, gambling, user interaction, sharing of location or personal information, or digital purchases inside the app) | A calculator. The Play builds have no donations and no in-app purchases; CalcCraft Pro is a separate paid app. Expected rating: Everyone / PEGI 3. |
 | Target audience and content | **13–15, 16–17 and 18+** (not under 13) | Recommended by the task: an age group under 13 brings the Families policy (teacher-approved program rules, stricter link and donation rules for children). The app collects no data, so choosing 13+ costs nothing; the policy says it isn't directed to children under 13. "Appeal to children": No. |
 | News app | No | |
 | COVID-19 contact tracing and status | No | |
 | Data safety | As above | |
 | Government apps | No | |
-| Financial features | None | Donations are voluntary payments on Stripe's page; the app offers no financial service. |
+| Financial features | None | The Play builds have no payments at all (no Donate link); the app offers no financial service. |
 | Health apps | No | |
 | Advertising ID | **No**, the app doesn't use the advertising ID | No Google Play services, no `AD_ID` permission (no permissions at all). |
 
@@ -80,8 +73,8 @@ that only coarse, non-identifying values go out when the user taps Donate.
    privacy@rapalon.com. No postal address is published anywhere in the repository, so none
    is in the policy. Google doesn't require one in the policy, but the Play developer account
    shows one for organizations; add it to `PRIVACY.md` if it should be there too.
-2. **Donate link parameters in the Play build:** keep them (and accept the "App activity"
-   risk above) or make them static for Play (recommended).
+2. ~~Donate link parameters in the Play build~~: resolved on 2026-11-17. The Play builds have
+   no Donate link and no link parameters (above).
 3. **`allowBackup`:** keep it (settings come back on a new phone, and the policy explains it) or
    set it to `false`. Keeping it is fine for Data safety.
 4. **rapalon.com:** `PRIVACY.md` assumes the website itself adds no analytics or cookies

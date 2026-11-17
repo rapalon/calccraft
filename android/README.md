@@ -37,16 +37,43 @@ It writes `target/android/CalcCraft-<version>-arm64.apk`, with the version from 
 - a JDK 17 or later for `apksigner` and `keytool` (`JAVA_HOME`, or by default
   `%LOCALAPPDATA%\Android\jdk-21` on Windows and the `PATH` elsewhere).
 
-The application ID (package name) defaults to `com.rapalon.calccraft`. To build with a different
-ID (for example, for a paid Google Play release):
+The application ID (package name) defaults to `com.rapalon.calccraft`. `-ApplicationId` (or the
+`APPLICATION_ID` environment variable) builds with another one. Google Play never allows a free
+app to become paid and the package name is permanent after first upload, so the ID must be
+chosen before publishing.
+
+### Channels: GitHub, Google Play free, Google Play paid
+
+Google Play's Payments policy forbids leading users to payment methods other than Play's, so
+the Play builds have no Donate link (docs/support-prompt.md, section 8). `-Channel` (or
+`CALCCRAFT_CHANNEL`) picks the build's distribution channel, a Cargo feature:
+
+| `-Channel` | For | Application ID | Support prompt | Files |
+| --- | --- | --- | --- | --- |
+| `default` | GitHub releases, F-Droid, `adb install` | `-ApplicationId` (`com.rapalon.calccraft`) | Donate opens rapalon.com/calccraft/donate | `CalcCraft-<version>-arm64.*` |
+| `play-free` | the free app on Google Play | `-ApplicationId` (`com.rapalon.calccraft`) | Without `-PaidApplicationId`: none (no dot, popup or menu button). With it: the same reminders, whose "Get CalcCraft Pro" opens the paid app's listing (`market://details?id=<id>`, else `https://play.google.com/store/apps/details?id=<id>`, no other parameters) | `CalcCraft-Play-<version>-arm64.*` |
+| `play-paid` | the paid app, CalcCraft Pro | `-PaidApplicationId` (required) | None: the menu always shows "Supported by you" | `CalcCraft-Pro-<version>-arm64.*` |
+
+`-PaidApplicationId` (or `CALCCRAFT_PAID_ID`) is the paid app's ID, unset by default. Konst chose
+**`com.rapalon.calccraft.pro`** on 2026-11-17; it stays a build parameter, not a constant in the
+code. The two Google Play bundles:
 
 ```bash
-pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.play
+# The free app. The first release ships without -PaidApplicationId: no support prompt.
+pwsh android/build-apk.ps1 -Channel play-free -Bundle
+# Once CalcCraft Pro is on Google Play, the free app's popup leads to it:
+pwsh android/build-apk.ps1 -Channel play-free -PaidApplicationId com.rapalon.calccraft.pro -Bundle
+# The paid app:
+pwsh android/build-apk.ps1 -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro -Bundle
 ```
 
-or by setting the `APPLICATION_ID` environment variable. Google Play never allows a free app to
-become paid and the package name is permanent after first upload, so the ID must be chosen before
-publishing.
+A Play build fails if its library contains `rapalon.com/calccraft/donate` or `stripe.com`. CI
+builds all three Play variants with the debug key and checks the paid bundle's package. The
+release workflow builds the free bundle (and, when the repository variable `CALCCRAFT_PAID_ID`
+is set, the paid one) with the upload key and keeps them as the run's artifact
+`CalcCraft-google-play-<tag>`; the GitHub release's APK and bundle stay in the default channel.
+Both Play apps can use the same upload key: Play App Signing keeps a separate app signing key
+for each.
 
 The script doesn't use Gradle. cargo-ndk builds the library (a `cdylib` only for Android: the
 desktop and web builds use the binary), `llvm-strip` drops its symbol table, `aapt2` links the
