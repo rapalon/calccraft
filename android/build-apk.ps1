@@ -9,7 +9,19 @@ uncompressed library, as Google Play requires) and apksigner. Runs on Windows, L
 GitHub Actions) and macOS. See android/README.md.
 
 The application ID defaults to com.rapalon.calccraft (or APPLICATION_ID in the environment)
-and can be overridden with -ApplicationId (e.g. for a paid Google Play release).
+and can be overridden with -ApplicationId.
+
+-Channel picks the distribution channel (docs/support-prompt.md, section 8; or
+CALCCRAFT_CHANNEL in the environment):
+- default: GitHub releases and F-Droid. The support popup's Donate opens the donate page.
+- play-free: the free Google Play app (Cargo feature play-free). No donate link: the popup's
+  button opens the paid app's Play listing, -PaidApplicationId (or CALCCRAFT_PAID_ID). Without
+  it the support prompt is hidden, which is how the first free release ships.
+- play-paid: the paid Google Play app (Cargo feature play-paid), with -PaidApplicationId as its
+  application ID. No support prompt.
+The files are target/android/CalcCraft-<version>-arm64.apk/.aab, CalcCraft-Play-... for
+play-free and CalcCraft-Pro-... for play-paid.
+A Play build fails if its library contains the donate page's or Stripe's address.
 
 The APK is signed with the release key when ANDROID_KEYSTORE names a keystore file, with its
 password in ANDROID_KEYSTORE_PASSWORD, the key's alias in ANDROID_KEY_ALIAS and the key's
@@ -27,13 +39,22 @@ pwsh android/build-apk.ps1
 adb install -r target/android/CalcCraft-1.2.0-arm64.apk
 
 .EXAMPLE
-pwsh android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.play
+pwsh android/build-apk.ps1 -Bundle
 
 .EXAMPLE
-pwsh android/build-apk.ps1 -Bundle
+pwsh android/build-apk.ps1 -Channel play-free -Bundle
+# The free Google Play app; add -PaidApplicationId com.rapalon.calccraft.pro once the paid app
+# is published, so its popup leads there.
+
+.EXAMPLE
+pwsh android/build-apk.ps1 -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro -Bundle
 #>
 param(
     [string]$ApplicationId = $(if ($env:APPLICATION_ID) { $env:APPLICATION_ID } else { 'com.rapalon.calccraft' }),
+    [ValidateSet('default', 'play-free', 'play-paid')]
+    [string]$Channel = $(if ($env:CALCCRAFT_CHANNEL) { $env:CALCCRAFT_CHANNEL } else { 'default' }),
+    # The paid Google Play app's application ID (com.rapalon.calccraft.pro), unset by default.
+    [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
     # A bundletool jar to use instead of the pinned release in .tools/.
@@ -81,6 +102,37 @@ $bundletoolSha256 = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d910
 $minSdk = 24
 $targetSdk = 36
 
+# The channel: its Cargo feature, the paid app's ID compiled in (CALCCRAFT_PAID_ID, read with
+# option_env!), and the files' name.
+$packageName = '^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$'
+if ($PaidApplicationId -and $PaidApplicationId -notmatch $packageName) {
+    throw "-PaidApplicationId '$PaidApplicationId' is not an Android package name."
+}
+$features = @()
+$name = 'CalcCraft'
+Remove-Item Env:CALCCRAFT_PAID_ID -ErrorAction SilentlyContinue
+switch ($Channel) {
+    'play-free' {
+        $features = @('--features', 'play-free')
+        $name = 'CalcCraft-Play'
+        if ($PaidApplicationId) {
+            $env:CALCCRAFT_PAID_ID = $PaidApplicationId
+            "Google Play, free: the support popup leads to $PaidApplicationId"
+        } else {
+            'Google Play, free: no paid app given, so the support prompt is hidden'
+        }
+    }
+    'play-paid' {
+        if (-not $PaidApplicationId) {
+            throw '-Channel play-paid needs -PaidApplicationId (or CALCCRAFT_PAID_ID): it is the application ID.'
+        }
+        $features = @('--features', 'play-paid')
+        $ApplicationId = $PaidApplicationId
+        $name = 'CalcCraft-Pro'
+        "Google Play, paid: $ApplicationId, no support prompt"
+    }
+}
+
 # The version from Cargo.toml: 1.2.0 is version code 10200.
 $version = (Select-String -Path (Join-Path $repo 'Cargo.toml') -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
 $parts = $version.Split('.') | ForEach-Object { [int]$_ }
@@ -94,12 +146,26 @@ New-Item -ItemType Directory -Force $libDir | Out-Null
 # The Rust library: a cdylib only for Android (desktops and the web build the binary).
 Push-Location $repo
 try {
-    cargo ndk -t arm64-v8a -P $minSdk rustc --lib --release --crate-type cdylib
+    cargo ndk -t arm64-v8a -P $minSdk rustc --lib --release @features --crate-type cdylib
 } finally {
     Pop-Location
 }
 $strip = Join-Path $env:ANDROID_NDK_HOME "toolchains/llvm/prebuilt/$ndkHost/bin/llvm-strip$exe"
-& $strip --strip-unneeded -o (Join-Path $libDir 'libcalculator.so') (Join-Path $repo 'target/aarch64-linux-android/release/libcalculator.so')
+$library = Join-Path $libDir 'libcalculator.so'
+& $strip --strip-unneeded -o $library (Join-Path $repo 'target/aarch64-linux-android/release/libcalculator.so')
+
+# Google Play's Payments policy: a Play build must not lead to another payment method, so its
+# library must not even contain the donate page's or Stripe's address.
+if ($Channel -ne 'default') {
+    $bytes = [System.IO.File]::ReadAllBytes($library)
+    $text = [System.Text.Encoding]::Latin1.GetString($bytes)
+    foreach ($forbidden in @('rapalon.com/calccraft/donate', 'stripe.com')) {
+        if ($text.Contains($forbidden, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "The $Channel library contains '$forbidden': Play builds must have no donate link."
+        }
+    }
+    "Checked: no donate or Stripe address in the $Channel library"
+}
 
 # Manifest and resources (the launcher icon and the themes).
 $resources = Join-Path $out 'resources.zip'
@@ -155,7 +221,7 @@ if ($env:ANDROID_KEYSTORE) {
     $alias = 'androiddebugkey'
     'Signing with the debug key'
 }
-$apk = Join-Path $out "CalcCraft-$version-arm64.apk"
+$apk = Join-Path $out "$name-$version-arm64.apk"
 & (Join-Path $tools "apksigner$script") sign @signing --out $apk $aligned
 & (Join-Path $tools "apksigner$script") verify $apk
 Remove-Item $unaligned, $aligned -Force
@@ -195,7 +261,7 @@ if ($Bundle) {
     & $java -jar $Bundletool build-bundle "--modules=$moduleZip" "--output=$unsignedAab" "--config=$config"
 
     # Play checks a bundle's JAR signature (jarsigner), not an APK signature.
-    $aab = Join-Path $out "CalcCraft-$version-arm64.aab"
+    $aab = Join-Path $out "$name-$version-arm64.aab"
     & $jarsigner @jarSigning -sigalg SHA256withRSA -digestalg SHA-256 -signedjar $aab $unsignedAab $alias
     & $jarsigner -verify $aab
     & $java -jar $Bundletool validate "--bundle=$aab"

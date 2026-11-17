@@ -8,6 +8,7 @@
 //!
 //! The rest of the app only calls the hooks of [`SupportState`] and [`note_display`].
 
+pub mod channel;
 pub mod clock;
 pub mod donate;
 mod logo;
@@ -16,7 +17,10 @@ pub mod share;
 pub mod stats;
 pub mod view;
 
-pub use donate::{DONATE_URL, DonationChannel, ExternalLink, donate_url};
+pub use channel::{CHANNEL, Channel, PromptMode};
+pub use donate::DonationChannel;
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
+pub use donate::{DONATE_URL, ExternalLink, donate_url};
 pub use policy::{MenuEntry, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp};
 pub use share::{ClipboardShare, SHARE_URL, ShareChannel, ShareOutcome, share_text, share_url};
 pub use stats::SupportStats;
@@ -33,6 +37,12 @@ mod tests {
 
     const DAY_MS: u64 = 86_400_000;
 
+    /// A state with the whole prompt, whatever this build's channel: the flow's tests run in
+    /// every channel.
+    fn full(storage: Option<&dyn eframe::Storage>, clock: Clock) -> SupportState {
+        SupportState::with_mode(storage, clock, PromptMode::Full)
+    }
+
     fn at(day: i64, ms: u64) -> Timestamp {
         Timestamp {
             millis: day as u64 * DAY_MS + ms,
@@ -42,7 +52,7 @@ mod tests {
 
     /// A state at day 0 of a regular user: 4 launches, 3 active days behind.
     fn regular() -> SupportState {
-        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        let mut state = full(None, Clock::fixed(at(0, 0)));
         state.stats.launches = 4;
         state.stats.active_days = 3;
         state.stats.last_active_day = Some(-1);
@@ -78,7 +88,7 @@ mod tests {
 
     #[test]
     fn launch_is_counted() {
-        let state = SupportState::with_clock(None, Clock::fixed(at(5, 0)));
+        let state = full(None, Clock::fixed(at(5, 0)));
         assert_eq!(state.stats.launches, 1);
         assert_eq!(state.stats.first_day, Some(5));
     }
@@ -265,13 +275,80 @@ mod tests {
                 _ => None,
             })
         });
-        let expected = format!(
+        #[cfg(not(any(feature = "play-free", feature = "play-paid")))]
+        let expected = Some(format!(
             "https://rapalon.com/calccraft/donate?utm_source=calccraft&utm_medium=menu&utm_campaign=support\
              &utm_content={platform}_{version}&client_reference_id=cc_{platform}_{version}_menu_c0_d0-7",
             platform = donate::platform(),
             version = env!("CARGO_PKG_VERSION").replace('.', "-"),
+        ));
+        // The paid app's listing, with nothing but its ID; nothing without a paid app.
+        #[cfg(feature = "play-free")]
+        let expected = channel::paid_id().map(|id| channel::store_urls(id)[1].clone());
+        #[cfg(feature = "play-paid")]
+        let expected: Option<String> = None;
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn hidden_prompt_never_shows_anything() {
+        // The free Play build without a paid app: a regular user at calm moments, the menu
+        // opened, a demo stage and an on-demand open get no dot, popup or menu entry.
+        let ctx = fonts_context();
+        let mut state = SupportState::with_mode(None, Clock::fixed(at(0, 0)), PromptMode::Hidden);
+        state.stats.launches = 40;
+        state.stats.active_days = 30;
+        state.start_demo("popup");
+        state.open_on_demand();
+        assert!(!state.is_open());
+        for day in [0, 7, 30, 100, 400] {
+            set_time(&mut state, at(day, 0));
+            state.after_command(Command::Equals, false);
+            set_time(&mut state, at(day, 10_000));
+            frame(&ctx, &mut state, vec![], false);
+            frame(&ctx, &mut state, vec![], true);
+            assert!(!state.is_open() && !state.dot_visible(), "day {day}");
+            assert_eq!(state.menu_entry(), MenuEntry::Hidden);
+            assert!(!menu_frame(&ctx, &mut state, vec![]));
+        }
+        for id in [
+            "support-menu-button",
+            "support-thanks",
+            "support-share-glyph",
+        ] {
+            assert!(ctx.read_response(egui::Id::new(id)).is_none(), "{id}");
+        }
+    }
+
+    #[test]
+    fn paid_build_shows_only_the_thanks_line() {
+        let ctx = fonts_context();
+        let mut state =
+            SupportState::with_mode(None, Clock::fixed(at(0, 0)), PromptMode::Supporter);
+        state.stats.launches = 40;
+        state.stats.active_days = 30;
+        for day in [0, 7, 30, 400] {
+            set_time(&mut state, at(day, 0));
+            state.after_command(Command::Equals, false);
+            set_time(&mut state, at(day, 10_000));
+            frame(&ctx, &mut state, vec![], false);
+            assert!(!state.is_open() && !state.dot_visible(), "day {day}");
+            assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
+        }
+        // The line is a label: pressing it opens nothing and leaves the menu open.
+        let [press, release] = click_at(pos2(120.0, 24.0));
+        menu_frame(&ctx, &mut state, press);
+        assert!(!menu_frame(&ctx, &mut state, release));
+        assert!(!state.is_open());
+        assert!(
+            ctx.read_response(egui::Id::new("support-menu-button"))
+                .is_none()
         );
-        assert_eq!(url.as_deref(), Some(expected.as_str()));
+        // Its share glyph still shares.
+        ctx.memory_mut(|m| m.request_focus(egui::Id::new("support-share-glyph")));
+        menu_frame(&ctx, &mut state, vec![]);
+        menu_frame(&ctx, &mut state, vec![key(Key::Enter)]);
+        assert_eq!(state.stats.shares, 1);
     }
 
     #[test]
@@ -394,14 +471,14 @@ mod tests {
 
     #[test]
     fn demo_supporter_opens_the_menu_on_the_thanks_line() {
-        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        let mut state = full(None, Clock::fixed(at(0, 0)));
         state.start_demo("supporter");
         assert!(state.demo_opens_menu());
         assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
         assert!(state.stats.donate_clicked_ever);
         assert!(!state.is_open());
 
-        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        let mut state = full(None, Clock::fixed(at(0, 0)));
         state.start_demo("supporter-popup");
         assert!(!state.demo_opens_menu());
         assert_eq!(state.menu_entry(), MenuEntry::SupporterThanks);
@@ -423,12 +500,17 @@ mod tests {
         let mut state = regular();
         state.open_on_demand();
         state.handle(&ctx, PopupAction::Share);
-        let expected = format!(
-            "CalcCraft — a free, precise calculator: https://rapalon.com/calccraft?utm_source=calccraft\
-             &utm_medium=share&utm_content={}_{}",
-            donate::platform(),
-            env!("CARGO_PKG_VERSION").replace('.', "-"),
-        );
+        let expected = if channel::link_parameters() {
+            format!(
+                "CalcCraft — a free, precise calculator: https://rapalon.com/calccraft?utm_source=calccraft\
+                 &utm_medium=share&utm_content={}_{}",
+                donate::platform(),
+                env!("CARGO_PKG_VERSION").replace('.', "-"),
+            )
+        } else {
+            // The Play builds share the bare link.
+            "CalcCraft — a free, precise calculator: https://rapalon.com/calccraft".to_owned()
+        };
         assert_eq!(copied_text(&ctx).as_deref(), Some(expected.as_str()));
         // The popup stays (Donate is still there); the note shows, then goes by itself.
         assert!(state.is_open());
@@ -510,7 +592,7 @@ mod tests {
 
     #[test]
     fn demo_share_shows_the_popup_with_the_note() {
-        let mut state = SupportState::with_clock(None, Clock::fixed(at(0, 0)));
+        let mut state = full(None, Clock::fixed(at(0, 0)));
         state.start_demo("share");
         assert!(state.is_open() && state.copied_until_ms.is_some());
     }
@@ -521,7 +603,7 @@ mod tests {
         let mut state = regular();
         state.stats.donate_clicked_ever = true;
         state.save(&mut storage);
-        let again = SupportState::with_clock(Some(&storage), Clock::fixed(at(1, 0)));
+        let again = full(Some(&storage), Clock::fixed(at(1, 0)));
         assert!(again.stats.donate_clicked_ever);
         assert_eq!(again.stats.launches, 5);
         let _ = eframe::Storage::get_string(&storage, stats::STATS_KEY).unwrap();

@@ -10,6 +10,11 @@ publish = false
 [features]
 default = ["support-prompt"]
 support-prompt = []
+# The Google Play builds' distribution channels (docs/support-prompt.md, section 8): no donate
+# link. `play-free` leads to the paid app's listing (CALCCRAFT_PAID_ID at build time, else no
+# prompt); `play-paid` shows no prompt. At most one of them.
+play-free = ["support-prompt"]
+play-paid = ["support-prompt"]
 
 # The app is a library that `main.rs` starts on desktops and in the browser, and that Android
 # loads as `libcalculator.so` (see android/README.md).

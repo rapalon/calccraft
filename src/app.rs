@@ -5359,7 +5359,12 @@ mod tests {
         assert_eq!(app.support.stats.active_days, 1);
     }
 
-    #[cfg(feature = "support-prompt")]
+    // The popup's tests need the whole prompt: the Google Play channels hide it or lead
+    // elsewhere (src/support has their tests).
+    #[cfg(all(
+        feature = "support-prompt",
+        not(any(feature = "play-free", feature = "play-paid"))
+    ))]
     #[test]
     fn support_popup_is_non_modal_and_escape_closes_it() {
         let ctx = Context::default();
@@ -5387,7 +5392,10 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "support-prompt")]
+    #[cfg(all(
+        feature = "support-prompt",
+        not(any(feature = "play-free", feature = "play-paid"))
+    ))]
     #[test]
     fn support_menu_button_opens_popup_and_close_button_dismisses() {
         let ctx = Context::default();
@@ -5424,7 +5432,10 @@ mod tests {
     }
 
     /// The popup lies under the display, inside the window, in every calculator mode.
-    #[cfg(feature = "support-prompt")]
+    #[cfg(all(
+        feature = "support-prompt",
+        not(any(feature = "play-free", feature = "play-paid"))
+    ))]
     #[test]
     fn support_popup_never_covers_the_display() {
         for size in [MIN_SIZE, vec2(480.0, 640.0), vec2(1200.0, 900.0)] {
@@ -5463,7 +5474,10 @@ mod tests {
     }
 
     /// The red dot on the hamburger has a screen reader description.
-    #[cfg(feature = "support-prompt")]
+    #[cfg(all(
+        feature = "support-prompt",
+        not(any(feature = "play-free", feature = "play-paid"))
+    ))]
     #[test]
     fn support_dot_is_described() {
         let ctx = Context::default();

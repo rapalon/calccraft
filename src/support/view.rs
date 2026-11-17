@@ -19,8 +19,9 @@ use crate::app::strings::tr;
 use crate::brand;
 use crate::engine::Command;
 
+use super::channel::{self, PromptMode};
 use super::clock::Clock;
-use super::donate::{DonateContext, DonateSource, DonationChannel, ExternalLink, platform};
+use super::donate::{self, DonateContext, DonateSource, DonationChannel, platform};
 use super::logo;
 use super::policy::{
     self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
@@ -111,17 +112,23 @@ impl SupportState {
     }
 
     pub(crate) fn with_clock(storage: Option<&dyn Storage>, clock: Clock) -> Self {
-        let cfg = if clock.is_fast() {
+        Self::with_mode(storage, clock, channel::prompt_mode())
+    }
+
+    /// The state with the prompt `mode` instead of the build's (tests try every channel's).
+    pub(crate) fn with_mode(storage: Option<&dyn Storage>, clock: Clock, mode: PromptMode) -> Self {
+        let mut cfg = if clock.is_fast() {
             SupportPolicyConfig::fast()
         } else {
             SupportPolicyConfig::default()
         };
+        cfg.prompt = mode;
         let stats = SupportStats::load(storage, clock.is_fast(), |secs| clock.day_of(secs));
         let mut state = Self {
             stats,
             cfg,
             clock,
-            channel: &ExternalLink,
+            channel: donate::platform_channel(),
             share_channel: platform_channel(),
             copied_until_ms: None,
             popup: None,
@@ -157,6 +164,10 @@ impl SupportState {
     /// as the thank-you line opens it), or `share` (the popup with "Link copied" showing).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(crate) fn start_demo(&mut self, demo: &str) {
+        // A build without the prompt has no stages to show.
+        if self.cfg.prompt != PromptMode::Full {
+            return;
+        }
         let stats = &mut self.stats;
         stats.launches = stats.launches.max(self.cfg.min_launches);
         stats.active_days = stats.active_days.max(self.cfg.min_active_days);
@@ -325,8 +336,9 @@ impl SupportState {
     }
 
     /// Opens the popup from the menu (no stacking: an open one stays as it is).
+    /// A build without the prompt (`PromptMode::Hidden`, `Supporter`) never opens it.
     pub(crate) fn open_on_demand(&mut self) {
-        if self.popup.is_none() {
+        if self.popup.is_none() && self.cfg.prompt == PromptMode::Full {
             self.popup = Some(OpenPopup {
                 automatic: false,
                 opened_at_ms: self.now().millis,
@@ -375,7 +387,12 @@ impl SupportState {
             platform: platform(),
             version: env!("CARGO_PKG_VERSION"),
         };
-        let url = share_url(SHARE_URL, &context);
+        // The Play builds share the bare link: they put nothing into links (section 8).
+        let url = if channel::link_parameters() {
+            share_url(SHARE_URL, &context)
+        } else {
+            SHARE_URL.to_owned()
+        };
         let text = share_text(tr("CalcCraft.Support.ShareMessage"), &url);
         if super::clock::fast_mode() {
             eprintln!("support: share text {text}");
@@ -432,8 +449,11 @@ impl SupportState {
                 if draw_share_glyph(ui, p, share) {
                     self.share(ui.ctx());
                 }
-                draw_thanks_line(ui, line, p)
+                // In the paid Play app the line is only a thank-you: no popup behind it.
+                let clickable = self.cfg.prompt == PromptMode::Full;
+                draw_thanks_line(ui, line, p, clickable)
             }
+            MenuEntry::Hidden => false,
         };
         if clicked {
             self.open_on_demand();
@@ -653,7 +673,8 @@ const THANKS_GAP: f32 = 6.0;
 
 /// The supporter state's quiet thank-you line in `rect` (the amber button's place): the wrapped
 /// text and a heart after it in green, no fill or outline. Returns true when it was pressed.
-fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
+/// Not `clickable`, it is a plain label (the paid Play app).
+fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette, clickable: bool) -> bool {
     let dark = dark(ui.ctx());
     let color = if dark { THANKS_DARK } else { THANKS_LIGHT };
     let label = tr("CalcCraft.Support.Thanks");
@@ -675,6 +696,28 @@ fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette) -> bool {
         None => Rect::from_center_size(area.center(), vec2(32.0, 32.0).min(area.size())),
     };
     let id = Id::new("support-thanks");
+    if !clickable {
+        access::text(ui, control, id, label, false);
+        let painter = ui.painter();
+        match text {
+            Some(text) => {
+                let origin = pos2(
+                    control.left() + THANKS_PAD,
+                    control.center().y - text.size().y / 2.0,
+                );
+                let heart_at = heart_position(origin, &text, heart.size());
+                painter.galley(origin, text, color);
+                painter.galley(heart_at, heart, color);
+            }
+            None => {
+                let at = control.center() - heart.size() / 2.0;
+                painter.galley(at, heart, color);
+                ui.interact(control, id, Sense::hover())
+                    .on_hover_text(label);
+            }
+        }
+        return false;
+    }
     let response = access::control(ui, p, control, id, true, 6.0, access::button(true, label));
     let overlay = match (
         response.is_pointer_button_down_on(),
@@ -833,7 +876,7 @@ impl Content {
             (width - 80.0).max(160.0),
         );
         let body = (!thank_you).then(|| {
-            let raw = tr("CalcCraft.Support.Body");
+            let raw = tr(BODY_KEY);
             #[cfg(not(target_arch = "wasm32"))]
             let long =
                 std::env::var("CALCCRAFT_SUPPORT_LONG_TEXT").is_ok_and(|v| v == "1" || v == "true");
@@ -1047,9 +1090,22 @@ fn close_button(ui: &Ui, p: &Palette, painter: &Painter, card: Rect) -> bool {
     response.clicked()
 }
 
-/// The green Donate button.
+/// The popup's body and its green button: the free Play app has no Donate, its button leads
+/// to the paid app, CalcCraft Pro (section 8).
+const BODY_KEY: &str = if cfg!(feature = "play-free") {
+    "CalcCraft.Support.Store.Body"
+} else {
+    "CalcCraft.Support.Body"
+};
+const DONATE_KEY: &str = if cfg!(feature = "play-free") {
+    "CalcCraft.Support.Store.Get"
+} else {
+    "CalcCraft.Support.Donate"
+};
+
+/// The green Donate button ("Get CalcCraft Pro" in the free Play app).
 fn donate_button(ui: &Ui, p: &Palette, painter: &Painter, rect: Rect) -> bool {
-    let label = tr("CalcCraft.Support.Donate");
+    let label = tr(DONATE_KEY);
     let response = access::control(
         ui,
         p,

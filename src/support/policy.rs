@@ -3,6 +3,7 @@
 //! Everything here is pure: time comes in as a [`Timestamp`], and the stats go in and come out as
 //! values, so the tests can simulate weeks and months.
 
+pub use super::channel::PromptMode;
 use super::stats::SupportStats;
 
 /// A moment in time, as the policy sees it.
@@ -35,6 +36,9 @@ pub struct SupportPolicyConfig {
     pub already_supported_pause_days: i64,
     /// How long the "Thank you!" text shows before the popup closes.
     pub thank_you_ms: u64,
+    /// How much of the prompt the build shows (its distribution channel, section 8): only
+    /// `Full` ever shows a dot or a popup. `Default` is `Full`; the app takes the build's.
+    pub prompt: PromptMode,
 }
 
 impl Default for SupportPolicyConfig {
@@ -49,6 +53,7 @@ impl Default for SupportPolicyConfig {
             donate_pause_days: 180,
             already_supported_pause_days: 365,
             thank_you_ms: 1500,
+            prompt: PromptMode::Full,
         }
     }
 }
@@ -147,7 +152,7 @@ pub fn evaluate(
     now: Timestamp,
     moment: MomentContext,
 ) -> SupportDecision {
-    if !cycle_active(stats, cfg, now) {
+    if cfg.prompt != PromptMode::Full || !cycle_active(stats, cfg, now) {
         return SupportDecision::Nothing;
     }
     let dot_since = stats.dot_since_day.unwrap_or(now.day);
@@ -256,13 +261,21 @@ fn pause_until(stats: &mut SupportStats, day: i64) {
 pub enum MenuEntry {
     /// The amber "Please Support!" button.
     SupportButton,
-    /// The supporter state's green thank-you line ("I already supported", for 365 days).
+    /// The supporter state's green thank-you line ("I already supported", for 365 days, or
+    /// always in the paid Play app).
     SupporterThanks,
+    /// Nothing: the free Play app without a paid app to lead to.
+    Hidden,
 }
 
 /// The menu's support entry now. Only "I already supported" makes a supporter: a Donate click
 /// alone may not have ended in a payment.
-pub fn menu_entry(stats: &SupportStats, _cfg: &SupportPolicyConfig, now: Timestamp) -> MenuEntry {
+pub fn menu_entry(stats: &SupportStats, cfg: &SupportPolicyConfig, now: Timestamp) -> MenuEntry {
+    match cfg.prompt {
+        PromptMode::Full => {}
+        PromptMode::Hidden => return MenuEntry::Hidden,
+        PromptMode::Supporter => return MenuEntry::SupporterThanks,
+    }
     if stats.supporter_until_day.is_some_and(|day| now.day < day) {
         MenuEntry::SupporterThanks
     } else {
@@ -714,5 +727,74 @@ mod tests {
             menu_entry(&shared, &cfg(), at(11)),
             MenuEntry::SupporterThanks
         );
+    }
+
+    /// A regular user over two years in `mode`: launches and calculates every day, opens the
+    /// menu and closes popups slowly. Returns every decision and menu entry seen, at calm
+    /// moments only.
+    fn two_years(mode: PromptMode) -> (Vec<SupportDecision>, Vec<MenuEntry>) {
+        let c = SupportPolicyConfig {
+            prompt: mode,
+            ..cfg()
+        };
+        let mut s = SupportStats::default();
+        let (mut decisions, mut entries) = (vec![], vec![]);
+        for day in 0..730 {
+            let now = at(day);
+            s = on_event(&s, &c, SupportEvent::AppLaunched, now);
+            s = on_event(&s, &c, SupportEvent::CalculationDone, now);
+            let decision = evaluate(&s, &c, now, calm(now));
+            match decision {
+                SupportDecision::ShowDot if s.dot_since_day.is_none() => {
+                    s = on_event(&s, &c, SupportEvent::DotShown, now);
+                }
+                SupportDecision::ShowPopup => {
+                    s = on_event(&s, &c, SupportEvent::PopupShown, now);
+                    let closed = SupportEvent::PopupClosed {
+                        after_ms: 60_000,
+                        automatic: true,
+                    };
+                    s = on_event(&s, &c, closed, now);
+                }
+                _ => {}
+            }
+            decisions.push(decision);
+            entries.push(menu_entry(&s, &c, now));
+        }
+        (decisions, entries)
+    }
+
+    #[test]
+    fn a_free_play_build_without_a_paid_app_never_prompts() {
+        let (decisions, entries) = two_years(PromptMode::Hidden);
+        assert!(decisions.iter().all(|d| *d == SupportDecision::Nothing));
+        assert!(entries.iter().all(|e| *e == MenuEntry::Hidden));
+        // Even a user deep in a cycle, with the dot long unseen, gets nothing.
+        let hidden = SupportPolicyConfig {
+            prompt: PromptMode::Hidden,
+            ..cfg()
+        };
+        let s = dot(&regular(4), 3);
+        assert_eq!(
+            evaluate(&s, &hidden, at(40), calm(at(40))),
+            SupportDecision::Nothing
+        );
+        assert_eq!(menu_entry(&s, &hidden, at(40)), MenuEntry::Hidden);
+    }
+
+    #[test]
+    fn the_paid_play_build_is_always_a_supporter() {
+        let (decisions, entries) = two_years(PromptMode::Supporter);
+        assert!(decisions.iter().all(|d| *d == SupportDecision::Nothing));
+        assert!(entries.iter().all(|e| *e == MenuEntry::SupporterThanks));
+    }
+
+    #[test]
+    fn the_full_prompt_does_prompt_in_two_years() {
+        // The same simulation shows dots and popups when the prompt is on, so the two tests
+        // above prove something.
+        let (decisions, entries) = two_years(PromptMode::Full);
+        assert!(decisions.contains(&SupportDecision::ShowPopup));
+        assert!(entries.contains(&MenuEntry::SupportButton));
     }
 }
