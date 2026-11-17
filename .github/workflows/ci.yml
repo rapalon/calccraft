@@ -127,23 +127,30 @@ jobs:
         shell: pwsh
         run: android/build-apk.ps1 -Ndk $env:NDK -BuildTools $env:BUILD_TOOLS -Bundle
 
-      # What Google Play would make of the bundle: the universal APK bundletool builds from it
-      # must carry the manifest values of android/README.md, with the library on 16 KB pages.
+      # The bundle's manifest must carry the values of android/README.md, and the universal APK
+      # bundletool builds from it (what Google Play would make of it) the library on 16 KB pages.
       - name: Check the App Bundle
         run: |
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           IFS=. read -r major minor patch <<< "$version"
           code=$((major * 10000 + minor * 100 + patch))
-          java -jar .tools/bundletool-all-*.jar build-apks --mode=universal \
-            --bundle=target/android/CalcCraft-$version-arm64.aab --output=target/android/universal.apks
+          jar=$(ls .tools/bundletool-all-*.jar)
+          aab="target/android/CalcCraft-$version-arm64.aab"
+          java -jar "$jar" dump manifest --bundle="$aab"
+          for check in "@package=$APPLICATION_ID" "@android:versionCode=$code" "@android:versionName=$version" \
+              "uses-sdk/@android:minSdkVersion=24" "uses-sdk/@android:targetSdkVersion=36"; do
+            value=$(java -jar "$jar" dump manifest --bundle="$aab" --xpath "/manifest/${check%%=*}")
+            if [ "$value" != "${check#*=}" ]; then
+              echo "::error::The bundle's manifest has ${check%%=*} = '$value', not '${check#*=}'."
+              exit 1
+            fi
+          done
+          java -jar "$jar" build-apks --mode=universal --bundle="$aab" --output=target/android/universal.apks
           unzip -o -q target/android/universal.apks universal.apk -d target/android
           tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
-          "$tools/aapt2" dump badging target/android/universal.apk > target/android/badging.txt
-          grep -E "^(package|sdkVersion|targetSdkVersion|native-code)" target/android/badging.txt
-          grep -q "^package: name='$APPLICATION_ID' versionCode='$code' versionName='$version'" target/android/badging.txt
-          grep -q "^sdkVersion:'24'" target/android/badging.txt
-          grep -q "^targetSdkVersion:'36'" target/android/badging.txt
-          grep -q "^native-code: 'arm64-v8a'" target/android/badging.txt
+          "$tools/aapt2" dump badging target/android/universal.apk
+          "$tools/aapt2" dump xmltree --file AndroidManifest.xml target/android/universal.apk
+          "$tools/aapt2" dump badging target/android/universal.apk | grep -q "^native-code: 'arm64-v8a'"
           "$tools/zipalign" -c -P 16 4 target/android/universal.apk
 
       - uses: actions/upload-artifact@v4
