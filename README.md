@@ -404,6 +404,19 @@ All three must pass before a change is merged, and so must the web build's lints
 [GitHub Actions](.github/workflows/ci.yml) runs them on Windows, Linux and macOS, and builds the
 web version and the Android app, for every push and pull request.
 
+CalcCraft uses only libraries under permissive open-source licenses: MIT, Apache-2.0, BSD and
+the like, listed in [`deny.toml`](deny.toml). CI checks every library in `Cargo.lock` with
+[cargo-deny](https://github.com/EmbarkStudios/cargo-deny); to check locally after adding a
+dependency:
+
+```bash
+cargo install cargo-deny --locked
+```
+
+```bash
+cargo deny check licenses
+```
+
 ### Translations
 
 Besides the Language and Regional format settings, `CALCCRAFT_LANGUAGE` and `CALCCRAFT_REGION`

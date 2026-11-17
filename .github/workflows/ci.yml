@@ -46,6 +46,19 @@ jobs:
       - name: Test
         run: cargo test
 
+  licenses:
+    name: licenses (cargo-deny)
+    # Every library in Cargo.lock must have a license from deny.toml's allow-list: permissive
+    # open-source licenses such as MIT, Apache-2.0 and BSD. A new dependency under a copyleft
+    # license (GPL, LGPL, MPL …) fails here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses
+
   web:
     name: web build (wasm32)
     # The web version (.github/workflows/pages.yml deploys it) builds from the same code, so

@@ -22,6 +22,7 @@ and the user-facing changes that are welcome are the ones that bring the app clo
 | Format | `cargo fmt` |
 | Lint | `cargo clippy --all-targets -- -D warnings` |
 | Lint the web version | `cargo clippy --target wasm32-unknown-unknown -- -D warnings` |
+| Check the dependencies' licenses | `cargo deny check licenses` (`cargo install cargo-deny --locked`) |
 | Run the web version | `trunk serve` (http://127.0.0.1:8080; `trunk build --release` writes `dist/`) |
 
 **Definition of done:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
@@ -685,6 +686,11 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
 
 ## Pitfalls
 
+- **Only permissive licenses.** Every library must be under a license on `deny.toml`'s allow-list
+  (MIT, Apache-2.0, BSD, ISC, Zlib …); CI's `licenses` job fails on anything else, GPL, LGPL
+  and MPL included. Before adding a dependency, check its license (and its own dependencies')
+  with `cargo deny check licenses`. Don't widen the allow-list for one library: an exception
+  for it (as for egui's fonts) needs a reason in `deny.toml`.
 - **`num-bigint` must stay on 0.4.x.** `num-rational` 0.4 depends on it, and `BigRational`'s
   integer type has to match ours. `cargo add num-bigint` without a version picks 0.5 and breaks the build.
 - **egui 0.36 API:** the app implements `App::ui(&mut self, ui, frame)` (not `update`).
