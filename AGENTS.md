@@ -683,6 +683,11 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
 - Code is formatted with `rustfmt` (default settings). The keypad table `KEYS` is marked
   `#[rustfmt::skip]` so it keeps its 4-column grid.
 - Prefer small, focused changes. Don't reformat or restructure code you aren't changing.
+- **Privacy:** `PRIVACY.md` (published at <https://rapalon.com/calccraft/privacy>) describes
+  everything the app stores, reads and lets leave the device, from the audit in
+  `docs/privacy-audit.md`; `docs/play-data-safety.md` holds Google Play's Data safety answers.
+  A change that stores something new, adds a permission, a network request, an SDK, a link or
+  a link parameter updates all three, and the policy's effective date, in the same pull request.
 
 ## Pitfalls
 

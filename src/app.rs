@@ -89,6 +89,9 @@ const NAVIGATION_CLOSE: &str = "Close Navigation";
 
 const REPOSITORY_URL: &str = "https://github.com/rapalon/calccraft";
 const FEEDBACK_URL: &str = "https://github.com/rapalon/calccraft/issues";
+/// CalcCraft's privacy policy (`PRIVACY.md`, published on the company's site). Windows'
+/// Settings page links Microsoft's privacy statement in the same place.
+const PRIVACY_URL: &str = "https://rapalon.com/calccraft/privacy";
 /// Storage key and values of the theme choice, the same as Windows uses.
 const THEME_KEY: &str = "SelectedAppTheme";
 /// Storage key of the mode the app was closed in, the same as Windows uses
@@ -2327,7 +2330,9 @@ impl CalculatorApp {
         let about_y = cards_bottom + 45.0;
         let about_top = about_y + 18.0;
         let feedback_y = about_top + CARD_HEIGHT + 25.0;
-        let contribute_top = feedback_y + 40.0 - row_height / 2.0;
+        // The privacy policy's link sits under Send feedback, one hyperlink button lower.
+        let privacy_y = feedback_y + 32.0;
+        let contribute_top = privacy_y + 40.0 - row_height / 2.0;
         let height = contribute_top + contribute.size().y + SIDE;
 
         let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
@@ -2518,6 +2523,15 @@ impl CalculatorApp {
             Id::new("feedback"),
         ) {
             action = Some(SettingsAction::OpenUrl(FEEDBACK_URL));
+        }
+        if link_button(
+            p,
+            ui,
+            pos2(left, top + privacy_y),
+            tr("CalcCraft.PrivacyPolicy"),
+            Id::new("privacy-policy"),
+        ) {
+            action = Some(SettingsAction::OpenUrl(PRIVACY_URL));
         }
 
         // A sentence with an inline link: find the link's glyphs to make them clickable.
@@ -4214,6 +4228,42 @@ mod tests {
             node.role() == Role::Link && node.label() == Some(brand::COMPANY)
         };
         assert!(nodes.iter().any(credited));
+    }
+
+    #[test]
+    fn settings_link_to_the_privacy_policy() {
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let mut app = start_in(&ctx);
+        app.page = Page::Settings;
+        // The narrowest window: the link is still on the page.
+        let size = vec2(320.0, 500.0);
+        run(&ctx, &mut app, size, vec![]);
+        let nodes = accesskit_nodes(&ctx, &mut app, size);
+        let link = |(_, node): &(_, egui::accesskit::Node)| {
+            node.role() == Role::Link && node.label() == Some("Privacy policy")
+        };
+        assert!(nodes.iter().any(link));
+
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+            events: vec![screen_reader_click(Id::new("privacy-policy"))],
+            ..Default::default()
+        };
+        let mut frame = eframe::Frame::_new_kittest();
+        let mut output = ctx.run_ui(input, |ui| eframe::App::ui(&mut app, ui, &mut frame));
+        output.textures_delta.clear();
+        let opened: Vec<_> = output
+            .platform_output
+            .commands
+            .iter()
+            .filter_map(|command| match command {
+                egui::OutputCommand::OpenUrl(open) => Some(open.url.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(opened, [PRIVACY_URL]);
+        assert_eq!(PRIVACY_URL, format!("{}/calccraft/privacy", brand::URL));
     }
 
     #[test]
