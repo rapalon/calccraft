@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 pub(super) const STORAGE_KEY: &str = "CalcCraftKeyVibration";
 pub(super) const STYLE_KEY: &str = "CalcCraftKeyVibrationStyle";
 pub(super) const DURATION_KEY: &str = "CalcCraftKeyVibrationDuration";
-/// The strength slider's ends: 0 is Off, 100 the strongest tap.
+/// The strength slider's ends: 1 is the faintest tap, 100 the strongest. Off is a style, not
+/// a strength.
+pub(super) const MIN: u8 = 1;
 pub(super) const MAX: u8 = 100;
 /// The strength of a new install: clearly felt on every phone tried, still a click.
 pub(super) const DEFAULT: u8 = 50;
@@ -31,6 +33,8 @@ pub(super) const AVAILABLE: bool = cfg!(target_os = "android");
 /// The card's Style drop-down.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub(super) enum Style {
+    /// Keys never vibrate (`Off`).
+    Off,
     /// Click or Pulse, whichever suits the phone's vibrator (`auto`).
     #[default]
     Auto,
@@ -41,11 +45,18 @@ pub(super) enum Style {
 
 impl Style {
     /// The drop-down's entries, in order.
-    pub(super) const ALL: [Style; 4] = [Style::Auto, Style::Click, Style::Pulse, Style::HeavyClick];
+    pub(super) const ALL: [Style; 5] = [
+        Style::Off,
+        Style::Auto,
+        Style::Click,
+        Style::Pulse,
+        Style::HeavyClick,
+    ];
 
     /// The stored value.
     pub(super) fn key(self) -> &'static str {
         match self {
+            Style::Off => "Off",
             Style::Auto => "Auto",
             Style::Click => "Click",
             Style::Pulse => "Pulse",
@@ -56,6 +67,8 @@ impl Style {
     /// The name's string key in `locales/calccraft.txt`.
     pub(super) fn label_key(self) -> &'static str {
         match self {
+            // The strength slider's old Off, translated in every language already.
+            Style::Off => "CalcCraft.KeyVibrationOff",
             Style::Auto => "CalcCraft.KeyVibrationStyleAuto",
             Style::Click => "CalcCraft.KeyVibrationStyleClick",
             Style::Pulse => "CalcCraft.KeyVibrationStylePulse",
@@ -158,20 +171,23 @@ fn pulse(capabilities: &Capabilities, ms: u8) -> Tap {
 
 /// How `style` plays on this vibrator, with `ms` the Duration slider's value. A style the
 /// phone can't play falls back to a Pulse (Click without the primitive, Heavy click before
-/// Android 10, where `createPredefined` is missing).
-pub(super) fn tap(style: Style, ms: u8, capabilities: &Capabilities) -> Tap {
-    match style {
+/// Android 10, where `createPredefined` is missing). `None` for Off: no tap at all.
+pub(super) fn tap(style: Style, ms: u8, capabilities: &Capabilities) -> Option<Tap> {
+    Some(match style {
+        Style::Off => return None,
         Style::Auto => auto(capabilities),
         Style::Click if capabilities.clicks() => Tap::Click,
         Style::HeavyClick if capabilities.sdk >= 29 => Tap::HeavyClick,
         Style::Pulse => pulse(capabilities, ms),
         Style::Click | Style::HeavyClick => pulse(capabilities, DEFAULT_MS),
-    }
+    })
 }
 
 /// A row of the Key vibration card, top to bottom.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Row {
+    /// The title and the description alone: the style Off, which has no strength.
+    Title,
     /// The title, the description and the strength slider.
     Strength,
     /// "Strength is set by the phone for this style" (Heavy click: the slider is only on/off).
@@ -185,13 +201,17 @@ pub(super) enum Row {
     SystemOff,
 }
 
-/// The card's rows for `style` on this vibrator, with touch feedback on or off.
+/// The card's rows for `style` on this vibrator, with touch feedback on or off. Off shows only
+/// the Style drop-down under the title: no sliders, and the touch feedback setting doesn't
+/// matter then.
 pub(super) fn card_rows(
     style: Style,
     capabilities: &Capabilities,
     touch_feedback: bool,
 ) -> Vec<Row> {
-    let tap = tap(style, DEFAULT_MS, capabilities);
+    let Some(tap) = tap(style, DEFAULT_MS, capabilities) else {
+        return vec![Row::Title, Row::Style];
+    };
     let mut rows = vec![Row::Strength];
     if tap == Tap::HeavyClick {
         rows.push(Row::FixedStrength);
@@ -208,17 +228,18 @@ pub(super) fn card_rows(
 
 /// The settings in effect, read by every key press wherever it is drawn.
 static STRENGTH: AtomicU8 = AtomicU8::new(DEFAULT);
-static STYLE: AtomicU8 = AtomicU8::new(0);
+/// The style's discriminant, which is its place in `Style::ALL`.
+static STYLE: AtomicU8 = AtomicU8::new(Style::Auto as u8);
 static DURATION: AtomicU8 = AtomicU8::new(DEFAULT_MS);
 
-/// The strength in effect (0 is Off).
+/// The strength in effect, `MIN` to `MAX`.
 pub(super) fn strength() -> u8 {
     STRENGTH.load(Ordering::Relaxed)
 }
 
-/// Sets the strength in effect, clamped to `MAX`.
+/// Sets the strength in effect, clamped to `MIN..=MAX`.
 pub(super) fn set_strength(strength: u8) {
-    STRENGTH.store(strength.min(MAX), Ordering::Relaxed);
+    STRENGTH.store(strength.clamp(MIN, MAX), Ordering::Relaxed);
 }
 
 /// The style in effect.
@@ -228,8 +249,7 @@ pub(super) fn style() -> Style {
 
 /// Sets the style in effect.
 pub(super) fn set_style(style: Style) {
-    let index = Style::ALL.iter().position(|s| *s == style).unwrap_or(0);
-    STYLE.store(index as u8, Ordering::Relaxed);
+    STYLE.store(style as u8, Ordering::Relaxed);
 }
 
 /// The Pulse's duration in effect, in milliseconds.
@@ -246,11 +266,17 @@ fn clamp_ms(ms: u8) -> u8 {
     ms.clamp(MIN_MS, MAX_MS)
 }
 
-/// The stored strength, or the default for a missing or unreadable value.
-pub(super) fn parse(stored: Option<&str>) -> u8 {
-    stored
-        .and_then(|text| text.trim().parse::<u8>().ok())
-        .map_or(DEFAULT, |strength| strength.min(MAX))
+/// The stored strength and style. Builds before the style Off saved Off as strength `0`: that
+/// loads as the style Off, with the default strength for when another style is chosen. A
+/// missing or unreadable strength is the default, one beyond the ends is clamped.
+pub(super) fn load(strength: Option<&str>, style: Option<&str>) -> (u8, Style) {
+    match strength.and_then(|text| text.trim().parse::<u8>().ok()) {
+        Some(0) => (DEFAULT, Style::Off),
+        strength => (
+            strength.map_or(DEFAULT, |strength| strength.min(MAX)),
+            Style::parse(style),
+        ),
+    }
 }
 
 /// The stored duration, clamped to `MIN_MS..=MAX_MS`, or the default for a missing or
@@ -274,32 +300,28 @@ fn linear(strength: u8) -> f32 {
     f32::from(strength.clamp(1, MAX) - 1) / f32::from(MAX - 1)
 }
 
-/// The scale of `VibrationEffect.Composition.addPrimitive(PRIMITIVE_CLICK, scale)`, 0 to 1,
-/// or `None` for Off. The click primitive is the phone maker's own click waveform, so even
-/// scale 1 stays a click; the scale only sets its strength.
-pub(super) fn click_scale(strength: u8) -> Option<f32> {
-    (strength > 0).then(|| level(strength))
+/// The scale of `VibrationEffect.Composition.addPrimitive(PRIMITIVE_CLICK, scale)`, 0.1 to 1.
+/// The click primitive is the phone maker's own click waveform, so even scale 1 stays a
+/// click; the scale only sets its strength.
+pub(super) fn click_scale(strength: u8) -> f32 {
+    level(strength.max(MIN))
 }
 
-/// The amplitude (60 to 255) of a Pulse, or `None` for Off: linear from `MIN_AMPLITUDE` at 1,
-/// the faintest tap felt on both phones tried, to 255 at 100 (157 at 50). The floor is felt
-/// already, so a square root as for the click's scale isn't needed.
-pub(super) fn amplitude(strength: u8) -> Option<i32> {
-    (strength > 0).then(|| {
-        let span = (255 - MIN_AMPLITUDE) as f32;
-        MIN_AMPLITUDE + (span * linear(strength)).round() as i32
-    })
+/// The amplitude (60 to 255) of a Pulse: linear from `MIN_AMPLITUDE` at 1, the faintest tap
+/// felt on both phones tried, to 255 at 100 (157 at 50). The floor is felt already, so a
+/// square root as for the click's scale isn't needed.
+pub(super) fn amplitude(strength: u8) -> i32 {
+    let span = (255 - MIN_AMPLITUDE) as f32;
+    MIN_AMPLITUDE + (span * linear(strength)).round() as i32
 }
 
-/// The duration of a one-shot on a vibrator without amplitude control, or `None` for Off:
-/// `MIN_MS` at 1 up to `MAX_MS` at 100, linearly (5, 7, 8 and 12 ms at 1, 25, 50 and 100), since
-/// an on/off motor's tap is felt in proportion to how long it runs; never longer than a
-/// Pulse, which buzzes from 15 ms.
-pub(super) fn duration_ms(strength: u8) -> Option<i64> {
-    (strength > 0).then(|| {
-        let span = f32::from(MAX_MS - MIN_MS);
-        i64::from(MIN_MS) + (span * linear(strength)).round() as i64
-    })
+/// The duration of a one-shot on a vibrator without amplitude control: `MIN_MS` at 1 up to
+/// `MAX_MS` at 100, linearly (5, 7, 8 and 12 ms at 1, 25, 50 and 100), since an on/off motor's
+/// tap is felt in proportion to how long it runs; never longer than a Pulse, which buzzes
+/// from 15 ms.
+pub(super) fn duration_ms(strength: u8) -> i64 {
+    let span = f32::from(MAX_MS - MIN_MS);
+    i64::from(MIN_MS) + (span * linear(strength)).round() as i64
 }
 
 #[cfg(test)]
@@ -327,12 +349,17 @@ mod tests {
 
     #[test]
     fn stored_settings() {
-        assert_eq!(parse(None), 50);
-        assert_eq!(parse(Some("0")), 0);
-        assert_eq!(parse(Some("73")), 73);
-        assert_eq!(parse(Some("250")), 100);
-        assert_eq!(parse(Some("-3")), 50);
-        assert_eq!(parse(Some("loud")), 50);
+        let strength = |stored| load(stored, Some("Click")).0;
+        assert_eq!(strength(None), 50);
+        assert_eq!(strength(Some("1")), 1);
+        assert_eq!(strength(Some("73")), 73);
+        assert_eq!(strength(Some(" 100 ")), 100);
+        assert_eq!(strength(Some("250")), 100);
+        assert_eq!(strength(Some("-3")), 50);
+        assert_eq!(strength(Some("loud")), 50);
+        assert_eq!(load(None, None), (50, Style::Auto));
+        assert_eq!(load(Some("73"), Some("Off")), (73, Style::Off));
+        assert_eq!(load(Some("73"), Some("Pulse")), (73, Style::Pulse));
         assert_eq!(parse_duration(None), 8);
         assert_eq!(parse_duration(Some("10")), 10);
         assert_eq!(parse_duration(Some("3")), 5);
@@ -344,14 +371,65 @@ mod tests {
         assert_eq!(Style::parse(None), Style::Auto);
         assert_eq!(Style::parse(Some("Buzz")), Style::Auto);
         assert_eq!(Style::parse(Some("HeavyClick")), Style::HeavyClick);
+        assert_eq!(Style::parse(Some("Off")), Style::Off);
+    }
+
+    #[test]
+    fn old_off_strength_becomes_the_off_style() {
+        // An earlier build saved Off as strength 0, next to the style it had (Auto by default).
+        for style in [
+            None,
+            Some("Auto"),
+            Some("Click"),
+            Some("Pulse"),
+            Some("HeavyClick"),
+        ] {
+            assert_eq!(load(Some("0"), style), (50, Style::Off), "{style:?}");
+        }
+        assert_eq!(load(Some(" 0"), Some("Off")), (50, Style::Off));
+        // Saved again, it stays Off with 50 % for when another style is chosen.
+        let (strength, style) = load(Some("0"), Some("Auto"));
+        assert_eq!(
+            load(Some(&strength.to_string()), Some(style.key())),
+            (50, Style::Off)
+        );
+    }
+
+    #[test]
+    fn style_list() {
+        assert_eq!(
+            Style::ALL,
+            [
+                Style::Off,
+                Style::Auto,
+                Style::Click,
+                Style::Pulse,
+                Style::HeavyClick
+            ]
+        );
+        assert_eq!(Style::default(), Style::Auto);
+        // The style in effect is kept as its place in the list.
+        for (i, style) in Style::ALL.into_iter().enumerate() {
+            assert_eq!(style as usize, i);
+        }
+        assert_eq!(Style::Off.label_key(), "CalcCraft.KeyVibrationOff");
     }
 
     #[test]
     fn settings_in_effect() {
+        assert_eq!(style(), Style::Auto);
+        set_style(Style::Off);
+        assert_eq!(style(), Style::Off);
         set_style(Style::Pulse);
         assert_eq!(style(), Style::Pulse);
         set_style(Style::Auto);
         assert_eq!(style(), Style::Auto);
+        set_strength(0);
+        assert_eq!(strength(), 1);
+        set_strength(200);
+        assert_eq!(strength(), 100);
+        set_strength(DEFAULT);
+        assert_eq!(strength(), 50);
         set_duration(30);
         assert_eq!(duration(), MAX_MS);
         set_duration(DEFAULT_MS);
@@ -414,6 +492,7 @@ mod tests {
 
     #[test]
     fn styles_play_as_chosen_or_fall_back() {
+        let tap = |style, ms, capabilities| tap(style, ms, capabilities).unwrap();
         assert_eq!(tap(Style::Click, 8, &SAMSUNG), Tap::Click);
         assert_eq!(tap(Style::Pulse, 10, &PIXEL), Tap::Pulse { ms: 10 });
         assert_eq!(tap(Style::Pulse, 30, &PIXEL), Tap::Pulse { ms: 12 });
@@ -432,6 +511,23 @@ mod tests {
             ..SAMSUNG
         };
         assert_eq!(tap(Style::Pulse, 10, &on_off), Tap::Duration);
+    }
+
+    #[test]
+    fn off_never_vibrates() {
+        let on_off = Capabilities {
+            amplitude_control: false,
+            ..SAMSUNG
+        };
+        for capabilities in [PIXEL, SAMSUNG, on_off, Capabilities::FULL] {
+            for ms in [MIN_MS, DEFAULT_MS, MAX_MS] {
+                assert_eq!(tap(Style::Off, ms, &capabilities), None);
+            }
+        }
+        // Every other style plays on every vibrator.
+        for style in Style::ALL.into_iter().skip(1) {
+            assert!(tap(style, DEFAULT_MS, &on_off).is_some(), "{style:?}");
+        }
     }
 
     #[test]
@@ -467,18 +563,32 @@ mod tests {
         // Heavy click falling back to a Pulse has a strength again, but no Duration slider.
         let old = Capabilities { sdk: 28, ..SAMSUNG };
         assert_eq!(card_rows(S::HeavyClick, &old, true), [Strength, Style]);
+        // Off: no strength or duration slider, and no touch feedback line either.
+        for capabilities in [PIXEL, SAMSUNG, on_off] {
+            for touch_feedback in [true, false] {
+                assert_eq!(
+                    card_rows(S::Off, &capabilities, touch_feedback),
+                    [Title, Style]
+                );
+            }
+        }
+        // Every other style has the strength slider.
+        for style in S::ALL.into_iter().skip(1) {
+            assert_eq!(card_rows(style, &PIXEL, true)[0], Strength, "{style:?}");
+        }
     }
 
     #[test]
-    fn off_never_vibrates() {
-        assert_eq!(click_scale(0), None);
-        assert_eq!(amplitude(0), None);
-        assert_eq!(duration_ms(0), None);
+    fn strength_starts_at_one() {
+        // Below 1 there is nothing: a 0 plays as 1.
+        assert_eq!(click_scale(0), click_scale(1));
+        assert_eq!(amplitude(0), amplitude(1));
+        assert_eq!(duration_ms(0), duration_ms(1));
     }
 
     #[test]
     fn click_primitive_scale() {
-        let scale = |s| click_scale(s).unwrap();
+        let scale = click_scale;
         assert!((scale(1) - 0.1).abs() < 1e-6);
         assert!((scale(25) - 0.5).abs() < 1e-6);
         assert!((scale(50) - 0.70710677).abs() < 1e-6);
@@ -488,7 +598,6 @@ mod tests {
 
     #[test]
     fn pulse_amplitude() {
-        let amplitude = |s| amplitude(s).unwrap();
         assert_eq!([1, 25, 50, 100].map(amplitude), [60, 107, 157, 255]);
         assert!((1..100).all(|s| amplitude(s) <= amplitude(s + 1)));
         assert!((1..=100).all(|s| (60..=255).contains(&amplitude(s))));
@@ -497,10 +606,10 @@ mod tests {
 
     #[test]
     fn fallback_duration() {
-        let duration = |s| duration_ms(s).unwrap();
+        let duration = duration_ms;
         assert_eq!([1, 25, 50, 100].map(duration), [5, 7, 8, 12]);
         assert!((1..100).all(|s| duration(s) <= duration(s + 1)));
         assert!((1..=100).all(|s| (5..=12).contains(&duration(s))));
-        assert_eq!(duration_ms(200), Some(12));
+        assert_eq!(duration_ms(200), 12);
     }
 }

@@ -242,13 +242,14 @@ pub(super) fn touch_feedback_enabled() -> bool {
 }
 
 /// A key tap of the vibration motor with the settings in effect (Settings → Key vibration:
-/// strength, 0 is Off, style and Pulse duration), as `vibration::tap` says it plays on this
-/// phone. It goes through `Vibrator`, not `performHapticFeedback(KEYBOARD_TAP)`, whose
-/// strength the phone maker sets (barely felt on a Samsung S26 Ultra), and stays off while
-/// touch feedback is off in Android's settings.
+/// strength, style and Pulse duration), as `vibration::tap` says it plays on this phone. It
+/// goes through `Vibrator`, not `performHapticFeedback(KEYBOARD_TAP)`, whose strength the
+/// phone maker sets (barely felt on a Samsung S26 Ultra), and stays off for the style Off and
+/// while touch feedback is off in Android's settings.
 pub(super) fn key_tap() {
     let strength = vibration::strength();
-    if strength == 0 || !touch_feedback_enabled() {
+    let style = vibration::style();
+    if style == vibration::Style::Off || !touch_feedback_enabled() {
         return;
     }
     with_activity(|env, activity| {
@@ -257,10 +258,12 @@ pub(super) fn key_tap() {
             return Ok(());
         };
         let capabilities = read_capabilities(env, &vibrator, sdk)?;
-        let tap = vibration::tap(vibration::style(), vibration::duration(), &capabilities);
+        let Some(tap) = vibration::tap(style, vibration::duration(), &capabilities) else {
+            return Ok(());
+        };
         let effect = match tap {
             vibration::Tap::Click => {
-                let scale = vibration::click_scale(strength).unwrap_or_default();
+                let scale = vibration::click_scale(strength);
                 let composition = env
                     .call_static_method(
                         "android/os/VibrationEffect",
@@ -286,8 +289,7 @@ pub(super) fn key_tap() {
                 .l()?
             }
             vibration::Tap::Pulse { ms } => {
-                let amplitude = vibration::amplitude(strength).unwrap_or(vibration::MIN_AMPLITUDE);
-                one_shot(env, i64::from(ms), amplitude)?
+                one_shot(env, i64::from(ms), vibration::amplitude(strength))?
             }
             vibration::Tap::HeavyClick => env
                 .call_static_method(
@@ -298,7 +300,7 @@ pub(super) fn key_tap() {
                 )?
                 .l()?,
             vibration::Tap::Duration => {
-                let ms = vibration::duration_ms(strength).unwrap_or(i64::from(vibration::MIN_MS));
+                let ms = vibration::duration_ms(strength);
                 if sdk < 26 {
                     // No `VibrationEffect` before Android 8.
                     env.call_method(&vibrator, "vibrate", "(J)V", &[JValue::Long(ms)])?;

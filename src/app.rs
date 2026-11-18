@@ -319,7 +319,6 @@ impl VibrationCard {
         let font = FontId::proportional(14.0);
         let text_size = |text: String| painter.layout_no_wrap(text, font.clone(), p.text).size().x;
         let value_width = [
-            vibration_value(0),
             vibration_value(vibration::MAX),
             vibration_ms(vibration::MAX_MS),
         ]
@@ -365,6 +364,12 @@ impl VibrationCard {
         let label =
             |key: &str| painter.layout(tr(key).to_string(), font.clone(), p.text, text_width);
         let text_height = title.size().y + description.size().y;
+        // Off's title row has no slider beside or under the text.
+        let title_height = if wide {
+            text_height.max(ComboCard::BOX_HEIGHT)
+        } else {
+            text_height
+        };
         let strength_height = if wide {
             text_height.max(ComboCard::BOX_HEIGHT)
         } else {
@@ -382,6 +387,7 @@ impl VibrationCard {
         let mut y = ComboCard::PADDING;
         for &row in rows {
             let (galley, gap, height) = match row {
+                Row::Title => (title.clone(), 0.0, title_height),
                 Row::Strength => (title.clone(), 0.0, strength_height),
                 Row::FixedStrength => {
                     let galley = hint("CalcCraft.KeyVibrationFixedStrength");
@@ -422,13 +428,9 @@ impl VibrationCard {
     }
 }
 
-/// The Key vibration slider's value as shown: `Off`, or the strength as a percentage.
+/// The Key vibration slider's value as shown: the strength as a percentage.
 fn vibration_value(strength: u8) -> String {
-    if strength == 0 {
-        tr("CalcCraft.KeyVibrationOff").to_string()
-    } else {
-        strings::tr_format("CalcCraft.KeyVibrationPercent", &[&strength.to_string()])
-    }
+    strings::tr_format("CalcCraft.KeyVibrationPercent", &[&strength.to_string()])
 }
 
 /// The Duration slider's value as shown: `8 ms`.
@@ -828,10 +830,12 @@ impl CalculatorApp {
         let region_choice = choice(REGION_KEY);
         if vibration::AVAILABLE {
             let stored = |key| cc.storage.and_then(|storage| storage.get_string(key));
-            vibration::set_strength(vibration::parse(stored(vibration::STORAGE_KEY).as_deref()));
-            vibration::set_style(vibration::Style::parse(
+            let (strength, style) = vibration::load(
+                stored(vibration::STORAGE_KEY).as_deref(),
                 stored(vibration::STYLE_KEY).as_deref(),
-            ));
+            );
+            vibration::set_strength(strength);
+            vibration::set_style(style);
             vibration::set_duration(vibration::parse_duration(
                 stored(vibration::DURATION_KEY).as_deref(),
             ));
@@ -2449,7 +2453,7 @@ impl CalculatorApp {
                 SettingsList::Region => self.set_region(&ctx, choice),
                 SettingsList::VibrationStyle => {
                     vibration::set_style(vibration::Style::parse(choice.as_deref()));
-                    // One tap in the new style, to compare them by feel.
+                    // One tap in the new style, to compare them by feel (none for Off).
                     #[cfg(target_os = "android")]
                     android::key_tap();
                 }
@@ -2913,8 +2917,8 @@ impl CalculatorApp {
         response.clicked()
     }
 
-    /// Draws the Key vibration card in `rect` (the Android app): the strength slider runs from
-    /// Off at the far left to 100 %, then come the rows of `card.rows`. Returns a new strength
+    /// Draws the Key vibration card in `rect` (the Android app): the rows of `card.rows`, the
+    /// strength slider (1 to 100 %, none for the style Off) first. Returns a new strength
     /// or duration while a slider is dragged, with a tap to play when it is released, tapped or
     /// moved with the arrow keys, or the Style box to open its list from.
     fn draw_vibration_card(
@@ -2951,7 +2955,7 @@ impl CalculatorApp {
         for (row, galley, top, height) in &card.rows {
             let top = rect.top() + top;
             match row {
-                Row::Strength => {
+                Row::Title | Row::Strength => {
                     let title_height = card.title.size().y;
                     let text_height = title_height + card.description.size().y;
                     let text_top = if card.wide {
@@ -2973,6 +2977,10 @@ impl CalculatorApp {
                         card.description.clone(),
                         p.text_secondary,
                     );
+                    if *row == Row::Title {
+                        // Off: no strength.
+                        continue;
+                    }
                     let control = control(top, *height, text_top + text_height + 12.0);
                     let strength = vibration::strength();
                     let (new, tap) = self.draw_vibration_slider(
@@ -2982,7 +2990,7 @@ impl CalculatorApp {
                         card.value_width,
                         Id::new("key-vibration-slider"),
                         tr("CalcCraft.KeyVibration"),
-                        (strength, 0, vibration::MAX),
+                        (strength, vibration::MIN, vibration::MAX),
                         vibration_value,
                     );
                     if new != strength || tap {
@@ -4414,7 +4422,6 @@ mod tests {
     #[test]
     fn key_vibration_values() {
         // In the language the tests run in (the system's, unless a test switched it).
-        assert_eq!(vibration_value(0), tr("CalcCraft.KeyVibrationOff"));
         for strength in [1, 50, 100] {
             let text = vibration_value(strength);
             assert!(
@@ -4423,19 +4430,46 @@ mod tests {
             );
         }
         assert!(vibration_ms(8).contains('8'));
-        // The Style list: the four styles in the card's order, by their stored keys.
+        // The Style list: Off, then the four styles, in the card's order, by their stored keys.
         let styles = settings_entries(SettingsList::VibrationStyle);
         let keys: Vec<_> = styles.iter().map(|(key, _)| *key).collect();
         assert_eq!(
             keys,
             [
+                Some("Off"),
                 Some("Auto"),
                 Some("Click"),
                 Some("Pulse"),
                 Some("HeavyClick")
             ]
         );
-        assert_eq!(styles[3].1, tr("CalcCraft.KeyVibrationStyleHeavyClick"));
+        assert_eq!(styles[0].1, tr("CalcCraft.KeyVibrationOff"));
+        assert_eq!(styles[4].1, tr("CalcCraft.KeyVibrationStyleHeavyClick"));
+    }
+
+    #[test]
+    fn key_vibration_card_off_hides_the_sliders() {
+        use vibration::{Capabilities, Row, Style};
+        let ctx = egui::Context::default();
+        let mut card = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let painter = ui.painter();
+            let layout = |style| {
+                let rows = vibration::card_rows(style, &Capabilities::FULL, false);
+                VibrationCard::new(painter, &palette::DARK, 600.0, &rows, style)
+            };
+            card = Some((layout(Style::Off), layout(Style::Pulse)));
+        });
+        // No renderer takes the font atlas here.
+        output.textures_delta.clear();
+        let (off, pulse) = card.unwrap();
+        let rows = |card: &VibrationCard| card.rows.iter().map(|row| row.0).collect::<Vec<_>>();
+        assert_eq!(rows(&off), [Row::Title, Row::Style]);
+        assert_eq!(
+            rows(&pulse),
+            [Row::Strength, Row::Style, Row::Duration, Row::SystemOff]
+        );
+        assert!(off.height < pulse.height);
     }
 
     fn key(key: Key, modifiers: Modifiers) -> Event {
