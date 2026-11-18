@@ -67,7 +67,9 @@ src/app/region.rs        the user's regional formats, read from Windows (or the 
 src/app/web.rs           the web version's ties to the browser: URL parameters, languages, Intl,
                          clipboard, downloads, browser shortcuts (wasm32 only)
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
-                         egui's safe area, the back button, languages (Android only)
+                         egui's safe area, the back button, languages, the keys' vibration
+                         (Vibrator, the touch feedback setting) (Android only)
+src/app/vibration.rs     the Android key vibration's strength mappings (pure, tested everywhere)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
@@ -190,6 +192,12 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   `region::set_region` at runtime and save `CalcCraftLanguage` and `CalcCraftRegionalFormat`
   (a tag, or `Default` for the Windows setting). Their lists show names in their own scripts, so
   opening one loads `strings::LIST_FONTS` (`all_scripts`), which go again with the page.
+  The Regional format card is left out where `region::regions()` is empty (Android, Linux,
+  macOS: only "Use system setting", which changes nothing there; `show_region_card`).
+- The Android app alone has a Key vibration card after Language (`draw_vibration_card`): a
+  slider from Off (0) to 100, saved as `CalcCraftKeyVibration`. `app/vibration.rs` holds the
+  pure mappings from the slider to each path of `android::key_tap` (`click_scale`,
+  `amplitude`, `duration_ms`), tested on every platform; the JNI calls are in `android.rs`.
 - Icons come from the icon font compiled into the app (`assets/fonts/CalcCraftIcons.ttf`), a
   subset of Microsoft's Fluent System Icons that `tools/icon-font.py` puts at the code points of
   the Segoe Fluent Icons glyphs Windows uses. The code points are `ICON_*` and `category_icon`

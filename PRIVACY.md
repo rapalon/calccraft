@@ -19,8 +19,9 @@ Questions or requests about privacy: **[privacy@rapalon.com](mailto:privacy@rapa
 - There are no accounts, ads, analytics, tracking or crash reporting in the app, and no
   third-party SDKs that collect data.
 - The app makes no network requests of its own. It works fully offline.
-- It asks for no Android permissions: no internet access, location, contacts, camera,
-  microphone, storage or phone permission.
+- On Android its only permission is vibration, used only to give key presses a tap of the
+  vibration motor (Android grants it without asking). It has no internet access, location,
+  contacts, camera, microphone, storage or phone permission.
 - Your calculations, history and memory never leave your device. They aren't even saved when
   you close the app.
 - Something leaves your device only when you tap a link (such as Donate) or share something
@@ -36,7 +37,8 @@ This information is used on your device only and is never sent anywhere:
 - your language and regional formats (number, date and list formats, first day of the week),
   and your country or region, to choose the default units of the converters;
 - the light or dark theme of your system;
-- on Android, the size of the system bars, so the app doesn't draw under them;
+- on Android, the size of the system bars, so the app doesn't draw under them, and whether
+  touch feedback is turned on in Android's settings, so that keys vibrate only when it is;
 - the clipboard, only when you copy (`Ctrl+C`, Copy) or paste (`Ctrl+V`, Paste) yourself. In
   the web version, opening a menu that has Paste starts reading the clipboard's text (your
   browser may ask you first), so that it's ready if you pick Paste; it isn't used otherwise.
@@ -45,8 +47,8 @@ This information is used on your device only and is never sent anywhere:
 
 CalcCraft saves a small settings file on your device:
 
-- your choices: app theme, language, regional format, the last calculator mode, the last
-  converter category and units, the graph theme, the size of the keep-on-top window, and the
+- your choices: app theme, language, regional format, the key vibration strength (Android),
+  the last calculator mode, the last converter category and units, the graph theme, the size of the keep-on-top window, and the
   app's own interface state (such as scroll positions);
 - the counters behind the occasional "Please support us" reminder (kept by every version,
   including those that never show the reminder):

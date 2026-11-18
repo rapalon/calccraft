@@ -7,8 +7,14 @@ together.
 
 ## Android manifest
 
-- No `<uses-permission>` at all, so no `INTERNET` either: the Android app can't open a network
-  connection itself (`android/AndroidManifest.xml`).
+- One `<uses-permission>`, `android.permission.VIBRATE` (added 2026-11-17 for the Key
+  vibration setting): a normal permission, granted at install without a prompt, that lets the
+  app run the vibration motor (`src/app/android.rs`, `key_tap`). It reads and sends nothing.
+  There is no `INTERNET` permission, so the Android app can't open a network connection itself
+  (`android/AndroidManifest.xml`).
+- The key vibration reads Android's touch feedback setting (`Settings.System`
+  `haptic_feedback_enabled`) so that keys stay still when the user turned it off; it is used on
+  the device only. The chosen strength is stored as `CalcCraftKeyVibration` in `app.ron`.
 - `android:hasCode="false"` (`AndroidManifest.xml:15`): no Java/Kotlin code, so no Google Play
   services, Firebase or other SDKs. The activity is Android's `NativeActivity`.
 - `android:allowBackup="true"` (`AndroidManifest.xml:12`): Android Auto Backup may copy the

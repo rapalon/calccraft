@@ -1222,6 +1222,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Settings can pick another language and regional format for CalcCraft alone
     (`FEAT-SHELL-008`); "Use system setting" follows Windows, or `CALCCRAFT_LANGUAGE` and
     `CALCCRAFT_REGION` where they're set.
+- **Not yet:** Android, Linux and macOS use en-US formats whatever the system's region (and hide
+  the Regional format card, `FEAT-SHELL-008`), until a later task reads the region's formats
+  there (through JNI and ICU on Android).
 - **Differences:** right-to-left and complex scripts are `FEAT-SHELL-011`. Numbers always use
   Western digits, and dates the Gregorian calendar. The contribute sentence in Settings stays
   English (its translations name the Windows Calculator). Pasted text loses its group separators
@@ -1239,12 +1242,25 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Acceptance Criteria:**
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
-    right of the text, or under it in cards narrower than 476 px.
+    right of the text, or under it in cards narrower than 476 px. The Regional format card shows
+    only where there are regional formats to choose (Windows and the web version): on Android,
+    Linux and macOS its list would hold only "Use system setting", which changes nothing there.
+  - Android only: a Key vibration card right after the Language card, with a slider: far left is
+    Off, then a strength from 1 to 100 shown as a percentage (`50%`), 50 by default. Releasing the
+    slider (or moving it with the arrow keys) plays one key tap at the new strength, so it can be
+    tuned by feel. Saved as `CalcCraftKeyVibration` (`0` to `100`, `0` is Off). The taps go
+    through the Vibrator API (`android::key_tap`, mappings in `app/vibration.rs`): a
+    `PRIMITIVE_CLICK` composition scaled by the slider where the vibrator has it (Android 11+),
+    else a 14 ms one-shot whose amplitude follows the slider, else a one-shot of 8 to 40 ms. Off
+    vibrates never; with touch feedback turned off in Android's settings
+    (`HAPTIC_FEEDBACK_ENABLED`) nothing vibrates either, and a line under the slider says so.
+    Keys typed on a hardware keyboard don't vibrate.
   - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
     that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
     (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
     card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
-  - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat`.
+  - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat` /
+    `CalcCraftKeyVibration`.
   - About: icon, name and version; "Send feedback" and GitHub links.
 - **Differences:** no license or privacy statement links in About. `Esc` goes back; Windows
   ignores it on this page. Windows has no Language and Regional format settings (it follows
@@ -1377,3 +1393,4 @@ Windows source in `../win-calculator`.
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |
 | 2026-11-09 | Claude Code | `FEAT-SHELL-009`, `FEAT-SHELL-012` | Company credit: "CalcCraft by Rapalon Labs" as the window and page title, in the file properties and on the About card, and the Rapalon Labs logo with a link to rapalon.com in the support popup |
 | 2026-11-17 | Claude Code | `FEAT-SHELL-012` | Google Play channels `play-free` (the popup leads to CalcCraft Pro's Play listing, or is hidden without `CALCCRAFT_PAID_ID`) and `play-paid` (no prompt, always "Supported by you"), with `build-apk.ps1 -Channel` / `-PaidApplicationId` and a check that no Play library contains the donate or Stripe address |
+| 2026-11-17 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android: a Key vibration card after Language (Off, 1–100 %, 50 by default, `CalcCraftKeyVibration`) that taps through the Vibrator API (`PRIMITIVE_CLICK` scale, amplitude or duration, `app/vibration.rs`) instead of the phone maker's `KEYBOARD_TAP`, with the `VIBRATE` permission; the Regional format card is hidden where its list is empty (Android, Linux, macOS), which use en-US formats for now |

@@ -260,15 +260,21 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   draws under them); the back button closes the open menu, popup, flyout or Settings page as
   Esc does, and with nothing open moves the app to the background (Esc would clear the
   calculator, as in Windows); the interface follows the phone's languages; and a finger
-  landing on a key gives the system keyboard's light tap (`performHapticFeedback` with
-  `KEYBOARD_TAP`), which Android tunes for each phone and leaves out when touch feedback is
-  turned off in its settings.
+  landing on a key gives a tap of the vibration motor at the strength of Settings → Key
+  vibration (`key_tap`, with the mappings in `src/app/vibration.rs`): a `PRIMITIVE_CLICK`
+  composition where the vibrator has it (Android 11+), else a short one-shot with an amplitude,
+  else a one-shot of 8 to 40 ms. It goes through `Vibrator` (`VibratorManager` from Android 12),
+  not `performHapticFeedback(KEYBOARD_TAP)`, whose strength each phone maker sets (barely
+  noticeable on a Samsung S26 Ultra), and needs the `VIBRATE` permission, a normal permission
+  that Android grants without asking. It stays off when touch feedback is turned off in
+  Android's settings (`Settings.System.HAPTIC_FEEDBACK_ENABLED`).
 
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
 - Share (an `ACTION_SEND` intent).
-- Regional formats: numbers and dates are en-US, whatever the phone's region.
+- Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
+  no Regional format card (its list would be empty).
 - TalkBack: eframe's screen reader support needs GameActivity on Android.
 - The status bar's icons follow the phone's dark mode, not the app's own theme setting.
 - The graph's hover-only features (its buttons, tracing) have no touch alternative yet.

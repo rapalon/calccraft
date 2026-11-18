@@ -12,7 +12,7 @@ collected and isn't declared.
 
 | Question | Answer | Why |
 | --- | --- | --- |
-| Does your app collect or share any of the required user data types? | **No** | The app has no `INTERNET` permission and no network code or SDK (audit: "Android manifest", "Network"). Everything it stores stays in its private storage; history and memory aren't even stored. Links open in the user's browser only when tapped, and the Play builds' links carry no parameters (see "Link parameters in the Play builds" below). |
+| Does your app collect or share any of the required user data types? | **No** | The app has no `INTERNET` permission (its only permission is `VIBRATE`, for the keys' vibration) and no network code or SDK (audit: "Android manifest", "Network"). Everything it stores stays in its private storage; history and memory aren't even stored. Links open in the user's browser only when tapped, and the Play builds' links carry no parameters (see "Link parameters in the Play builds" below). |
 | Is all of the user data collected by your app encrypted in transit? | Not asked when the answer above is No. If it ever is: **Yes** | Every link the app opens is HTTPS. |
 | Do you provide a way for users to request that their data is deleted? | Not asked when nothing is collected. If it ever is: **Yes**, by email to privacy@rapalon.com, and locally by clearing the app's storage | `PRIVACY.md`, "What is stored on your device, and how to delete it". |
 | Privacy policy URL | `https://rapalon.com/calccraft/privacy` | Must be live, public HTML, not geofenced, before the release is submitted. |
@@ -65,7 +65,7 @@ the same way: it has the same code, minus the prompt.
 | Government apps | No | |
 | Financial features | None | The Play builds have no payments at all (no Donate link); the app offers no financial service. |
 | Health apps | No | |
-| Advertising ID | **No**, the app doesn't use the advertising ID | No Google Play services, no `AD_ID` permission (no permissions at all). |
+| Advertising ID | **No**, the app doesn't use the advertising ID | No Google Play services, no `AD_ID` permission (the only permission is `VIBRATE`, for the keys' vibration). |
 
 ## Open decisions for Konst
 
