@@ -69,6 +69,7 @@ src/app/web.rs           the web version's ties to the browser: URL parameters, 
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
                          egui's safe area, the back button, languages (Android only)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
+src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
                          or a PNG download in the browser
 src/app/date_view.rs     the date calculation mode's UI (a child module of app.rs)
@@ -300,8 +301,14 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
 - `2nd` swaps the first column for its second functions (`Kind::Emphasized`, which turns to the
   accent color on hover), and using one turns `2nd` off (`ShiftButton_Uncheck`). A function from
   a menu closes it and turns the menu's toggles off (`FlyoutButton_Clicked`).
-- Windows draws most key labels from the Calculator's own font; here they are Segoe UI text
-  with an italic x (`function_label`, `superscript`), with Segoe UI Symbol for `⌊ ⌋ ⌈ ⌉ ∛`.
+- Windows draws most key labels from the Calculator's own font; here the formulas (`x²`, `xʸ`,
+  `10ˣ`, `¹/x`, `²√x`, `|x|`, `logᵧx` …, in the Standard, Scientific and Graphing keypads) are
+  `math_label::Formula`s: pieces of text laid out by their measured ink, not one line of glyphs.
+  The variables are Noto Sans Math's real italic letters (`𝑥`, U+1D465; egui's `italics` only
+  skews the upright glyph), an exponent or index is 0.6× the size with a small gap, raised so
+  its bottom is at about half the base's x-height and its middle no lower than the base's top,
+  and the radical is a vector path whose vinculum spans the radicand, in the key's text color.
+  `⌊ ⌋ ⌈ ⌉` still come from Segoe UI Symbol. The screen reader names don't change.
 - The history and memory flyouts cover only the keys, as tall as Windows' `NumpadPanel`: the
   unit, F-E and memory rows stay in view, the memory buttons disabled. The flyout lies over the
   whole window, as Windows' does (`Placement="Full"`): the header and these rows are drawn
@@ -748,8 +755,9 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   - `std::time::SystemTime::now()` and `Instant::now()` panic there; use `web_time`.
   - `std::fs` and `std::env::var` find nothing, threads can't be spawned, and `arboard` doesn't
     build. Code that needs the browser goes into `src/app/web.rs`.
-  - The page can't read the system's fonts. The web version embeds Noto Sans Math
-    (`assets/fonts/`) for the symbols Inter lacks (`ℝ ℤ ∖ ∈ ⌊ ⌋ ∛`), before egui's Hack, which
+  - The page can't read the system's fonts. The web version (and the Android app) puts the
+    embedded Noto Sans Math (`assets/fonts/`; every build has it for the keys' italic `𝑥`) in
+    the text fonts for the symbols Inter lacks (`ℝ ℤ ∖ ∈ ⌊ ⌋ ∛`), before egui's Hack, which
     comes last in every family on all systems.
   - Browsers keep some keys: eframe never stops F5 or Ctrl+R (the calculator's GRAD and MR), so
     `web::guard_shortcuts` does, with the other browser shortcuts the calculator uses.
