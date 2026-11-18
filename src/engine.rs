@@ -33,8 +33,8 @@ pub use caret::{Caret, CaretMove};
 use integer::IntegerMode;
 pub use integer::{Radix, WordSize};
 pub use math::Angle;
-pub use tape::ExpressionPart;
 use tape::{Edit, Tape};
+pub use tape::{ExpressionPart, PartKind};
 
 pub type Number = BigRational;
 
@@ -719,6 +719,8 @@ struct Token {
     /// For an operand that is a typed number, the tape item that typed it: the number that
     /// can be edited in the expression line.
     source: Option<usize>,
+    /// A binary operator's symbol, which can be replaced in the expression line.
+    operator: bool,
 }
 
 impl Token {
@@ -728,6 +730,7 @@ impl Token {
             value: None,
             created,
             source: None,
+            operator: false,
         }
     }
 }
@@ -774,6 +777,7 @@ impl HistoryLine {
             value: Some(value),
             created: self.item,
             source,
+            operator: false,
         });
         self.last_operand_start = Some(self.tokens.len() - 1);
         self.last_operand_brace = false;
@@ -797,7 +801,8 @@ impl HistoryLine {
 
     fn add_bin_op(&mut self, symbol: &str) {
         self.last_bin_op_start = Some(self.push(" "));
-        self.push(symbol);
+        let at = self.push(symbol);
+        self.tokens[at].operator = true;
         self.push(" ");
         self.last_operand_start = None;
     }
@@ -867,18 +872,34 @@ impl HistoryLine {
         self.render_parts().0
     }
 
-    /// The line, and where its typed numbers are in it with the tape items that typed them.
+    /// The line, and where its numbers and binary operators are in it, with the tape items
+    /// they come from.
     fn render_parts(&self) -> (String, Vec<ExpressionPart>) {
         let mut text = String::new();
         let mut parts = Vec::new();
-        for token in &self.tokens {
+        for (i, token) in self.tokens.iter().enumerate() {
             let start = text.len();
             text.push_str(if token.text == "=" { " =" } else { &token.text });
-            if let Some(item) = token.source {
-                parts.push(ExpressionPart {
-                    range: start..text.len(),
-                    item,
-                });
+            let range = start..text.len();
+            let part = if let Some(item) = token.source {
+                Some((item, PartKind::Number))
+            } else if token.value.is_some() {
+                // The steps that computed it come after the steps that made the tokens before
+                // it (but for the step that adds it and the steps after that one).
+                let floor = self.tokens[..i]
+                    .iter()
+                    .map(|before| before.created)
+                    .filter(|&created| created < token.created)
+                    .max()
+                    .map_or(0, |created| created + 1);
+                Some((token.created, PartKind::Computed { floor }))
+            } else if token.operator {
+                Some((token.created, PartKind::Operator))
+            } else {
+                None
+            };
+            if let Some((item, kind)) = part {
+                parts.push(ExpressionPart { range, item, kind });
             }
         }
         text.truncate(text.trim_end().len());
@@ -1209,6 +1230,9 @@ impl Calculator {
                 self.error.is_none() && !self.memory.is_empty()
             }
             Command::OpenParen | Command::CloseParen => self.precedence && self.error.is_none(),
+            // A selected operator of the expression line can be changed back from one that
+            // gave an error (`tape.rs`).
+            Command::Operator(_) if self.selected_operator().is_some() => true,
             _ => self.error.is_none(),
         }
     }

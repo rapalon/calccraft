@@ -127,13 +127,31 @@ impl Tape {
     }
 }
 
-/// A typed number in the expression line: where it is in `Calculator::expression`, and the
-/// tape item that typed it (to edit it with `Calculator::edit_operand`).
+/// A number or a binary operator in the expression line: where it is in
+/// `Calculator::expression`, and the tape item it comes from (to edit it with
+/// `Calculator::edit_part`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExpressionPart {
     pub range: Range<usize>,
     pub item: usize,
+    pub kind: PartKind,
 }
+
+/// What a part of the expression line is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PartKind {
+    /// A typed number; `item` typed it.
+    Number,
+    /// A number that was computed (a result carried over after `=`, `%`'s value, MR, π);
+    /// `item` is the step that put it in the line, and the steps that computed it come from
+    /// `floor` on. Editing it types it as a literal in their place (`materialize`).
+    Computed { floor: usize },
+    /// A binary operator; `item` is its key.
+    Operator,
+}
+
+/// The most ranges of steps `materialize` tries for one computed number.
+const MAX_CANDIDATES: usize = 16;
 
 /// The number of the expression line being edited, for the UI to draw.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -162,14 +180,28 @@ pub(super) enum Edit {
     },
 }
 
+/// What an edit of the line is on.
 #[derive(Clone, Debug)]
-pub(super) struct LineEdit {
+enum Target {
+    Number(NumberTarget),
+    /// A selected binary operator: the tape item of its key.
+    Operator(usize),
+}
+
+/// A number of the line being edited.
+#[derive(Clone, Debug)]
+struct NumberTarget {
     item: usize,
     /// The number, with its caret.
     input: Input,
     integer: Option<IntegerMode>,
     last_key: Key,
     hidden: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct LineEdit {
+    target: Target,
     /// The engine before the edit, for Esc.
     original: Box<Calculator>,
     /// The line ended with `=`: the edit makes a new calculation, which goes into the history
@@ -429,15 +461,20 @@ impl Calculator {
 
     // -------------------------------------------------------- the expression line
 
-    /// The expression line and its typed numbers that can be edited; while one is edited,
-    /// with the edited number.
+    /// The expression line and its numbers and binary operators that can be edited; while a
+    /// number is edited, with the edited number.
     pub fn expression_parts(&self) -> (String, Vec<ExpressionPart>) {
         if let Some(Edit::Line(edit)) = self.edit.as_deref() {
+            let Target::Number(number) = &edit.target else {
+                return self.line_parts();
+            };
             let (text, parts) = &edit.template;
-            let Some(part) = parts.iter().find(|part| part.item == edit.item) else {
+            let edited =
+                |part: &ExpressionPart| part.kind == PartKind::Number && part.item == number.item;
+            let Some(part) = parts.iter().find(|part| edited(part)) else {
                 return edit.template.clone();
             };
-            let typed = edit.input.text();
+            let typed = number.input.text();
             let mut line = text.clone();
             line.replace_range(part.range.clone(), &typed);
             let shift = typed.len() as isize - part.range.len() as isize;
@@ -451,12 +488,13 @@ impl Calculator {
             let parts = parts
                 .iter()
                 .map(|other| ExpressionPart {
-                    range: if other.item == edit.item {
+                    range: if edited(other) {
                         part.range.start..part.range.start + typed.len()
                     } else {
                         moved(other.range.start)..moved(other.range.end)
                     },
                     item: other.item,
+                    kind: other.kind,
                 })
                 .collect();
             return (line, parts);
@@ -464,7 +502,8 @@ impl Calculator {
         self.line_parts()
     }
 
-    /// The expression line shown and its typed numbers that can be edited.
+    /// The expression line shown and its parts that can be edited: the typed numbers of the
+    /// current radix, the computed numbers, and the binary operators that were keys.
     fn line_parts(&self) -> (String, Vec<ExpressionPart>) {
         let parts = if self.tape.full {
             Vec::new()
@@ -472,10 +511,16 @@ impl Calculator {
             let radix = self.radix();
             self.shown_parts
                 .iter()
-                .filter(|part| {
-                    self.tape
+                .filter(|part| match part.kind {
+                    PartKind::Number => self
+                        .tape
                         .operand(part.item)
-                        .is_some_and(|operand| operand.integer.map(|mode| mode.radix) == radix)
+                        .is_some_and(|operand| operand.integer.map(|mode| mode.radix) == radix),
+                    PartKind::Computed { .. } => part.item <= self.tape.items.len(),
+                    PartKind::Operator => matches!(
+                        self.tape.items.get(part.item),
+                        Some(Item::Command(Command::Operator(_)))
+                    ),
                 })
                 .cloned()
                 .collect()
@@ -488,17 +533,61 @@ impl Calculator {
         let Some(Edit::Line(edit)) = self.edit.as_deref() else {
             return None;
         };
+        let Target::Number(number) = &edit.target else {
+            return None;
+        };
+        let input = &number.input;
         Some(NumberEdit {
-            item: edit.item,
-            text: edit.input.text(),
-            mantissa: edit.input.digits.clone(),
-            exponent: edit
-                .input
+            item: number.item,
+            text: input.text(),
+            mantissa: input.digits.clone(),
+            exponent: input
                 .exponent
                 .as_ref()
                 .map(|exponent| exponent.digits.clone()),
-            caret: edit.input.caret().unwrap_or_else(|| edit.input.end_caret()),
+            caret: input.caret().unwrap_or_else(|| input.end_caret()),
         })
+    }
+
+    /// The tape item of the binary operator selected in the expression line.
+    pub fn selected_operator(&self) -> Option<usize> {
+        match self.edit.as_deref() {
+            Some(Edit::Line(LineEdit {
+                target: Target::Operator(item),
+                ..
+            })) => Some(*item),
+            _ => None,
+        }
+    }
+
+    /// Starts editing a part of the expression line (from `expression_parts`): a number, with
+    /// the caret at `caret` (at its end without one), or a binary operator, which the next
+    /// operator key replaces. A computed number is typed as a literal first. Returns whether
+    /// it can be edited.
+    pub fn edit_part(&mut self, part: &ExpressionPart, caret: Option<Caret>) -> bool {
+        match part.kind {
+            PartKind::Number => self.edit_operand(part.item, caret),
+            PartKind::Operator => self.select_operator(part.item),
+            PartKind::Computed { floor } => {
+                // Esc and an edit that changes nothing go back to the tape before the literal.
+                let before = match self.edit.as_deref() {
+                    Some(Edit::Line(_)) => None,
+                    _ => {
+                        let mut calc = self.plain();
+                        calc.input.caret = None;
+                        Some(calc)
+                    }
+                };
+                let Some(item) = self.materialize(part.item, floor) else {
+                    return false;
+                };
+                let edited = self.edit_operand(item, caret);
+                if let (Some(before), Some(Edit::Line(edit))) = (before, self.edit.as_deref_mut()) {
+                    *edit.original = before;
+                }
+                edited
+            }
+        }
     }
 
     /// Starts editing the typed number of tape item `item` in the expression line, with the
@@ -508,7 +597,7 @@ impl Calculator {
             .expression_parts()
             .1
             .iter()
-            .any(|part| part.item == item);
+            .any(|part| part.kind == PartKind::Number && part.item == item);
         if !editable {
             return false;
         }
@@ -517,39 +606,143 @@ impl Calculator {
         };
         let mut input = operand.input.clone();
         input.show_caret(caret.unwrap_or_else(|| input.end_caret()));
-        // Another number of the same line: the edit goes on there.
-        if let Some(Edit::Line(edit)) = self.edit.as_deref_mut() {
-            if edit.item != item {
-                edit.item = item;
-                edit.integer = operand.integer;
-                edit.last_key = operand.last_key;
-                edit.hidden = operand.hidden;
-                edit.input = input;
-            } else {
-                edit.input
-                    .show_caret(caret.unwrap_or_else(|| edit.input.end_caret()));
-            }
-            return true;
-        }
-        self.edit = None;
-        self.input.caret = None;
-        let evaluated = !self.no_prev_equ && self.this_key == Key::Equals;
-        let template = self.expression_parts();
-        let original = Box::new(self.clone());
-        let preview = self.preview(evaluated);
-        self.edit = Some(Box::new(Edit::Line(LineEdit {
+        let target = NumberTarget {
             item,
             input,
             integer: operand.integer,
             last_key: operand.last_key,
             hidden: operand.hidden,
+        };
+        // Another part of the same line: the edit goes on there.
+        let line = self.line_parts();
+        if let Some(Edit::Line(edit)) = self.edit.as_deref_mut() {
+            match &mut edit.target {
+                Target::Number(number) if number.item == item => {
+                    let input = &mut number.input;
+                    input.show_caret(caret.unwrap_or_else(|| input.end_caret()));
+                }
+                _ => {
+                    if line
+                        .1
+                        .iter()
+                        .any(|part| part.kind == PartKind::Number && part.item == item)
+                    {
+                        edit.template = line;
+                    }
+                    edit.target = Target::Number(target);
+                }
+            }
+            return true;
+        }
+        self.start_line_edit(Target::Number(target));
+        true
+    }
+
+    /// Selects the binary operator of tape item `item` in the expression line: the next
+    /// operator key replaces it. Returns whether it can be selected.
+    pub fn select_operator(&mut self, item: usize) -> bool {
+        let selectable = self
+            .expression_parts()
+            .1
+            .iter()
+            .any(|part| part.kind == PartKind::Operator && part.item == item);
+        if !selectable {
+            return false;
+        }
+        if let Some(Edit::Line(edit)) = self.edit.as_deref_mut() {
+            edit.target = Target::Operator(item);
+            return true;
+        }
+        self.start_line_edit(Target::Operator(item));
+        true
+    }
+
+    fn start_line_edit(&mut self, target: Target) {
+        self.edit = None;
+        self.input.caret = None;
+        let evaluated = !self.no_prev_equ && self.this_key == Key::Equals;
+        let template = self.line_parts();
+        let original = Box::new(self.clone());
+        let preview = self.preview(evaluated);
+        self.edit = Some(Box::new(Edit::Line(LineEdit {
+            target,
             original,
             evaluated,
             changed: false,
             template,
             preview,
         })));
-        true
+    }
+
+    /// Types the computed number that tape item `item` put in the line as a literal in place
+    /// of the steps that computed it, which come from `floor` on. Those steps are found by
+    /// trying: the first range whose replacement leaves everything as it is (the line, the
+    /// display, the settings and the next `=`s) is taken. Returns the literal's tape item, or
+    /// `None` if no range does (the number then can't be edited).
+    fn materialize(&mut self, item: usize, floor: usize) -> Option<usize> {
+        if self.tape.full || self.error.is_some() {
+            return None;
+        }
+        let before = self.plain();
+        let (line, parts) = before.line_parts();
+        let part = parts
+            .iter()
+            .find(|part| matches!(part.kind, PartKind::Computed { .. }) && part.item == item)?;
+        let range = part.range.clone();
+        let input = Input::from_display(
+            &line[range.clone()],
+            self.integer.as_ref(),
+            self.digits as usize,
+        )?;
+        let expected = Signature::of(&before);
+        let count = self.tape.items.len();
+        let starts = (floor..=item).take(MAX_CANDIDATES).chain([item]);
+        for start in starts {
+            for end in [item, item + 1] {
+                if end > count || start > end {
+                    continue;
+                }
+                let calc = before.substituted(start, end, &input);
+                // The literal has to be one step of its own, in the line where the number was.
+                let fits = calc.tape.items.len() + (end - start) == count + 1
+                    && matches!(calc.tape.items.get(start), Some(Item::Operand(_)))
+                    && calc.line_parts().1.iter().any(|part| {
+                        part.kind == PartKind::Number && part.item == start && part.range == range
+                    });
+                if fits && Signature::of(&calc) == expected {
+                    let edit = self.edit.take();
+                    self.adopt(calc);
+                    self.edit = edit;
+                    let line = self.line_parts();
+                    if let Some(Edit::Line(edit)) = self.edit.as_deref_mut() {
+                        edit.template = line;
+                    }
+                    return Some(start);
+                }
+            }
+        }
+        None
+    }
+
+    /// This engine without an edit in progress.
+    fn plain(&self) -> Calculator {
+        let mut calc = self.clone();
+        calc.edit = None;
+        calc
+    }
+
+    /// A replay of the tape with `input` typed in place of the steps `start..end`.
+    fn substituted(&self, start: usize, end: usize, input: &Input) -> Calculator {
+        let mut calc = self.replayed(&self.tape, &self.tape.items[..start]);
+        calc.replaying = true;
+        for key in input.keys() {
+            calc.execute(key);
+        }
+        for item in &self.tape.items[end..] {
+            calc.replay_item(item);
+        }
+        calc.replaying = false;
+        calc
     }
 
     /// What the display shows while a number of the line is edited.
@@ -613,13 +806,30 @@ impl Calculator {
                 true
             }
             Edit::Line(mut edit) => {
-                if is_typing_key(command) {
-                    if self.type_into(&mut edit.input, edit.integer.as_ref(), command) {
-                        self.replay_edit(edit);
-                    } else {
-                        self.edit = Some(Box::new(Edit::Line(edit)));
+                match (&mut edit.target, command) {
+                    (Target::Number(number), _) if is_typing_key(command) => {
+                        if self.type_into(&mut number.input, number.integer.as_ref(), command) {
+                            self.replay_edit(edit, None);
+                        } else {
+                            self.edit = Some(Box::new(Edit::Line(edit)));
+                        }
+                        return true;
                     }
-                    return true;
+                    // Another operator key replaces the selected one; one the mode doesn't
+                    // have does nothing.
+                    (Target::Operator(item), Command::Operator(_)) => {
+                        let same = matches!(
+                            self.tape.items.get(*item),
+                            Some(Item::Command(old)) if *old == command
+                        );
+                        if self.is_enabled(command) && !same {
+                            self.replay_edit(edit, Some(command));
+                        } else {
+                            self.edit = Some(Box::new(Edit::Line(edit)));
+                        }
+                        return true;
+                    }
+                    _ => {}
                 }
                 // `=` after `=` would repeat the operation: it only commits the edit.
                 let evaluated = edit.evaluated;
@@ -660,27 +870,44 @@ impl Calculator {
         input.text() != before
     }
 
-    /// Replays the tape with the edited number and goes on editing it.
-    fn replay_edit(&mut self, mut edit: LineEdit) {
+    /// Replays the tape with the edited number, or with the selected operator's key replaced
+    /// by `operator`, and goes on editing it.
+    fn replay_edit(&mut self, mut edit: LineEdit, operator: Option<Command>) {
         let mut items = self.tape.items.clone();
-        let mut typed = edit.input.clone();
-        typed.caret = None;
-        if let Some(slot) = items.get_mut(edit.item) {
-            *slot = Item::Operand(Operand {
-                keys: typed.keys(),
-                input: typed,
-                integer: edit.integer,
-                last_key: edit.last_key,
-                hidden: edit.hidden,
-                regenerated: true,
-            });
+        match &edit.target {
+            Target::Number(number) => {
+                let mut typed = number.input.clone();
+                typed.caret = None;
+                if let Some(slot) = items.get_mut(number.item) {
+                    *slot = Item::Operand(Operand {
+                        keys: typed.keys(),
+                        input: typed,
+                        integer: number.integer,
+                        last_key: number.last_key,
+                        hidden: number.hidden,
+                        regenerated: true,
+                    });
+                }
+            }
+            Target::Operator(item) => {
+                if let (Some(command), Some(slot)) = (operator, items.get_mut(*item)) {
+                    *slot = Item::Command(command);
+                }
+            }
         }
         let calc = self.replayed(&self.tape, &items);
         self.adopt(calc);
         // The line as the replay shows it (another number edited before is in it), unless an
         // error stopped it before the edited number.
         let line = self.line_parts();
-        if line.1.iter().any(|part| part.item == edit.item) {
+        let shown = match &edit.target {
+            Target::Number(number) => line
+                .1
+                .iter()
+                .any(|part| part.kind == PartKind::Number && part.item == number.item),
+            Target::Operator(_) => true,
+        };
+        if shown {
             edit.template = line;
         }
         edit.changed = true;
@@ -715,7 +942,13 @@ impl Calculator {
         let Edit::Line(edit) = *edit else {
             return;
         };
-        if edit.evaluated && edit.changed && self.integer.is_none() && self.error.is_none() {
+        // Nothing changed: the tape goes back as it was (a computed number typed as a literal
+        // only to edit it stays computed, so later steps go on with its exact value).
+        if !edit.changed {
+            self.adopt(*edit.original);
+            return;
+        }
+        if edit.evaluated && self.integer.is_none() && self.error.is_none() {
             self.history.insert(
                 0,
                 HistoryEntry {
@@ -758,7 +991,12 @@ impl Calculator {
     /// Moves the caret of an edited number: the line's, or the display's copy.
     pub(super) fn edit_caret(&mut self, change: impl FnOnce(&mut Input)) -> bool {
         match self.edit.as_deref_mut() {
-            Some(Edit::Line(edit)) => change(&mut edit.input),
+            Some(Edit::Line(edit)) => {
+                // A selected operator has no caret.
+                if let Target::Number(number) = &mut edit.target {
+                    change(&mut number.input);
+                }
+            }
             Some(Edit::Display { input, .. }) => change(input),
             None => return false,
         }
@@ -770,13 +1008,15 @@ impl Calculator {
         let max = self.digits as usize;
         match self.edit.as_deref().cloned() {
             Some(Edit::Line(mut edit)) => {
-                let before = edit.input.text();
-                edit.input.delete_at_caret(edit.integer.as_ref(), max);
-                if edit.input.text() != before {
-                    self.replay_edit(edit);
-                } else {
-                    self.edit = Some(Box::new(Edit::Line(edit)));
+                if let Target::Number(number) = &mut edit.target {
+                    let before = number.input.text();
+                    number.input.delete_at_caret(number.integer.as_ref(), max);
+                    if number.input.text() != before {
+                        self.replay_edit(edit, None);
+                        return true;
+                    }
                 }
+                self.edit = Some(Box::new(Edit::Line(edit)));
                 true
             }
             Some(Edit::Display {
@@ -870,7 +1110,12 @@ impl Calculator {
         };
         let calc = self.replayed(&tape, &tape.items);
         self.adopt(calc);
-        if let Some(part) = self.expression_parts().1.last() {
+        let last = self
+            .expression_parts()
+            .1
+            .into_iter()
+            .rfind(|part| part.kind == PartKind::Number);
+        if let Some(part) = last {
             self.edit_operand(part.item, None);
         }
         true
@@ -883,26 +1128,76 @@ impl Calculator {
             .is_some_and(|entry| entry.tape.is_some())
     }
 
-    /// Ctrl+Left and Ctrl+Right at the start or end of an edited number: the caret goes to
-    /// the previous or next number of the line. Returns whether there was one.
+    /// Ctrl+Left and Ctrl+Right at the start or end of an edited number, or on a selected
+    /// operator: the edit goes on to the previous or next part of the line (a number, its
+    /// caret at the side it is entered from, or an operator). A computed number that can't be
+    /// edited is skipped. Returns whether there was one.
     pub fn edit_neighbor(&mut self, previous: bool) -> bool {
-        let Some(edit) = self.number_edit() else {
+        let Some(Edit::Line(edit)) = self.edit.as_deref() else {
             return false;
+        };
+        let (kind, item) = match &edit.target {
+            Target::Number(number) => (PartKind::Number, number.item),
+            Target::Operator(item) => (PartKind::Operator, *item),
         };
         let parts = self.expression_parts().1;
-        let Some(at) = parts.iter().position(|part| part.item == edit.item) else {
+        let Some(at) = parts
+            .iter()
+            .position(|part| part.kind == kind && part.item == item)
+        else {
             return false;
         };
-        let next = if previous {
-            at.checked_sub(1)
+        let candidates: Vec<ExpressionPart> = if previous {
+            parts[..at].iter().rev().cloned().collect()
         } else {
-            Some(at + 1)
-        };
-        let Some(part) = next.and_then(|next| parts.get(next)) else {
-            return false;
+            parts[at + 1..].to_vec()
         };
         let caret = (!previous).then_some(Caret::default());
-        self.edit_operand(part.item, caret)
+        candidates.iter().any(|part| self.edit_part(part, caret))
+    }
+
+    /// Ctrl+Left at the start of the display's number: the edit goes on to the line's last
+    /// part that can be edited. Returns whether there was one.
+    pub fn edit_last_part(&mut self) -> bool {
+        let parts = self.expression_parts().1;
+        parts.iter().rev().any(|part| self.edit_part(part, None))
+    }
+}
+
+/// What a computed number's replacement by a literal has to leave as it was.
+#[derive(PartialEq)]
+struct Signature {
+    seen: (String, String, Option<CalcError>, usize),
+    state: (Key, bool, bool, Angle, bool, Option<IntegerMode>),
+    /// The display and the line after one `=` and after a second one.
+    after: Vec<(String, String, Option<CalcError>)>,
+}
+
+impl Signature {
+    fn of(calc: &Calculator) -> Signature {
+        let seen = (
+            calc.display(),
+            calc.expression(),
+            calc.error,
+            calc.paren_stack.len(),
+        );
+        let state = (
+            calc.this_key,
+            calc.no_prev_equ,
+            calc.record,
+            calc.angle,
+            calc.notation,
+            calc.integer,
+        );
+        let mut next = calc.clone();
+        next.replaying = true;
+        let after = (0..2)
+            .map(|_| {
+                next.execute(Command::Equals);
+                (next.display(), next.expression(), next.error)
+            })
+            .collect();
+        Signature { seen, state, after }
     }
 }
 
@@ -943,6 +1238,7 @@ mod tests {
             "^" => Command::Operator(Op::Power),
             "mod" => Command::Operator(Op::Mod),
             "and" => Command::Operator(Op::And),
+            "or" => Command::Operator(Op::Or),
             "%" => Command::Percent,
             "(" => Command::OpenParen,
             ")" => Command::CloseParen,
@@ -981,9 +1277,27 @@ mod tests {
         vec![single]
     }
 
-    /// The tape item of the `n`th editable number of the line.
+    /// The line's parts of one kind.
+    fn parts_of(calc: &Calculator, kind: fn(PartKind) -> bool) -> Vec<ExpressionPart> {
+        let parts = calc.expression_parts().1;
+        parts.into_iter().filter(|part| kind(part.kind)).collect()
+    }
+
+    fn is_number(kind: PartKind) -> bool {
+        kind == PartKind::Number
+    }
+
+    fn is_computed(kind: PartKind) -> bool {
+        matches!(kind, PartKind::Computed { .. })
+    }
+
+    fn is_operator(kind: PartKind) -> bool {
+        kind == PartKind::Operator
+    }
+
+    /// The tape item of the `n`th typed number of the line.
     fn part(calc: &Calculator, n: usize) -> usize {
-        calc.expression_parts().1[n].item
+        parts_of(calc, is_number)[n].item
     }
 
     /// Replaces the line's `n`th number by `text` with the keys: the caret at its end, ⌫ for
@@ -1003,14 +1317,13 @@ mod tests {
         press(&mut calc, "2 + ( 5 * 7 ) + ( 100 - 92 ) + ( 6 * 54 )");
         assert_eq!(calc.display(), "324");
         assert_eq!(calc.expression(), "2 + (5 × 7) + (100 - 92) + (6 × 54)");
-        let numbers: Vec<_> = {
-            let (text, parts) = calc.expression_parts();
-            parts
-                .iter()
-                .map(|p| text[p.range.clone()].to_string())
-                .collect()
-        };
-        assert_eq!(numbers, ["2", "5", "7", "100", "92", "6", "54"]);
+        assert_eq!(line_numbers(&calc), ["2", "5", "7", "100", "92", "6", "54"]);
+        let text = calc.expression();
+        let operators: Vec<_> = parts_of(&calc, is_operator)
+            .iter()
+            .map(|p| text[p.range.clone()].to_string())
+            .collect();
+        assert_eq!(operators, ["+", "×", "+", "-", "+", "×"]);
         // 92 → 85: the display shows what `=` gives, live.
         retype_part(&mut calc, 4, "85");
         assert_eq!(calc.expression(), "2 + (5 × 7) + (100 - 85) + (6 × 54)");
@@ -1092,13 +1405,18 @@ mod tests {
         calc.delete_after_caret();
         assert_eq!(calc.expression(), "923 + 1 =");
         assert_eq!(calc.display(), "924");
-        // Ctrl+Right goes on to the start of the next number.
+        // Ctrl+Right goes on to the operator, then to the start of the next number.
+        assert!(calc.edit_neighbor(false));
+        assert_eq!(calc.number_edit(), None);
+        assert!(calc.selected_operator().is_some());
         assert!(calc.edit_neighbor(false));
         assert_eq!(calc.number_edit().unwrap().text, "1");
         press(&mut calc, "7");
         assert_eq!(calc.expression(), "923 + 71 =");
         assert_eq!(calc.display(), "994");
         assert!(!calc.edit_neighbor(false));
+        assert!(calc.edit_neighbor(true));
+        assert!(calc.selected_operator().is_some());
         assert!(calc.edit_neighbor(true));
         assert_eq!(calc.number_edit().unwrap().text, "923");
     }
@@ -1217,10 +1535,10 @@ mod tests {
         assert_eq!(calc.display(), "5");
     }
 
-    /// The numbers of the line, as the UI offers them for the caret.
+    /// The numbers of the line, typed and computed, as the UI offers them for the caret.
     fn line_numbers(calc: &Calculator) -> Vec<String> {
-        let (text, parts) = calc.expression_parts();
-        parts
+        let text = calc.expression();
+        parts_of(calc, |kind| !is_operator(kind))
             .iter()
             .map(|p| text[p.range.clone()].to_string())
             .collect()
@@ -1316,9 +1634,247 @@ mod tests {
         press(&mut calc, "dec");
         let mut calc = Calculator::programmer();
         press(&mut calc, "hex FF and dec 7 +");
-        let (text, parts) = calc.expression_parts();
-        let numbers: Vec<_> = parts.iter().map(|p| &text[p.range.clone()]).collect();
+        let text = calc.expression();
+        let numbers: Vec<_> = parts_of(&calc, is_number)
+            .iter()
+            .map(|p| text[p.range.clone()].to_string())
+            .collect();
         assert_eq!(numbers, ["7"]);
+    }
+
+    /// Edits the line's `n`th computed number: the caret at its end, ⌫ for every character,
+    /// then `text`.
+    fn retype_computed(calc: &mut Calculator, n: usize, text: &str) {
+        let part = parts_of(calc, is_computed)[n].clone();
+        let line = calc.expression();
+        assert!(calc.edit_part(&part, None), "{line}: no edit");
+        let old = calc.number_edit().unwrap().mantissa.len();
+        for _ in 0..old {
+            calc.execute(Command::Backspace);
+        }
+        press(calc, text);
+    }
+
+    /// Selects the line's `n`th binary operator and presses `keys`.
+    fn replace_operator(calc: &mut Calculator, n: usize, keys: &str) {
+        let part = parts_of(calc, is_operator)[n].clone();
+        assert!(calc.edit_part(&part, None));
+        assert_eq!(calc.selected_operator(), Some(part.item));
+        press(calc, keys);
+    }
+
+    fn entries(calc: &Calculator) -> Vec<(String, String)> {
+        calc.history()
+            .iter()
+            .map(|entry| (entry.expression.clone(), entry.text.clone()))
+            .collect()
+    }
+
+    fn entry(expression: &str, text: &str) -> (String, String) {
+        (expression.to_string(), text.to_string())
+    }
+
+    #[test]
+    fn konsts_chain() {
+        // Konst's test on the edittest APK: `10 + 2 = 12 + 4 = 16 ÷ 4 = 4`, where 12 and 16
+        // are the results carried over, and ÷ should become +.
+        for mut calc in [Calculator::default(), Calculator::with_precedence()] {
+            press(&mut calc, "10 + 2 = + 4 = / 4 =");
+            let before = entries(&calc);
+            assert_eq!(
+                before,
+                [
+                    entry("16 ÷ 4 =", "4"),
+                    entry("12 + 4 =", "16"),
+                    entry("10 + 2 =", "12"),
+                ]
+            );
+            // Entry 2: 12 → 15.
+            calc.recall_history(1);
+            assert_eq!(calc.expression(), "12 + 4 =");
+            assert_eq!(line_numbers(&calc), ["12", "4"]);
+            retype_computed(&mut calc, 0, "15");
+            assert_eq!(calc.expression(), "15 + 4 =");
+            assert_eq!(calc.display(), "19");
+            calc.execute(Command::Equals);
+            assert_eq!(calc.display(), "19");
+            // A new entry; the others stay, entry 3 isn't worked out again.
+            assert_eq!(entries(&calc)[0], entry("15 + 4 =", "19"));
+            assert_eq!(entries(&calc)[1..], before);
+            // Entry 3: ÷ → +.
+            calc.recall_history(1);
+            assert_eq!(calc.expression(), "16 ÷ 4 =");
+            replace_operator(&mut calc, 0, "+");
+            assert_eq!(calc.expression(), "16 + 4 =");
+            assert_eq!(calc.display(), "20");
+            calc.execute(Command::Equals);
+            assert_eq!(calc.display(), "20");
+            assert_eq!(entries(&calc)[0], entry("16 + 4 =", "20"));
+            assert_eq!(entries(&calc)[1], entry("15 + 4 =", "19"));
+            assert_eq!(entries(&calc)[2..], before);
+            // Through Edit, with the keys: Ctrl+Left from the 4 stops on ÷, then on 16.
+            assert!(calc.edit_history(2));
+            assert_eq!(calc.number_edit().unwrap().text, "4");
+            assert!(calc.edit_neighbor(true));
+            assert!(calc.selected_operator().is_some());
+            assert!(calc.edit_neighbor(true));
+            assert_eq!(calc.number_edit().unwrap().text, "16");
+            press(&mut calc, "< < 8");
+            assert_eq!(calc.expression(), "8 ÷ 4 =");
+            assert_eq!(calc.display(), "2");
+            calc.execute(Command::Equals);
+            assert_eq!(entries(&calc)[0], entry("8 ÷ 4 =", "2"));
+            assert_eq!(entries(&calc)[3..], before);
+        }
+        // The calculation on the display, without a recall.
+        let mut calc = Calculator::default();
+        press(&mut calc, "10 + 2 = + 4 = / 4 =");
+        assert_eq!(line_numbers(&calc), ["16", "4"]);
+        retype_computed(&mut calc, 0, "8");
+        assert_eq!(calc.display(), "2");
+        assert_eq!(calc.expression(), "8 ÷ 4 =");
+        calc.execute(Command::Equals);
+        assert_eq!(calc.history().len(), 4);
+        // And a carried result in a calculation still being typed.
+        let mut calc = Calculator::default();
+        press(&mut calc, "10 + 2 = + 4");
+        assert_eq!(calc.expression(), "12 +");
+        retype_computed(&mut calc, 0, "20");
+        assert_eq!(calc.display(), "24");
+        calc.commit_edit();
+        press(&mut calc, "=");
+        assert_eq!(calc.expression(), "20 + 4 =");
+        assert_eq!(calc.display(), "24");
+    }
+
+    #[test]
+    fn a_replaced_operator_follows_the_modes_precedence() {
+        // Each change gives what typing the changed calculation fresh gives.
+        // (mode, keys, which operator, the new one, the keys typed fresh, the result)
+        let scientific = Mode::Scientific;
+        let cases = [
+            (scientific, "2 + 3 * 4 =", 1, "+", "2 + 3 + 4 =", "9"),
+            (scientific, "2 + 3 * 4 =", 0, "*", "2 * 3 * 4 =", "24"),
+            (scientific, "2 * 3 + 4 =", 1, "^", "2 * 3 ^ 4 =", "162"),
+            (scientific, "2 * 3 + 4 =", 0, "-", "2 - 3 + 4 =", "3"),
+            // The Standard mode shows `5 × 4 =` for `2 + 3 × 4 =`: only × is in the line.
+            (Mode::Standard, "2 + 3 * 4 =", 0, "+", "2 + 3 + 4 =", "9"),
+            (Mode::Standard, "2 * 3 + 4 =", 0, "/", "2 * 3 / 4 =", "1.5"),
+        ];
+        for (mode, keys, n, key, typed, result) in cases {
+            let mut calc = engine(mode);
+            press(&mut calc, keys);
+            let logged = calc.history().len();
+            replace_operator(&mut calc, n, key);
+            let mut fresh = engine(mode);
+            press(&mut fresh, typed);
+            assert_eq!(calc.display(), result, "{keys}, {key}");
+            assert_eq!(calc.display(), fresh.display(), "{keys}, {key}");
+            assert_eq!(calc.expression(), fresh.expression(), "{keys}, {key}");
+            calc.execute(Command::Equals);
+            assert_eq!(calc.history()[0].expression, fresh.history()[0].expression);
+            assert_eq!(calc.history().len(), logged + 1);
+        }
+        // An unfinished calculation goes on with the new operator.
+        let mut calc = Calculator::with_precedence();
+        press(&mut calc, "2 + 3 * 4");
+        assert_eq!(calc.expression(), "2 + 3 ×");
+        replace_operator(&mut calc, 0, "*");
+        assert_eq!(calc.display(), "24");
+        calc.commit_edit();
+        assert_eq!(calc.display(), "4");
+        press(&mut calc, "=");
+        assert_eq!(calc.expression(), "2 × 3 × 4 =");
+        assert_eq!(calc.display(), "24");
+    }
+
+    #[test]
+    fn a_selected_operator_takes_operator_keys_only() {
+        let mut calc = Calculator::default();
+        press(&mut calc, "8 / 2 =");
+        replace_operator(&mut calc, 0, "-");
+        assert_eq!(calc.display(), "6");
+        // Still selected: the next operator replaces it again.
+        press(&mut calc, "*");
+        assert_eq!(calc.display(), "16");
+        assert_eq!(calc.expression(), "8 × 2 =");
+        // Esc puts everything back.
+        assert!(calc.hide_entry_caret());
+        assert_eq!(calc.display(), "4");
+        assert_eq!(calc.expression(), "8 ÷ 2 =");
+        assert_eq!(calc.history().len(), 1);
+        // The Standard mode has no xʸ.
+        replace_operator(&mut calc, 0, "^");
+        assert_eq!(calc.display(), "4");
+        // Another key commits, then does what it does.
+        replace_operator(&mut calc, 0, "+");
+        assert_eq!(calc.display(), "10");
+        press(&mut calc, "5");
+        assert_eq!(entries(&calc)[0], entry("8 + 2 =", "10"));
+        assert_eq!(calc.history().len(), 2);
+        assert_eq!(calc.display(), "5");
+        // An error the change makes, and back.
+        let mut calc = Calculator::default();
+        press(&mut calc, "8 - 0 =");
+        replace_operator(&mut calc, 0, "/");
+        assert!(calc.error().is_some());
+        assert!(calc.is_enabled(Command::Operator(Op::Add)));
+        press(&mut calc, "+");
+        assert_eq!(calc.error(), None);
+        assert_eq!(calc.display(), "8");
+        press(&mut calc, "=");
+        assert_eq!(entries(&calc)[0], entry("8 + 0 =", "8"));
+        // The Programmer mode's operators.
+        let mut calc = Calculator::programmer();
+        press(&mut calc, "hex FF and 3C =");
+        assert_eq!(calc.expression(), "FF AND 3C =");
+        replace_operator(&mut calc, 0, "or");
+        assert_eq!(calc.display(), "FF");
+        assert_eq!(calc.expression(), "FF OR 3C =");
+    }
+
+    #[test]
+    fn a_computed_number_that_typing_cant_give_stays() {
+        // 1/3 shown with 32 digits isn't 1/3: typed, the next × 3 would give 0.999….
+        let mut calc = Calculator::with_precedence();
+        press(&mut calc, "1 / 3 = * 3 =");
+        assert_eq!(calc.display(), "1");
+        let part = parts_of(&calc, is_computed)[0].clone();
+        assert!(!calc.edit_part(&part, None));
+        assert_eq!(calc.display(), "1");
+        // A tap alone changes nothing: the tape stays as it was.
+        let mut calc = Calculator::default();
+        press(&mut calc, "2 + 3 = * 4");
+        let items = calc.tape.items.len();
+        let part = parts_of(&calc, is_computed)[0].clone();
+        assert!(calc.edit_part(&part, None));
+        assert_eq!(calc.tape.items.len(), items - 3);
+        calc.commit_edit();
+        assert_eq!(calc.tape.items.len(), items);
+        press(&mut calc, "=");
+        assert_eq!(calc.expression(), "5 × 4 =");
+        // `%`'s value, and a function's computed argument.
+        let mut calc = Calculator::default();
+        press(&mut calc, "50 + 10 % + 1 =");
+        assert_eq!(calc.expression(), "55 + 1 =");
+        let mut calc = Calculator::default();
+        press(&mut calc, "50 + 10 % =");
+        assert_eq!(calc.expression(), "50 + 5 =");
+        retype_computed(&mut calc, 0, "20");
+        assert_eq!(calc.display(), "70");
+        let mut calc = Calculator::default();
+        press(&mut calc, "10 + 2 = sqr");
+        assert_eq!(calc.expression(), "sqr(12)");
+        retype_computed(&mut calc, 0, "3");
+        assert_eq!(calc.expression(), "sqr(3)");
+        // The 3 is typed after `10 + 2 =` (which a `=` would repeat), as typing it would be:
+        // the display shows what `=` gives.
+        let mut fresh = Calculator::default();
+        press(&mut fresh, "10 + 2 = 3 sqr =");
+        assert_eq!(calc.display(), fresh.display());
+        assert_eq!(calc.display(), "11");
+        calc.commit_edit();
+        assert_eq!(calc.display(), "9");
     }
 
     // ------------------------------------------------------------ property test
@@ -1517,7 +2073,7 @@ mod tests {
                     keys.push(key);
                 }
             }
-            let parts = calc.expression_parts().1;
+            let parts = parts_of(&calc, is_number);
             if parts.is_empty() {
                 continue;
             }
@@ -1550,8 +2106,11 @@ mod tests {
             let evaluated = edit.evaluated;
             let mut shown = input.clone();
             shown.show_caret(shown.end_caret());
-            edit.input = shown;
-            calc.replay_edit(edit);
+            let Target::Number(number) = &mut edit.target else {
+                unreachable!()
+            };
+            number.input = shown;
+            calc.replay_edit(edit, None);
             assert_eq!(
                 calc.history.len(),
                 history.len(),
@@ -1597,6 +2156,165 @@ mod tests {
         }
         // Most cases edit something.
         assert!(checked > 800, "only {checked} edits checked");
+    }
+
+    /// The binary operators a mode's keypad has.
+    fn mode_operators(mode: Mode) -> Vec<Op> {
+        let mut ops = vec![Op::Add, Op::Subtract, Op::Multiply, Op::Divide];
+        match mode {
+            Mode::Standard => {}
+            Mode::Scientific => ops.extend([Op::Power, Op::Root, Op::LogBase, Op::Mod]),
+            Mode::Programmer => ops.extend([
+                Op::Mod,
+                Op::And,
+                Op::Or,
+                Op::Xor,
+                Op::Nand,
+                Op::Nor,
+                Op::LeftShift,
+                Op::RightShift,
+                Op::RightShiftLogical,
+            ]),
+        }
+        ops
+    }
+
+    /// Replacing an operator of the line, or editing a computed number of it (a carried
+    /// result, `%`'s value, MR …), gives exactly what typing the edited calculation fresh
+    /// gives: for an operator the tape with that key replaced, for a computed number the tape
+    /// with the literal in place of the steps that computed it (which on its own changes
+    /// nothing), then the number edited. The history and the memory stay as they were.
+    #[test]
+    fn editing_operators_and_computed_numbers_is_typing_them_fresh() {
+        let mut random = Random(0x0b5e_55ed_c0ff_ee42);
+        let (mut operators, mut computed, mut refused) = (0, 0, 0);
+        for case in 0..3000 {
+            let mode = [Mode::Standard, Mode::Scientific, Mode::Programmer][case % 3];
+            let mut calc = engine(mode);
+            let mut keys: Vec<Command> = Vec::new();
+            for _ in 0..random.below(18) + 2 {
+                for key in random_step(&mut random, mode) {
+                    calc.execute(key);
+                    keys.push(key);
+                }
+            }
+            let memory = calc.memory.clone();
+            let history: Vec<String> = calc
+                .history
+                .iter()
+                .map(|entry| entry.expression.clone())
+                .collect();
+            let recalled_after = |tape: &Tape, item: usize| {
+                tape.items[item..]
+                    .iter()
+                    .any(|step| matches!(step, Item::Recall(_)))
+            };
+            let operator = (case / 3) % 2 == 0;
+            let (tape, edited, input, evaluated) = if operator {
+                let parts = parts_of(&calc, is_operator);
+                if parts.is_empty() {
+                    continue;
+                }
+                let part = parts[random.below(parts.len())].clone();
+                if recalled_after(&calc.tape, part.item) {
+                    continue;
+                }
+                let ops = mode_operators(mode);
+                let op = ops[random.below(ops.len())];
+                let mut tape = calc.tape.clone();
+                tape.items[part.item] = Item::Command(Command::Operator(op));
+                assert!(calc.edit_part(&part, None), "case {case}");
+                let evaluated = matches!(
+                    calc.edit.as_deref(),
+                    Some(Edit::Line(LineEdit {
+                        evaluated: true,
+                        ..
+                    }))
+                );
+                calc.execute(Command::Operator(op));
+                operators += 1;
+                (tape, usize::MAX, Input::default(), evaluated)
+            } else {
+                let parts = parts_of(&calc, is_computed);
+                if parts.is_empty() {
+                    continue;
+                }
+                let part = parts[random.below(parts.len())].clone();
+                let original = seen(&calc);
+                if !calc.edit_part(&part, None) {
+                    refused += 1;
+                    continue;
+                }
+                // The literal alone changes nothing.
+                assert_eq!(seen(&calc.plain()), original, "case {case}: {keys:?}");
+                let item = calc.number_edit().unwrap().item;
+                if recalled_after(&calc.tape, item) {
+                    calc.cancel_edit();
+                    continue;
+                }
+                let operand = calc.tape.operand(item).unwrap().clone();
+                let Some(input) = random_input(&mut random, &operand, calc.digits) else {
+                    calc.cancel_edit();
+                    continue;
+                };
+                let tape = calc.tape.clone();
+                let Some(Edit::Line(mut edit)) = calc.edit.as_deref().cloned() else {
+                    unreachable!()
+                };
+                let evaluated = edit.evaluated;
+                let mut shown = input.clone();
+                shown.show_caret(shown.end_caret());
+                let Target::Number(number) = &mut edit.target else {
+                    unreachable!()
+                };
+                number.input = shown;
+                calc.replay_edit(edit, None);
+                computed += 1;
+                (tape, item, input, evaluated)
+            };
+            assert_eq!(calc.history.len(), history.len(), "case {case}: logged");
+            calc.commit_edit();
+
+            let mut fresh = engine(mode);
+            let last_clear = keys.iter().rposition(|&key| key == Command::Clear);
+            for &key in &keys[..last_clear.map_or(0, |at| at + 1)] {
+                fresh.execute(key);
+            }
+            retype_tape(&mut fresh, &tape, edited, &input);
+
+            let context = format!(
+                "case {case} ({:?}): {keys:?}, edited {edited} → {}",
+                mode as u8,
+                input.text()
+            );
+            assert_eq!(seen(&calc), seen(&fresh), "{context}");
+            assert_eq!(calc.memory, memory, "{context}: the memory changed");
+            let old: Vec<String> = calc
+                .history
+                .iter()
+                .skip(calc.history.len() - history.len())
+                .map(|entry| entry.expression.clone())
+                .collect();
+            assert_eq!(old, history, "{context}: the history changed");
+            assert!(calc.history.len() <= history.len() + usize::from(evaluated));
+            for key in [
+                Command::Equals,
+                Command::Operator(Op::Add),
+                Command::Digit(3),
+                Command::Equals,
+                Command::Equals,
+            ] {
+                calc.execute(key);
+                fresh.execute(key);
+                assert_eq!(seen(&calc), seen(&fresh), "{context}, then {key:?}");
+            }
+        }
+        // Most cases edit something (816 operators and 429 computed numbers, 159 refused).
+        assert!(operators > 600, "only {operators} operators replaced");
+        assert!(
+            computed > 300,
+            "only {computed} computed numbers edited ({refused} refused)"
+        );
     }
 
     /// Whatever the caret did to the numbers being typed, the tape replays to the same state.

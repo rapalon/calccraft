@@ -6,11 +6,13 @@
 
 use std::ops::Range;
 
+#[cfg(test)]
+use crate::engine::PartKind;
 use crate::engine::{Caret, ExpressionPart};
 
 /// The expression line (en-US, from `Calculator::expression_parts`) with the region's decimal
-/// separator, as `localize_expression` writes it, and where its numbers are in it, in
-/// characters (a tap's galley position is a character index).
+/// separator, as `localize_expression` writes it, and where its parts are in it, in
+/// characters (a tap's galley position is a character index), each with its index in `parts`.
 pub(super) fn localize_line(
     line: &str,
     parts: &[ExpressionPart],
@@ -20,14 +22,14 @@ pub(super) fn localize_line(
     let mut text = String::new();
     let mut ranges = Vec::new();
     let mut at = 0;
-    for part in parts {
+    for (index, part) in parts.iter().enumerate() {
         if part.range.start < at || part.range.end > line.len() {
             continue;
         }
         text.push_str(&localize(&line[at..part.range.start]));
         let start = text.chars().count();
         text.push_str(&localize(&line[part.range.clone()]));
-        ranges.push((start..text.chars().count(), part.item));
+        ranges.push((start..text.chars().count(), index));
         at = part.range.end;
     }
     text.push_str(&localize(&line[at..]));
@@ -183,36 +185,28 @@ mod tests {
 
     #[test]
     fn the_line_in_the_regions_format() {
+        let part =
+            |range: Range<usize>, item: usize, kind: PartKind| ExpressionPart { range, item, kind };
         let parts = [
-            ExpressionPart {
-                range: 0..3,
-                item: 0,
-            },
-            ExpressionPart {
-                range: 10..14,
-                item: 4,
-            },
+            part(0..3, 0, PartKind::Number),
+            part(4..5, 1, PartKind::Operator),
+            part(10..14, 4, PartKind::Number),
         ];
         let (text, ranges) = localize_line("1.5 + sqr(2.25) =", &parts, ",");
         assert_eq!(text, "1,5 + sqr(2,25) =");
-        assert_eq!(ranges, [(0..3, 0), (10..14, 4)]);
+        assert_eq!(ranges, [(0..3, 0), (4..5, 1), (10..14, 2)]);
         // A separator of another length, and characters of more than one byte before.
         let (text, ranges) = localize_line(
             "sin₀(0.5) × 2",
             &[
-                ExpressionPart {
-                    range: 7..10,
-                    item: 1,
-                },
-                ExpressionPart {
-                    range: 15..16,
-                    item: 3,
-                },
+                part(7..10, 1, PartKind::Number),
+                part(12..14, 2, PartKind::Operator),
+                part(15..16, 3, PartKind::Computed { floor: 0 }),
             ],
             "٫٫",
         );
         assert_eq!(text, "sin₀(0٫٫5) × 2");
-        assert_eq!(ranges, [(5..9, 1), (13..14, 3)]);
+        assert_eq!(ranges, [(5..9, 0), (11..12, 1), (13..14, 2)]);
     }
 
     #[test]

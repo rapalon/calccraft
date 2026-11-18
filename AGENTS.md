@@ -211,6 +211,16 @@ nothing changes until the display or the line is touched. The spec and every cho
   history entry. Esc (`hide_entry_caret`) puts the original engine back. A tap on a computed
   display value edits a typed copy (`Edit::Display`) that replaces its operand once a key
   changes it (`display_copy_start` says where that operand starts on the tape).
+- The line's parts (`ExpressionPart`, `PartKind`) are typed numbers, computed numbers and binary
+  operators; the UI edits any of them with `edit_part`. A computed number (`Token::value`
+  without a `source`) is first typed as a literal in place of the steps that computed it
+  (`materialize`): the first range of steps from `PartKind::Computed { floor }` whose
+  replacement keeps a `Signature` (line, display, settings, the next two `=`) is taken, and
+  none means it can't be edited. A commit that changed nothing puts the original tape back. A
+  selected operator (`Target::Operator`, `selected_operator`, a token with `operator` set whose
+  item is an `Operator` command) takes the next operator key, which replaces that tape item
+  and replays (`edit_key`); `is_enabled` keeps the operator keys on while one is selected, even
+  in the error state. Editing never recomputes other history entries.
 - **C, Edit in the history**: `HistoryEntry` keeps the tape that logged it (`entry_tape`, with
   `=` for a Standard step an operator logged); `edit_history` replays it and puts the caret
   into its last number.

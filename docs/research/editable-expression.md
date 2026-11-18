@@ -286,7 +286,8 @@ while building them, each the simplest one and the closest to typing the number 
   operator keys stay enabled while it is selected, so it can be changed back.
 - **Unary functions stay as they are.** `sin`, `√`, `x²`, `1/x`, `negate`, `NOT`, `RoL` and
   the others can't be selected or replaced in this version; the numbers inside them can be
-  edited. Neither can `(`, `)` or `=`.
+  edited. Neither can `(`, `)` or `=`, nor an operator a key other than an operator put in the
+  line (the `+` of `8 + 3 =` that a repeated `=` writes after `5 + 3 =`, the `×` of `2(3)`).
 - **Keys.** Ctrl+Left and Ctrl+Right stop on the line's operators and computed numbers too, in
   the order of the line; on a selected operator, Left and Right go on to the number before or
   after it. Esc cancels.

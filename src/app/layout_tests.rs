@@ -408,11 +408,44 @@ fn write_layout_shots() {
                     number(app, b);
                     key(app, Command::CloseParen);
                 }
-                let item = app.engine().expression_parts().1[4].item;
+                let numbers: Vec<_> = app
+                    .engine()
+                    .expression_parts()
+                    .1
+                    .into_iter()
+                    .filter(|part| part.kind == crate::engine::PartKind::Number)
+                    .collect();
+                let item = numbers[4].item;
                 app.engine_mut().edit_operand(item, None);
                 key(app, Command::Backspace);
                 key(app, Command::Backspace);
                 number(app, "85");
+            }),
+        ));
+        pages.push((
+            "OperatorEdit".into(),
+            Box::new(|app| {
+                use crate::engine::{Op, PartKind};
+                // Konst's chain: 10 + 2 = 12 + 4 = 16 ÷ 4 =, then ÷ selected and made +.
+                for command in [
+                    Command::Digit(1),
+                    Command::Digit(0),
+                    Command::Operator(Op::Add),
+                    Command::Digit(2),
+                    Command::Equals,
+                    Command::Operator(Op::Add),
+                    Command::Digit(4),
+                    Command::Equals,
+                    Command::Operator(Op::Divide),
+                    Command::Digit(4),
+                    Command::Equals,
+                ] {
+                    app.engine_mut().execute(command);
+                }
+                let parts = app.engine().expression_parts().1;
+                let operator = parts.iter().find(|part| part.kind == PartKind::Operator);
+                app.engine_mut().edit_part(&operator.unwrap().clone(), None);
+                app.engine_mut().execute(Command::Operator(Op::Add));
             }),
         ));
         for (name, setup) in pages {

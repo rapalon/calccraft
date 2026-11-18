@@ -35,7 +35,9 @@ use eframe::egui::{
 
 use crate::brand;
 use crate::converter::Category;
-use crate::engine::{Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, Radix};
+use crate::engine::{
+    Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, PartKind, Radix,
+};
 use icons::{
     ICON_BACK, ICON_BACK_TO_FULL, ICON_BACKSPACE, ICON_CALCULATOR, ICON_CALENDAR,
     ICON_CHEVRON_DOWN, ICON_CHEVRON_UP, ICON_CODE, ICON_COPY, ICON_DELETE, ICON_DIVIDE,
@@ -1775,6 +1777,7 @@ impl CalculatorApp {
             return;
         }
         let edit = calc.number_edit();
+        let operator = calc.selected_operator();
         let decimal = match calc.radix() {
             Some(radix) if radix != Radix::Decimal => ".".to_string(),
             _ => numbers().decimal.clone(),
@@ -1782,13 +1785,24 @@ impl CalculatorApp {
         let (text, ranges) = caret::localize_line(&line, &parts, &decimal);
         let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
         let right = rect.right() - 12.0;
-        let size = if edit.is_some() { 16.0 } else { 14.0 };
+        let size = if edit.is_some() || operator.is_some() {
+            16.0
+        } else {
+            14.0
+        };
         let font = FontId::proportional(size);
-        // The edited number in the text color, the rest in the secondary color.
+        // The edited number or the selected operator in the text color, the rest in the
+        // secondary color.
+        let selected = |kind: PartKind, item: usize| {
+            ranges
+                .iter()
+                .find(|(_, at)| parts[*at].kind == kind && parts[*at].item == item)
+                .map(|(range, _)| range.clone())
+        };
         let edited = edit
             .as_ref()
-            .and_then(|edit| ranges.iter().find(|(_, item)| *item == edit.item))
-            .map(|(range, _)| range.clone());
+            .and_then(|edit| selected(PartKind::Number, edit.item))
+            .or_else(|| operator.and_then(|item| selected(PartKind::Operator, item)));
         let (galley, shift) = match &edited {
             Some(range) => {
                 let mut job = LayoutJob::default();
@@ -1830,8 +1844,20 @@ impl CalculatorApp {
             pos.x = rect.left() + 12.0 - x;
         }
         let line_rect = Rect::from_min_size(pos, galley.size());
-        let name = tr_format("Format_CalculatorExpression", &[&text]);
-        access::text(ui, line_rect, Id::new("expression"), &name, false);
+        let mut name = tr_format("Format_CalculatorExpression", &[&text]);
+        // While a part of it is edited, screen readers say which (CalcCraft's own).
+        let part: Option<String> = edited
+            .as_ref()
+            .map(|range| text.chars().skip(range.start).take(range.len()).collect());
+        if let Some(part) = &part {
+            let key = if edit.is_some() {
+                "CalcCraft.EditingNumber"
+            } else {
+                "CalcCraft.SelectedOperator"
+            };
+            name = format!("{name}, {}", tr_format(key, &[part]));
+        }
+        access::text(ui, line_rect, Id::new("expression"), &name, part.is_some());
         if let Some(range) = &edited {
             // A light background marks the number being edited.
             let start = galley.pos_from_cursor(egui::text::CCursor::new(range.start));
@@ -1870,23 +1896,33 @@ impl CalculatorApp {
         } else {
             index
         };
+        // A number first, then an operator, which is one character wide: a tap on the spaces
+        // next to it hits it too.
         let hit = ranges
             .iter()
             .find(|(range, _)| range.start <= index && index <= range.end)
+            .or_else(|| {
+                ranges.iter().find(|(range, at)| {
+                    parts[*at].kind == PartKind::Operator
+                        && range.start <= index + 1
+                        && index <= range.end + 1
+                })
+            })
             .cloned();
         let calc = self.engine_mut();
-        let Some((range, item)) = hit else {
+        let Some((range, at)) = hit else {
             calc.commit_edit();
             return;
         };
-        if !calc.edit_operand(item, None) {
+        if !calc.edit_part(&parts[at], None) {
             return;
         }
         if let Some(edit) = calc.number_edit() {
             let number: String = text.chars().skip(range.start).take(range.len()).collect();
             let stops =
                 caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
-            calc.edit_operand(item, Some(stops.nearest(index - range.start)));
+            let caret = stops.nearest(index.saturating_sub(range.start));
+            calc.edit_operand(edit.item, Some(caret));
         }
         if let Some(id) = access::focused(ui.ctx()) {
             ui.memory_mut(|memory| memory.surrender_focus(id));
@@ -1918,24 +1954,26 @@ impl CalculatorApp {
             (edit.caret == crate::engine::Caret::default(), end)
         });
         let entry_at_start = calc.entry_caret() == Some(crate::engine::Caret::default());
-        let last_part = calc.expression_parts().1.last().map(|part| part.item);
+        let operator = calc.selected_operator().is_some();
         let calc = self.engine_mut();
         match key {
             Key::ArrowLeft if start => {
                 calc.move_entry_caret(CaretMove::End);
                 calc.move_entry_caret(CaretMove::Left);
             }
-            // Ctrl+arrows go on from a number's start or end to the next number: in the line,
-            // and between the line's last number and the display's.
+            // Ctrl+arrows go on from a number's start or end to the next part: in the line
+            // (its numbers and operators), and between the line's last part and the display's
+            // number. From a selected operator the arrows go on with or without Ctrl.
+            Key::ArrowLeft if operator => {
+                calc.edit_neighbor(true);
+            }
             Key::ArrowLeft if word && line.is_some_and(|(start, _)| start) => {
                 calc.edit_neighbor(true);
             }
             Key::ArrowLeft if word && line.is_none() && entry_at_start => {
-                if let Some(item) = last_part {
-                    calc.edit_operand(item, None);
-                }
+                calc.edit_last_part();
             }
-            Key::ArrowRight if word && line.is_some_and(|(_, end)| end) => {
+            Key::ArrowRight if operator || (word && line.is_some_and(|(_, end)| end)) => {
                 if !calc.edit_neighbor(false) {
                     calc.commit_edit();
                     if calc.can_show_entry_caret() {
@@ -6054,6 +6092,76 @@ mod tests {
             .map(|entry| entry.expression.clone())
             .collect();
         assert_eq!(history, ["912 + 3 =", "12 + 3 ="]);
+    }
+
+    #[test]
+    fn a_click_edits_a_carried_result_and_selects_an_operator() {
+        // Konst's chain: 10 + 2 = 12 + 4 = 16 ÷ 4 = 4, the line `16 ÷ 4 =`.
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        let keys = [
+            Command::Digit(1),
+            Command::Digit(0),
+            Command::Operator(Op::Add),
+            Command::Digit(2),
+            Command::Equals,
+            Command::Operator(Op::Add),
+            Command::Digit(4),
+            Command::Equals,
+            Command::Operator(Op::Divide),
+            Command::Digit(4),
+            Command::Equals,
+        ];
+        for command in keys {
+            app.engine_mut().execute(command);
+        }
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        let line = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let click_at = |ctx: &Context, app: &mut CalculatorApp, x: f32| {
+            let at = pos2(x, line.center().y);
+            let click = |pressed| Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Modifiers::NONE,
+            };
+            for event in [Event::PointerMoved(at), click(true), click(false)] {
+                run(ctx, app, MIN_SIZE, vec![event]);
+            }
+        };
+        // The 16, the result carried over, takes the caret.
+        click_at(&ctx, &mut app, line.left() + 3.0);
+        assert_eq!(app.engine().number_edit().unwrap().text, "16");
+        app.engine_mut().execute(Command::Digit(8));
+        assert_eq!(app.engine().expression(), "816 ÷ 4 =");
+        assert_eq!(app.engine().display(), "204");
+        // Esc puts it back.
+        let escape = Event::Key {
+            key: Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        };
+        run(&ctx, &mut app, MIN_SIZE, vec![escape]);
+        assert_eq!(app.engine().expression(), "16 ÷ 4 =");
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+
+        // The ÷ (the 4th of 8 characters) is selected; a typed + replaces it.
+        let line = ctx.read_response(Id::new("expression")).unwrap().rect;
+        click_at(&ctx, &mut app, line.left() + line.width() * 3.5 / 8.0);
+        assert!(app.engine().selected_operator().is_some());
+        run(&ctx, &mut app, MIN_SIZE, vec![Event::Text("+".into())]);
+        assert_eq!(app.engine().expression(), "16 + 4 =");
+        assert_eq!(app.engine().display(), "20");
+        app.engine_mut().execute(Command::Equals);
+        let history: Vec<_> = app
+            .engine()
+            .history()
+            .iter()
+            .map(|entry| entry.expression.clone())
+            .collect();
+        assert_eq!(history, ["16 + 4 =", "16 ÷ 4 =", "12 + 4 =", "10 + 2 ="]);
     }
 
     #[test]
