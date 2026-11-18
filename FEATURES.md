@@ -1264,6 +1264,21 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     right of the text, or under it in cards narrower than 476 px. The Regional format card shows
     only where there are regional formats to choose (Windows and the web version): on Android,
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
+  - Every build (CalcCraft's own; Windows has one size): an Expression size card right after the
+    App theme card, with a drop-down: Small (by default), Medium, Large, Extra large. It sizes
+    the expression line above the result in the Standard, Scientific and Programmer modes:
+    14, 18, 24 and 30 px, and 8/7 of that while a part of the line is edited or selected (16 px
+    at Small, as before). Small is exactly the earlier look. Saved as `CalcCraftExpressionSize`
+    (`Small`, `Medium`, `Large`, `ExtraLarge`; anything else loads as Small;
+    `src/app/expression_size.rs`).
+    - At Large and Extra large the line's tap area is at least 48 px (48 dp on Android, a
+      finger's touch target) high; the number under it keeps its own tap area where they meet.
+    - A taller line grows up into the room above it first, then pushes the result down; the
+      result shrinks if it would otherwise run out of the display. Nothing overlaps the result
+      or the rows under the display.
+    - A line too long for the display is cut at its start with `…`, and while a part is edited
+      it scrolls to keep the caret in view, at every size. Taps map onto the glyphs at the size
+      drawn.
   - Android only: a Screen orientation card right after the Language card, with a drop-down:
     Auto (by default), Portrait, Landscape. Saved as `CalcCraftScreenOrientation` (`Auto`,
     `Portrait`, `Landscape`) and applied at once and at start-up, before the first frame,

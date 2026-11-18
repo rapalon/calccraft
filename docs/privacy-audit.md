@@ -45,7 +45,9 @@ What goes in it (`CalculatorApp::save`, `src/app.rs:2770-2789`; keys at `src/app
 
 - `SelectedAppTheme`, `Mode`, `UnitConverterPreferences` (category and units),
   `CalcCraftLanguage`, `CalcCraftRegionalFormat`, the graph theme (`graphing_view::THEME_KEY`),
-  the keep-on-top window size (`calculatorAlwaysOnTopLastWidth`/`Height`, `src/app.rs:454-457`);
+  the keep-on-top window size (`calculatorAlwaysOnTopLastWidth`/`Height`, `src/app.rs:454-457`),
+  the Expression size choice `CalcCraftExpressionSize` (`Small`, `Medium`, `Large` or
+  `ExtraLarge`, `src/app/expression_size.rs`, added 2026-11-18);
 - on Android, the Screen orientation choice `CalcCraftScreenOrientation` (`Auto`, `Portrait` or
   `Landscape`, `src/app/orientation.rs`, added 2026-11-18) and the key vibration's
   `CalcCraftKeyVibration`, `CalcCraftKeyVibrationStyle` and `CalcCraftKeyVibrationDuration`;
