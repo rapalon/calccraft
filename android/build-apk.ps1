@@ -58,6 +58,10 @@ param(
     [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
+    # With -Bundle, also the universal APK bundletool makes from the bundle (build-apks
+    # --mode=universal), target/android/CalcCraft-<version>-arm64-universal.apk, signed with the
+    # same key: the code Play installs, for trying a release before uploading it.
+    [switch]$UniversalApk,
     # Mark the app debuggable (android:debuggable), so `adb shell run-as` can look into its
     # files, as when checking that the graph share keeps one file in cache/share/. Test builds only.
     [switch]$Debuggable,
@@ -78,6 +82,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+if ($UniversalApk -and -not $Bundle) {
+    throw '-UniversalApk needs -Bundle: the universal APK is made from the App Bundle.'
+}
 
 # The SDK's and NDK's tools are named and placed differently on each system.
 $exe = if ($IsWindows) { '.exe' } else { '' }
@@ -299,5 +306,40 @@ if ($Bundle) {
     & $java -jar $Bundletool validate "--bundle=$aab"
     Remove-Item $linked, $module, $moduleZip, $unsignedAab -Recurse -Force
     "{0} ({1:N1} MB)" -f $aab, ((Get-Item $aab).Length / 1MB)
+
+    if ($UniversalApk) {
+        # bundletool takes passwords only on the command line or from a file, so they go to
+        # files that only this build reads and that are deleted right after.
+        $passwords = Join-Path $out 'passwords'
+        New-Item -ItemType Directory -Force $passwords | Out-Null
+        try {
+            if ($env:ANDROID_KEYSTORE) {
+                $storePass = Join-Path $passwords 'store'
+                $keyPass = Join-Path $passwords 'key'
+                $storeValue = $env:ANDROID_KEYSTORE_PASSWORD
+                $keyValue = if ($env:ANDROID_KEY_PASSWORD) { $env:ANDROID_KEY_PASSWORD } else { $storeValue }
+                Set-Content -NoNewline -Path $storePass -Value $storeValue
+                Set-Content -NoNewline -Path $keyPass -Value $keyValue
+                $apksSigning = @("--ks=$env:ANDROID_KEYSTORE", "--ks-key-alias=$alias",
+                    "--ks-pass=file:$storePass", "--key-pass=file:$keyPass")
+            } else {
+                $apksSigning = @("--ks=$DebugKeystore", "--ks-key-alias=$alias",
+                    '--ks-pass=pass:android', '--key-pass=pass:android')
+            }
+            $apks = Join-Path $out 'universal.apks'
+            & $java -jar $Bundletool build-apks "--bundle=$aab" "--output=$apks" --overwrite `
+                --mode=universal @apksSigning
+        } finally {
+            Remove-Item $passwords -Recurse -Force
+        }
+        $extracted = Join-Path $out 'universal'
+        if (Test-Path $extracted) { Remove-Item $extracted -Recurse -Force }
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($apks, $extracted)
+        $universal = Join-Path $out "$name-$version-arm64-universal.apk"
+        Move-Item -Force (Join-Path $extracted 'universal.apk') $universal
+        & (Join-Path $tools "apksigner$script") verify $universal
+        Remove-Item $apks, $extracted -Recurse -Force
+        "{0} ({1:N1} MB)" -f $universal, ((Get-Item $universal).Length / 1MB)
+    }
 }
 Remove-Item $resources, $staging, $classes -Recurse -Force

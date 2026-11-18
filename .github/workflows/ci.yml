@@ -139,7 +139,7 @@ jobs:
 
       - name: Build the APK and the App Bundle
         shell: pwsh
-        run: android/build-apk.ps1 -Ndk $env:NDK -BuildTools $env:BUILD_TOOLS -Bundle
+        run: android/build-apk.ps1 -Ndk $env:NDK -BuildTools $env:BUILD_TOOLS -Bundle -UniversalApk
 
       # The bundle's manifest must carry the values of android/README.md, and the universal APK
       # bundletool builds from it (what Google Play would make of it) the library on 16 KB pages.
@@ -173,6 +173,12 @@ jobs:
           # The share provider's code (android/java) is in both the APK and the bundle's APKs.
           "$tools/dexdump" target/android/universal.apk | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
           "$tools/dexdump" "target/android/CalcCraft-$version-arm64.apk" | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
+          # build-apk.ps1 -UniversalApk's file (the release workflow's test build): signed, and
+          # on 16 KB pages like bundletool's own.
+          signed="target/android/CalcCraft-$version-arm64-universal.apk"
+          "$tools/apksigner" verify "$signed"
+          "$tools/zipalign" -c -P 16 4 "$signed"
+          "$tools/dexdump" "$signed" | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
 
       - uses: actions/upload-artifact@v4
         with:
