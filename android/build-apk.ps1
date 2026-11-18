@@ -116,12 +116,12 @@ $packageName = '^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$'
 if ($PaidApplicationId -and $PaidApplicationId -notmatch $packageName) {
     throw "-PaidApplicationId '$PaidApplicationId' is not an Android package name."
 }
-$features = @()
+$cargoFeatures = @()
 $name = 'CalcCraft'
 Remove-Item Env:CALCCRAFT_PAID_ID -ErrorAction SilentlyContinue
 switch ($Channel) {
     'play-free' {
-        $features = @('--features', 'play-free')
+        $cargoFeatures = @('--features', 'play-free')
         $name = 'CalcCraft-Play'
         if ($PaidApplicationId) {
             $env:CALCCRAFT_PAID_ID = $PaidApplicationId
@@ -134,7 +134,7 @@ switch ($Channel) {
         if (-not $PaidApplicationId) {
             throw '-Channel play-paid needs -PaidApplicationId (or CALCCRAFT_PAID_ID): it is the application ID.'
         }
-        $features = @('--features', 'play-paid')
+        $cargoFeatures = @('--features', 'play-paid')
         $ApplicationId = $PaidApplicationId
         $name = 'CalcCraft-Pro'
         "Google Play, paid: $ApplicationId, no support prompt"
@@ -145,7 +145,8 @@ if ($Features) {
     if ($Bundle) {
         throw '-Features makes a test APK: it takes no -Bundle.'
     }
-    $features += @('--features', ($Features -join ','))
+    # (Not $features: PowerShell's names ignore case, and -Features only takes its own values.)
+    $cargoFeatures += @('--features', ($Features -join ','))
     $name += '-Lab'
     "Test build with $($Features -join ', '): for adb install only, never publish it"
 }
@@ -163,7 +164,7 @@ New-Item -ItemType Directory -Force $libDir | Out-Null
 # The Rust library: a cdylib only for Android (desktops and the web build the binary).
 Push-Location $repo
 try {
-    cargo ndk -t arm64-v8a -P $minSdk rustc --lib --release @features --crate-type cdylib
+    cargo ndk -t arm64-v8a -P $minSdk rustc --lib --release @cargoFeatures --crate-type cdylib
 } finally {
     Pop-Location
 }
