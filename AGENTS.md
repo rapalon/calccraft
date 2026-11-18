@@ -68,7 +68,8 @@ src/app/web.rs           the web version's ties to the browser: URL parameters, 
                          clipboard, downloads, browser shortcuts (wasm32 only)
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
                          egui's safe area, the back button, languages, the keys' vibration
-                         (Vibrator, the touch feedback setting) (Android only)
+                         (Vibrator, the touch feedback setting), whether the system
+                         keyboard is showing (`ime_visible`) (Android only)
 src/app/vibration.rs     the Android key vibration: mappings, the Auto style rule, the card rows (pure)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
@@ -409,6 +410,15 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   become `·` and `−` as they're typed (`normalize`). The keypad types into the box that had the
   focus last (`active`) through its stored `TextEditState` (`insert_text`, Windows'
   `InsertText(text, cursor, selection)`), then gives it the focus back.
+- On Android (touch, no hover) the equation boxes differ, and only there: a tap focuses a
+  box and places the cursor but doesn't raise the system keyboard, which would cover the
+  keypad (egui-winit raises it whenever a focused `TextEdit` reports IME output, so
+  `SoftKeyboard::allows` drops that output for the equation boxes). Every box always shows its
+  buttons, 40 dp wide: function analysis, line options and remove as on Windows, plus a
+  keyboard toggle (`CalcCraft.Keyboard`, a painted icon) that focuses the box and opens the
+  system keyboard for it; tapping it again, focusing another box, or closing the keyboard
+  (Back; `android::ime_visible`) turns it off. The × is left out there (the keypad's `C` clears
+  the box). Windows, macOS, Linux and the web keep the hover buttons and have no toggle.
 - `graph_canvas` draws the graph in the graph theme's colors (`GraphPalette`, always light unless
   "Match app theme"), caches the plots (`PlotCache`) until the view, the size, the equations or
   the variables change, and takes a picture of the graph by drawing it alone (`Capture`) and

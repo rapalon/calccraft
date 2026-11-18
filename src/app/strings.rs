@@ -506,6 +506,7 @@ mod tests {
             "CalcCraft.KeyVibrationDuration",
             "CalcCraft.KeyVibrationMilliseconds",
             "CalcCraft.KeyVibrationFixedStrength",
+            "CalcCraft.Keyboard",
         ];
         for language in languages() {
             let table = parse(own(language));

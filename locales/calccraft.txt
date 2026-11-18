@@ -23,6 +23,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Heavy click
 CalcCraft.KeyVibrationDuration=Duration
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
+CalcCraft.Keyboard=Keyboard
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -58,6 +59,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Heavy click
 CalcCraft.KeyVibrationDuration=Duration
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
+CalcCraft.Keyboard=Keyboard
 
 [af-ZA]
 CalcCraft.Language=Taal
@@ -78,6 +80,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Swaar klik
 CalcCraft.KeyVibrationDuration=Duur
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Die foon stel die sterkte vir hierdie styl
+CalcCraft.Keyboard=Sleutelbord
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
@@ -98,6 +101,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=ከባድ ጠቅታ
 CalcCraft.KeyVibrationDuration=ቆይታ
 CalcCraft.KeyVibrationMilliseconds=%1 ሚሴ
 CalcCraft.KeyVibrationFixedStrength=ለዚህ ቅጥ ጥንካሬው በስልኩ ይወሰናል
+CalcCraft.Keyboard=የቁልፍ ሰሌዳ
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
@@ -118,6 +122,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Güclü klik
 CalcCraft.KeyVibrationDuration=Müddət
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bu üslub üçün gücü telefon təyin edir
+CalcCraft.Keyboard=Klaviatura
 
 [bg-BG]
 CalcCraft.Language=Език
@@ -138,6 +143,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Силно щракване
 CalcCraft.KeyVibrationDuration=Продължителност
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силата за този стил се задава от телефона
+CalcCraft.Keyboard=Клавиатура
 
 [ca-ES]
 CalcCraft.Language=Idioma
@@ -158,6 +164,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
 CalcCraft.KeyVibrationDuration=Durada
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El telèfon defineix la intensitat d'aquest estil
+CalcCraft.Keyboard=Teclat
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
@@ -178,6 +185,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Silné klepnutí
 CalcCraft.KeyVibrationDuration=Délka
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Sílu tohoto stylu nastavuje telefon
+CalcCraft.Keyboard=Klávesnice
 
 [da-DK]
 CalcCraft.Language=Sprog
@@ -198,6 +206,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Kraftigt klik
 CalcCraft.KeyVibrationDuration=Varighed
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne type
+CalcCraft.Keyboard=Tastatur
 
 [de-DE]
 CalcCraft.Language=Sprache
@@ -218,6 +227,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Kräftiger Klick
 CalcCraft.KeyVibrationDuration=Dauer
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bei dieser Art legt das Telefon die Stärke fest
+CalcCraft.Keyboard=Tastatur
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
@@ -238,6 +248,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Δυνατό κλικ
 CalcCraft.KeyVibrationDuration=Διάρκεια
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Την ένταση αυτού του στυλ την ορίζει το τηλέφωνο
+CalcCraft.Keyboard=Πληκτρολόγιο
 
 [es-ES]
 CalcCraft.Language=Idioma
@@ -258,6 +269,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic fuerte
 CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
+CalcCraft.Keyboard=Teclado
 
 [es-MX]
 CalcCraft.Language=Idioma
@@ -278,6 +290,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic fuerte
 CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
+CalcCraft.Keyboard=Teclado
 
 [et-EE]
 CalcCraft.Language=Keel
@@ -298,6 +311,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Tugev klõps
 CalcCraft.KeyVibrationDuration=Kestus
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Selle stiili tugevuse määrab telefon
+CalcCraft.Keyboard=Klaviatuur
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
@@ -318,6 +332,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Klik indartsua
 CalcCraft.KeyVibrationDuration=Iraupena
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Estilo honen indarra telefonoak ezartzen du
+CalcCraft.Keyboard=Teklatua
 
 [fi-FI]
 CalcCraft.Language=Kieli
@@ -338,6 +353,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Voimakas napsautus
 CalcCraft.KeyVibrationDuration=Kesto
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Puhelin määrittää tämän tyylin voimakkuuden
+CalcCraft.Keyboard=Näppäimistö
 
 [fil-PH]
 CalcCraft.Language=Wika
@@ -358,6 +374,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Malakas na click
 CalcCraft.KeyVibrationDuration=Tagal
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Ang telepono ang nagtatakda ng lakas para sa istilong ito
+CalcCraft.Keyboard=Keyboard
 
 [fr-CA]
 CalcCraft.Language=Langue
@@ -378,6 +395,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
 CalcCraft.KeyVibrationDuration=Durée
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
+CalcCraft.Keyboard=Clavier
 
 [fr-FR]
 CalcCraft.Language=Langue
@@ -398,6 +416,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
 CalcCraft.KeyVibrationDuration=Durée
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
+CalcCraft.Keyboard=Clavier
 
 [gl-ES]
 CalcCraft.Language=Idioma
@@ -418,6 +437,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic forte
 CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=O teléfono fixa a intensidade deste estilo
+CalcCraft.Keyboard=Teclado
 
 [hr-HR]
 CalcCraft.Language=Jezik
@@ -438,6 +458,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Snažan klik
 CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
+CalcCraft.Keyboard=Tipkovnica
 
 [hu-HU]
 CalcCraft.Language=Nyelv
@@ -458,6 +479,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Erős kattintás
 CalcCraft.KeyVibrationDuration=Időtartam
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Ennél a stílusnál az erősséget a telefon állítja be
+CalcCraft.Keyboard=Billentyűzet
 
 [id-ID]
 CalcCraft.Language=Bahasa
@@ -478,6 +500,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Klik kuat
 CalcCraft.KeyVibrationDuration=Durasi
 CalcCraft.KeyVibrationMilliseconds=%1 md
 CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini diatur oleh ponsel
+CalcCraft.Keyboard=Keyboard
 
 [is-IS]
 CalcCraft.Language=Tungumál
@@ -498,6 +521,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Þungur smellur
 CalcCraft.KeyVibrationDuration=Lengd
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Síminn ákveður styrkinn fyrir þennan stíl
+CalcCraft.Keyboard=Lyklaborð
 
 [it-IT]
 CalcCraft.Language=Lingua
@@ -518,6 +542,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic deciso
 CalcCraft.KeyVibrationDuration=Durata
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensità di questo stile è impostata dal telefono
+CalcCraft.Keyboard=Tastiera
 
 [ja-JP]
 CalcCraft.Language=言語
@@ -538,6 +563,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=強いクリック
 CalcCraft.KeyVibrationDuration=長さ
 CalcCraft.KeyVibrationMilliseconds=%1 ミリ秒
 CalcCraft.KeyVibrationFixedStrength=このスタイルの強さはスマートフォンが設定します
+CalcCraft.Keyboard=キーボード
 
 [kk-KZ]
 CalcCraft.Language=Тіл
@@ -558,6 +584,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Күшті шерту
 CalcCraft.KeyVibrationDuration=Ұзақтығы
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Бұл стильдің күшін телефон белгілейді
+CalcCraft.Keyboard=Пернетақта
 
 [ko-KR]
 CalcCraft.Language=언어
@@ -578,6 +605,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=강한 클릭
 CalcCraft.KeyVibrationDuration=길이
 CalcCraft.KeyVibrationMilliseconds=%1ms
 CalcCraft.KeyVibrationFixedStrength=이 스타일의 세기는 휴대폰이 설정합니다
+CalcCraft.Keyboard=키보드
 
 [lt-LT]
 CalcCraft.Language=Kalba
@@ -598,6 +626,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Stiprus spustelėjimas
 CalcCraft.KeyVibrationDuration=Trukmė
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Šio stiliaus stiprumą nustato telefonas
+CalcCraft.Keyboard=Klaviatūra
 
 [lv-LV]
 CalcCraft.Language=Valoda
@@ -618,6 +647,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Spēcīgs klikšķis
 CalcCraft.KeyVibrationDuration=Ilgums
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Šim stilam stiprumu nosaka tālrunis
+CalcCraft.Keyboard=Tastatūra
 
 [mk-MK]
 CalcCraft.Language=Јазик
@@ -638,6 +668,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Силен клик
 CalcCraft.KeyVibrationDuration=Траење
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Јачината за овој стил ја одредува телефонот
+CalcCraft.Keyboard=Тастатура
 
 [ms-MY]
 CalcCraft.Language=Bahasa
@@ -658,6 +689,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Klik kuat
 CalcCraft.KeyVibrationDuration=Tempoh
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini ditetapkan oleh telefon
+CalcCraft.Keyboard=Papan kekunci
 
 [nb-NO]
 CalcCraft.Language=Språk
@@ -678,6 +710,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Kraftig klikk
 CalcCraft.KeyVibrationDuration=Varighet
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne stilen
+CalcCraft.Keyboard=Tastatur
 
 [nl-NL]
 CalcCraft.Language=Taal
@@ -698,6 +731,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Stevige klik
 CalcCraft.KeyVibrationDuration=Duur
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=De sterkte van deze stijl wordt door de telefoon bepaald
+CalcCraft.Keyboard=Toetsenbord
 
 [pl-PL]
 CalcCraft.Language=Język
@@ -718,6 +752,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Mocne kliknięcie
 CalcCraft.KeyVibrationDuration=Czas trwania
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Siłę dla tego stylu ustawia telefon
+CalcCraft.Keyboard=Klawiatura
 
 [pt-BR]
 CalcCraft.Language=Idioma
@@ -738,6 +773,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clique forte
 CalcCraft.KeyVibrationDuration=Duração
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telefone
+CalcCraft.Keyboard=Teclado
 
 [pt-PT]
 CalcCraft.Language=Idioma
@@ -758,6 +794,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clique forte
 CalcCraft.KeyVibrationDuration=Duração
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telemóvel
+CalcCraft.Keyboard=Teclado
 
 [ro-RO]
 CalcCraft.Language=Limbă
@@ -778,6 +815,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Clic puternic
 CalcCraft.KeyVibrationDuration=Durată
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Intensitatea pentru acest stil este setată de telefon
+CalcCraft.Keyboard=Tastatură
 
 [ru-RU]
 CalcCraft.Language=Язык
@@ -798,6 +836,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Сильный щелчок
 CalcCraft.KeyVibrationDuration=Длительность
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силу для этого стиля задаёт телефон
+CalcCraft.Keyboard=Клавиатура
 
 [sk-SK]
 CalcCraft.Language=Jazyk
@@ -818,6 +857,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Silné klepnutie
 CalcCraft.KeyVibrationDuration=Trvanie
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Silu tohto štýlu nastavuje telefón
+CalcCraft.Keyboard=Klávesnica
 
 [sl-SI]
 CalcCraft.Language=Jezik
@@ -838,6 +878,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Močan klik
 CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Moč za ta slog določa telefon
+CalcCraft.Keyboard=Tipkovnica
 
 [sq-AL]
 CalcCraft.Language=Gjuha
@@ -858,6 +899,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Klikim i fortë
 CalcCraft.KeyVibrationDuration=Kohëzgjatja
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Forcën për këtë stil e cakton telefoni
+CalcCraft.Keyboard=Tastierë
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
@@ -878,6 +920,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Snažan klik
 CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
+CalcCraft.Keyboard=Tastatura
 
 [sv-SE]
 CalcCraft.Language=Språk
@@ -898,6 +941,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Kraftigt klick
 CalcCraft.KeyVibrationDuration=Längd
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestämmer styrkan för den här stilen
+CalcCraft.Keyboard=Tangentbord
 
 [th-TH]
 CalcCraft.Language=ภาษา
@@ -918,6 +962,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=คลิกหนัก
 CalcCraft.KeyVibrationDuration=ระยะเวลา
 CalcCraft.KeyVibrationMilliseconds=%1 มิลลิวินาที
 CalcCraft.KeyVibrationFixedStrength=โทรศัพท์เป็นผู้กำหนดความแรงของรูปแบบนี้
+CalcCraft.Keyboard=แป้นพิมพ์
 
 [tr-TR]
 CalcCraft.Language=Dil
@@ -938,6 +983,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Güçlü tıklama
 CalcCraft.KeyVibrationDuration=Süre
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bu stilin gücünü telefon belirler
+CalcCraft.Keyboard=Klavye
 
 [uk-UA]
 CalcCraft.Language=Мова
@@ -958,6 +1004,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Сильне клацання
 CalcCraft.KeyVibrationDuration=Тривалість
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силу для цього стилю задає телефон
+CalcCraft.Keyboard=Клавіатура
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
@@ -978,6 +1025,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=Nhấp mạnh
 CalcCraft.KeyVibrationDuration=Thời lượng
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Điện thoại đặt cường độ cho kiểu này
+CalcCraft.Keyboard=Bàn phím
 
 [zh-CN]
 CalcCraft.Language=语言
@@ -998,6 +1046,7 @@ CalcCraft.KeyVibrationStyleHeavyClick=重击
 CalcCraft.KeyVibrationDuration=时长
 CalcCraft.KeyVibrationMilliseconds=%1 毫秒
 CalcCraft.KeyVibrationFixedStrength=此样式的强度由手机设定
+CalcCraft.Keyboard=键盘
 
 [zh-TW]
 CalcCraft.Language=語言
@@ -1018,3 +1067,4 @@ CalcCraft.KeyVibrationStyleHeavyClick=重擊
 CalcCraft.KeyVibrationDuration=時間長度
 CalcCraft.KeyVibrationMilliseconds=%1 毫秒
 CalcCraft.KeyVibrationFixedStrength=此樣式的強度由手機設定
+CalcCraft.Keyboard=鍵盤
