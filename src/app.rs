@@ -9,6 +9,7 @@ mod graph_canvas;
 mod graphing_keypad;
 mod graphing_view;
 pub(crate) mod icons;
+mod math_label;
 pub(crate) mod palette;
 mod programmer_view;
 mod region;
@@ -39,6 +40,7 @@ use icons::{
     ICON_MULTIPLY, ICON_PLUS, ICON_REGION, ICON_SCIENTIFIC, ICON_SETTINGS, ICON_THEME,
     category_icon, icon_label,
 };
+use math_label::Label;
 use palette::Palette;
 use strings::{tr, tr_format};
 
@@ -1072,7 +1074,7 @@ impl CalculatorApp {
         id: Id,
         kind: Kind,
         enabled: bool,
-        label: LayoutJob,
+        label: impl Into<Label>,
         name: &str,
     ) -> bool {
         self.button_flash(ui, rect, id, kind, enabled, label, name, false)
@@ -1086,7 +1088,7 @@ impl CalculatorApp {
         id: Id,
         kind: Kind,
         enabled: bool,
-        label: LayoutJob,
+        label: impl Into<Label>,
         name: &str,
         flash: bool,
     ) -> bool {
@@ -1115,7 +1117,7 @@ impl CalculatorApp {
         enabled: bool,
         response: &Response,
         flash: bool,
-        label: LayoutJob,
+        label: impl Into<Label>,
     ) {
         let p = self.palette;
         let pressed = enabled && (response.is_pointer_button_down_on() || flash);
@@ -1158,8 +1160,7 @@ impl CalculatorApp {
         if matches!(kind, Kind::Digit | Kind::Operator | Kind::Emphasized) {
             painter.rect_stroke(rect, RADIUS, Stroke::new(1.0, p.border), StrokeKind::Inside);
         }
-        let galley = painter.layout_job(label);
-        painter.galley(rect.center() - galley.size() / 2.0, galley, text);
+        label.into().paint(painter, rect.center(), text);
     }
 
     // ---------------------------------------------------------------- header
@@ -1390,44 +1391,29 @@ impl CalculatorApp {
 
     // ---------------------------------------------------------------- keypad
 
-    fn keypad_label(&self, command: Command, height: f32) -> LayoutJob {
+    fn keypad_label(&self, command: Command, height: f32) -> Label {
         let digit_size = (height * 0.38).clamp(14.0, 40.0);
         let icon_size = (height * 0.31).clamp(12.0, 32.0);
         let text_size = (height * 0.29).clamp(12.0, 30.0);
         let regular = FontFamily::Proportional;
-        // x², ¹⁄x, ²√x as in Windows, with an italic "x".
-        let formula = |before: &str, after: &str| {
-            let mut job = LayoutJob::default();
-            let plain = format(text_size, regular.clone());
-            job.append(before, 0.0, plain.clone());
-            job.append(
-                "x",
-                0.0,
-                TextFormat {
-                    italics: true,
-                    ..plain.clone()
-                },
-            );
-            job.append(after, 0.0, plain);
-            job
-        };
         match command {
-            Command::Digit(d) => text(&d.to_string(), digit_size, semibold()),
-            Command::Decimal => text(".", digit_size, semibold()),
-            Command::Function(Func::Negate) => negate_label(text_size),
-            Command::Function(Func::Reciprocal) => formula("¹⁄", ""),
-            Command::Function(Func::Square) => formula("", "²"),
-            Command::Function(Func::SquareRoot) => formula("²√", ""),
-            Command::Operator(Op::Divide) => icon_label(ICON_DIVIDE, icon_size),
-            Command::Operator(Op::Multiply) => icon_label(ICON_MULTIPLY, icon_size),
-            Command::Operator(Op::Subtract) => icon_label(ICON_MINUS, icon_size),
-            Command::Operator(Op::Add) => icon_label(ICON_PLUS, icon_size),
-            Command::Equals => icon_label(ICON_EQUALS, icon_size),
-            Command::Backspace => icon_label(ICON_BACKSPACE, icon_size),
-            Command::Percent => text("%", text_size, regular),
-            Command::ClearEntry => text("CE", text_size, regular),
-            Command::Clear => text("C", text_size, regular),
-            _ => LayoutJob::default(),
+            Command::Digit(d) => text(&d.to_string(), digit_size, semibold()).into(),
+            Command::Decimal => text(".", digit_size, semibold()).into(),
+            Command::Function(Func::Negate) => negate_label(text_size).into(),
+            // ¹/x, x² and ²√x as in Windows, with an italic x.
+            Command::Function(func @ (Func::Reciprocal | Func::Square | Func::SquareRoot)) => {
+                scientific_view::function_label(func, text_size)
+            }
+            Command::Operator(Op::Divide) => icon_label(ICON_DIVIDE, icon_size).into(),
+            Command::Operator(Op::Multiply) => icon_label(ICON_MULTIPLY, icon_size).into(),
+            Command::Operator(Op::Subtract) => icon_label(ICON_MINUS, icon_size).into(),
+            Command::Operator(Op::Add) => icon_label(ICON_PLUS, icon_size).into(),
+            Command::Equals => icon_label(ICON_EQUALS, icon_size).into(),
+            Command::Backspace => icon_label(ICON_BACKSPACE, icon_size).into(),
+            Command::Percent => text("%", text_size, regular).into(),
+            Command::ClearEntry => text("CE", text_size, regular).into(),
+            Command::Clear => text("C", text_size, regular).into(),
+            _ => LayoutJob::default().into(),
         }
     }
 
@@ -3716,11 +3702,11 @@ fn needed_fonts(language: &str, region: &str, all: bool) -> Vec<strings::ScriptF
 /// `assets/fonts/README.md`.
 const INTER: &[u8] = include_bytes!("../assets/fonts/Inter.ttf");
 
-/// Noto Sans Math, the web version's and the Android app's font for the mathematical symbols
-/// that Segoe UI Symbol has on Windows and Inter lacks (the analysis' `ℝ ℤ ∖ ∈ ∪ ∀`, the
-/// Scientific mode's `⌊ ⌋ ⌈ ⌉ ∛`): a browser page can't read the system's fonts, and Android
+/// Noto Sans Math, in every build for the real italic variables of the keys' formulas
+/// (`𝑥`, `math_label`), and in the web version and the Android app also for the mathematical
+/// symbols that Segoe UI Symbol has on Windows and Inter lacks (the analysis' `ℝ ℤ ∖ ∈ ∪ ∀`,
+/// the Scientific mode's `⌊ ⌋ ⌈ ⌉`): a browser page can't read the system's fonts, and Android
 /// has no Segoe UI. SIL Open Font License, see `assets/fonts/README.md`.
-#[cfg(any(target_arch = "wasm32", target_os = "android"))]
 const NOTO_SANS_MATH: &[u8] = include_bytes!("../assets/fonts/NotoSansMath-Regular.ttf");
 
 /// Loads the fonts: Segoe UI in its regular, semibold and light weights (or Inter at the same
@@ -3750,7 +3736,6 @@ pub(crate) fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
     let light_font = add("light", segoe_or_inter("segoeuil.ttf", 300.0));
     let symbol_font = load("seguisym.ttf").map(|d| add("symbols", egui::FontData::from_owned(d)));
     let icon_font = add("icons", egui::FontData::from_static(icons::FONT));
-    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
     let math_font = add("math", egui::FontData::from_static(NOTO_SANS_MATH));
     let scripts: Vec<String> = script_fonts
         .iter()
@@ -3772,7 +3757,7 @@ pub(crate) fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
     // without Segoe UI Symbol (Linux and macOS) Hack still has the analysis' `∈ ∪ ∀` and the
     // Scientific mode's `⌊ ⌋ ⌈ ⌉ ∛`, which Inter lacks.
     #[cfg(any(target_arch = "wasm32", target_os = "android"))]
-    proportional.push(math_font);
+    proportional.push(math_font.clone());
     if fonts.font_data.contains_key("Hack") {
         proportional.push("Hack".to_owned());
     }
@@ -3787,6 +3772,12 @@ pub(crate) fn setup_fonts(ctx: &Context, script_fonts: &[strings::ScriptFont]) {
     fonts
         .families
         .insert(icons::family(), family(Some(icon_font)));
+    // The formulas' italic letters (`math_label`); on the web and on Android the text
+    // fonts already end with it.
+    let math_family = std::iter::once(math_font.clone())
+        .chain(fallback.iter().filter(|name| **name != math_font).cloned())
+        .collect();
+    fonts.families.insert(math_label::math(), math_family);
 
     ctx.set_fonts(fonts);
 }
