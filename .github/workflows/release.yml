@@ -265,12 +265,14 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          $bundle = @()
+          # A hashtable: an array splat passes '-Bundle' to a script as a positional value,
+          # which binds to -Channel and fails its ValidateSet (the v1.4.0 run did).
+          $bundle = @{}
           if ($env:ANDROID_KEYSTORE_BASE64) {
               $env:ANDROID_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.keystore'
               [IO.File]::WriteAllBytes($env:ANDROID_KEYSTORE,
                   [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
-              $bundle = @('-Bundle')
+              $bundle = @{ Bundle = $true }
           } else {
               '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key, and no App Bundle is built (Google Play takes only one signed with the upload key).'
           }
