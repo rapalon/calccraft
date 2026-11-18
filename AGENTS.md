@@ -70,6 +70,10 @@ src/app/android.rs       the Android app's ties to the system (JNI): the system 
                          egui's safe area, the back button, languages, the keys' vibration
                          (Vibrator, the touch feedback setting) (Android only)
 src/app/vibration.rs     the Android key vibration: mappings, the Auto style rule, the card rows (pure)
+src/app/orientation.rs   the Android screen orientation setting: choices, stored keys, the
+                         `setRequestedOrientation` values, where Android honors them (pure)
+src/app/layout_tests.rs  the layouts at the Android screen sizes, and a software rasterizer that
+                         paints them into target/shots/ (`write_layout_shots`, ignored)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
@@ -204,6 +208,28 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   vibrator's `Capabilities` (`auto`, `tap`), and the card's rows (`card_rows`). The JNI calls
   (capabilities, playing a `Tap`) are in `android.rs`. The rule comes from the vibration lab's
   results by feel (`docs/vibration-lab-results.md`): don't change it without measuring again.
+- The Android app alone has a Screen orientation card right after Language (`SettingsList::
+  Orientation`, `app/orientation.rs`): Auto, Portrait, Landscape, saved as
+  `CalcCraftScreenOrientation` and handed to `Activity.setRequestedOrientation`
+  (`android::set_orientation`) in `new`, before the first frame, and at once when chosen. Auto
+  is `SCREEN_ORIENTATION_USER` (the system's auto-rotate and rotation lock); Portrait and
+  Landscape are `SENSOR_PORTRAIT` and `SENSOR_LANDSCAPE`, which ignore the system's setting but
+  use both sides. The manifest fixes no orientation, and its `configChanges` keep a rotation
+  from restarting the activity. The card is left out where Android 16 ignores an app's
+  orientation (large screens, `orientation::honored`). Its icon is drawn in code
+  (`paint_orientation_icon`; `CardIcon`).
+- A phone on its side (lower than `LANDSCAPE_HEIGHT`, 500, and `LANDSCAPE_RATIO` times as wide;
+  desktop and web windows are never that low) gets the landscape layout (`Landscape`,
+  `draw_landscape`): the Standard, Scientific and Programmer modes put the header, the display
+  and their rows above the keys (`draw_scientific_controls`, `draw_programmer_controls_column`)
+  in a left column, with the docked history and memory under them where there is room, and
+  their keys alone in the right column (`*_keypad_only`); a flyout covers the right column. The
+  Graphing mode keeps its narrow layout there, and its equations view splits the same way
+  (`graphing_split`, `draw_graphing_keypad_split`). `layout_tests` checks every mode at the
+  Android sizes (keys at least 40 px, inside the safe area); `cargo test write_layout_shots --
+  --ignored` paints them into `target/shots/` (`CALCCRAFT_SHOTS=<name part>` picks some). On the
+  desktop, `CALCCRAFT_WINDOW_SIZE=780x320` opens a window that low (it lowers the minimum size)
+  and `CALCCRAFT_MODE=<Mode::serialization_id>` opens a mode.
 - Icons come from the icon font compiled into the app (`assets/fonts/CalcCraftIcons.ttf`), a
   subset of Microsoft's Fluent System Icons that `tools/icon-font.py` puts at the code points of
   the Segoe Fluent Icons glyphs Windows uses. The code points are `ICON_*` and `category_icon`

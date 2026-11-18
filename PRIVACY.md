@@ -1,6 +1,6 @@
 # CalcCraft Privacy Policy
 
-**Effective date:** November 17, 2026
+**Effective date:** November 18, 2026
 
 This Privacy Policy explains how the CalcCraft app handles your information. It covers
 CalcCraft on every platform we publish it for: Android (Google Play, GitHub Releases and other
@@ -47,7 +47,8 @@ This information is used on your device only and is never sent anywhere:
 
 CalcCraft saves a small settings file on your device:
 
-- your choices: app theme, language, regional format, the key vibration strength (Android),
+- your choices: app theme, language, regional format, the screen orientation and the key
+  vibration strength (Android),
   the last calculator mode, the last converter category and units, the graph theme, the size of the keep-on-top window, and the
   app's own interface state (such as scroll positions);
 - the counters behind the occasional "Please support us" reminder (kept by every version,

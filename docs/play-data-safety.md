@@ -26,6 +26,8 @@ Notes for the form's fine print:
 - **Android backup** (`allowBackup="true"`): the settings file may go to the user's own Google
   backup, which Google handles under the user's account. It isn't collection by the developer,
   and `PRIVACY.md` mentions it.
+- **Settings added since the audit** (1.4.1: Screen orientation, `CalcCraftScreenOrientation`)
+  stay in that settings file on the device, need no permission and change none of the answers.
 
 ### Link parameters in the Play builds
 
