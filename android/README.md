@@ -260,10 +260,16 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   draws under them); the back button closes the open menu, popup, flyout or Settings page as
   Esc does, and with nothing open moves the app to the background (Esc would clear the
   calculator, as in Windows); the interface follows the phone's languages; and a finger
-  landing on a key gives a tap of the vibration motor at the strength of Settings → Key
-  vibration (`key_tap`, with the mappings in `src/app/vibration.rs`): a `PRIMITIVE_CLICK`
-  composition where the vibrator has it (Android 11+), else a short one-shot with an amplitude,
-  else a one-shot of 8 to 40 ms. It goes through `Vibrator` (`VibratorManager` from Android 12),
+  landing on a key gives a tap of the vibration motor with the strength, style and duration of
+  Settings → Key vibration (`key_tap`, with the mappings and the Auto rule in
+  `src/app/vibration.rs`, measured in `docs/vibration-lab-results.md`): Click is a
+  `PRIMITIVE_CLICK` composition (Android 11+), Pulse a 5 to 12 ms one-shot with an amplitude
+  (or, without amplitude control, a one-shot whose duration follows the strength), Heavy click
+  the predefined `EFFECT_HEAVY_CLICK` (Android 10+). Auto is Click where the vibrator reports a
+  resonant frequency and a click primitive of its own (CLICK's duration isn't TICK's, from
+  `VibratorInfo`, Android 12+), else Pulse; it logs its choice once with the tag `CalcCraft`
+  (`adb logcat -s CalcCraft`: `Key vibration: Auto plays Click …`). The Pixel 7 Pro gets Click,
+  the Samsung S26 Ultra Pulse. It goes through `Vibrator` (`VibratorManager` from Android 12),
   not `performHapticFeedback(KEYBOARD_TAP)`, whose strength each phone maker sets (barely
   noticeable on a Samsung S26 Ultra), and needs the `VIBRATE` permission, a normal permission
   that Android grants without asking. It stays off when touch feedback is turned off in
