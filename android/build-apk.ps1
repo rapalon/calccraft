@@ -58,6 +58,9 @@ param(
     [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
+    # Mark the app debuggable (android:debuggable), so `adb shell run-as` can look into its
+    # files, as when checking that the graph share keeps one file in cache/share/. Test builds only.
+    [switch]$Debuggable,
     # A bundletool jar to use instead of the pinned release in .tools/.
     [string]$Bundletool = '',
     [string]$Sdk = $(if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
@@ -172,14 +175,16 @@ if ($Channel -ne 'default') {
 
 # The Java code (java/: the graph share's ContentProvider) as classes.dex: javac against the
 # platform's android.jar, Java 8 bytecode, then d8 from the pinned build-tools. Both come with
-# the JDK and the SDK the build already uses: no library, no download.
+# the JDK and the SDK the build already uses: no library, no download. The file lists are
+# arrays (@(…)): splatting a lone string would pass it character by character.
 $androidJar = Join-Path $Sdk "platforms/$Platform/android.jar"
 $classes = Join-Path $out 'classes'
 $dexDir = Join-Path $staging 'dex'
+Remove-Item -Recurse -Force $classes -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $classes, $dexDir | Out-Null
-$sources = (Get-ChildItem (Join-Path $PSScriptRoot 'java') -Recurse -Filter *.java).FullName
-& $javac -source 8 -target 8 -bootclasspath $androidJar -Xlint:-options -encoding UTF-8 -d $classes @sources
-$classFiles = (Get-ChildItem $classes -Recurse -Filter *.class).FullName
+$sources = @((Get-ChildItem (Join-Path $PSScriptRoot 'java') -Recurse -Filter *.java).FullName)
+& $javac -source 8 -target 8 -bootclasspath $androidJar '-Xlint:-options' -encoding UTF-8 -d $classes @sources
+$classFiles = @((Get-ChildItem $classes -Recurse -Filter *.class).FullName)
 & (Join-Path $tools "d8$script") --release --min-api $minSdk --lib $androidJar --output $dexDir @classFiles
 $dex = Join-Path $dexDir 'classes.dex'
 if (-not (Test-Path $dex)) {
@@ -200,6 +205,9 @@ $manifestContent = $manifestContent.Replace('${applicationId}', $ApplicationId)
 $link = @('-I', (Join-Path $Sdk "platforms/$Platform/android.jar"), '--manifest', $manifestPath,
     '--min-sdk-version', $minSdk, '--target-sdk-version', $targetSdk,
     '--version-code', $versionCode, '--version-name', $version, $resources)
+if ($Debuggable) {
+    $link += '--debug-mode'
+}
 $unaligned = Join-Path $out 'unaligned.apk'
 & (Join-Path $tools "aapt2$exe") link -o $unaligned @link
 

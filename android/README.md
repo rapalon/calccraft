@@ -43,6 +43,18 @@ The application ID (package name) defaults to `com.rapalon.calccraft`. `-Applica
 app to become paid and the package name is permanent after first upload, so the ID must be
 chosen before publishing.
 
+To try a build on a phone that has the Play-signed app, give it another ID: it installs next to
+that app, which then stays (the debug key can't update it). `-Debuggable` lets
+`adb shell run-as <id>` look into the app's files, such as the graph share's single
+`cache/share/graph.png`:
+
+```powershell
+pwsh -File android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.sharetest -Debuggable
+adb install -r target/android/CalcCraft-<version>-arm64.apk
+adb shell run-as com.rapalon.calccraft.sharetest ls -la cache/share
+adb uninstall com.rapalon.calccraft.sharetest
+```
+
 ### Channels: GitHub, Google Play free, Google Play paid
 
 Google Play's Payments policy forbids leading users to payment methods other than Play's, so
