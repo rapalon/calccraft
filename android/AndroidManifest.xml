@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The Android app: Android's NativeActivity loads libcalculator.so (the Rust library, see
      src/lib.rs) and its android_main runs the app. There is no Java code. build-apk.ps1 adds
-     the version from Cargo.toml (see README.md). -->
+     the version from Cargo.toml (see README.md). The only Java code is ShareProvider (java/),
+     for the graph's Share: build-apk.ps1 compiles it, and fills in ${applicationId}. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.rapalon.calccraft">
 
@@ -17,7 +18,7 @@
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="false"
         android:extractNativeLibs="false"
-        android:hasCode="false"
+        android:hasCode="true"
         android:icon="@mipmap/ic_launcher"
         android:label="CalcCraft"
         android:theme="@style/CalcCraft">
@@ -41,5 +42,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The graph's picture for the app picked in the share sheet (android.rs
+             share_image): one read-only file of the cache. Not exported; the share intent
+             grants the picked app that one URI. The authority follows the application ID, so
+             CalcCraft and CalcCraft Pro can be installed side by side. -->
+        <provider
+            android:name="com.rapalon.calccraft.ShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

@@ -93,14 +93,72 @@ pub(super) fn show(_hwnd: Option<isize>, content: Content) -> bool {
     png(&content.image).is_ok_and(|bytes| super::web::download("graph.png", "image/png", &bytes))
 }
 
-/// There's no share sheet but Windows' and the browser's download.
-#[cfg(not(any(windows, target_arch = "wasm32")))]
+/// Android's share sheet gets the graph alone, as a PNG (android/README.md, "How it works"):
+/// written to the app's cache as the one file `share/graph.png`, which the app's
+/// `ShareProvider` serves to the app the user picks.
+#[cfg(target_os = "android")]
+pub(super) fn show(_hwnd: Option<isize>, content: Content) -> bool {
+    let bytes = match png(&content.image) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            log::warn!("Share: the graph's PNG failed: {error}");
+            return false;
+        }
+    };
+    let Some(cache) = super::android::cache_dir() else {
+        return false;
+    };
+    if let Err(error) = write_single_file(&cache.join(SHARE_DIR), SHARED_IMAGE, &bytes) {
+        log::warn!("Share: writing the graph to the cache failed: {error}");
+        return false;
+    }
+    super::android::share_image(SHARED_IMAGE)
+}
+
+/// There's no share sheet but Windows', Android's and the browser's download.
+#[cfg(not(any(windows, target_arch = "wasm32", target_os = "android")))]
 pub(super) fn show(_hwnd: Option<isize>, _content: Content) -> bool {
     false
 }
 
+/// The folder of the app's cache that holds the shared picture, and nothing else.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+const SHARE_DIR: &str = "share";
+
+/// The shared picture's name: `ShareProvider.java` serves only this file, as
+/// `content://<application id>.share/graph.png`.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+const SHARED_IMAGE: &str = "graph.png";
+
+/// Writes `bytes` as `dir/name`, the only file left in `dir`: whatever else is there (files
+/// and folders an earlier version or an interrupted share left) is deleted first, and the
+/// file itself is overwritten. So shares never pile up in the cache, however many there are
+/// (Konst's decision of 2026-11-18). Creates `dir` if needed.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+fn write_single_file(
+    dir: &std::path::Path,
+    name: &str,
+    bytes: &[u8],
+) -> std::io::Result<std::path::PathBuf> {
+    std::fs::create_dir_all(dir)?;
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_name() == name && entry.file_type()?.is_file() {
+            continue;
+        }
+        if entry.file_type()?.is_dir() {
+            std::fs::remove_dir_all(entry.path())?;
+        } else {
+            std::fs::remove_file(entry.path())?;
+        }
+    }
+    let path = dir.join(name);
+    std::fs::write(&path, bytes)?;
+    Ok(path)
+}
+
 /// The image as a PNG file.
-#[cfg(any(windows, target_arch = "wasm32"))]
+#[cfg(any(windows, target_arch = "wasm32", target_os = "android"))]
 pub(super) fn png(image: &ColorImage) -> Result<Vec<u8>, png::EncodingError> {
     let mut bytes = Vec::new();
     let [width, height] = image.size;
@@ -239,5 +297,59 @@ mod tests {
     fn escaping() {
         assert_eq!(escape("a<b & c>'d\""), "a&lt;b &amp; c&gt;&apos;d&quot;");
         assert_eq!(escape("sin(x)"), "sin(x)");
+    }
+
+    /// The names in a folder, sorted.
+    fn names(dir: &std::path::Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    /// Android's share cache keeps one picture, however many shares there are.
+    #[test]
+    fn single_shared_file() {
+        let root = std::env::temp_dir().join(format!(
+            "calccraft-share-test-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join(SHARE_DIR);
+
+        // The first share creates the folder.
+        let path = write_single_file(&dir, SHARED_IMAGE, b"first").unwrap();
+        assert_eq!(path, dir.join("graph.png"));
+        assert_eq!(names(&dir), ["graph.png"]);
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+
+        // A second, shorter one overwrites it completely.
+        write_single_file(&dir, SHARED_IMAGE, b"2nd").unwrap();
+        assert_eq!(names(&dir), ["graph.png"]);
+        assert_eq!(std::fs::read(&path).unwrap(), b"2nd");
+
+        // Anything else in the folder goes: files, folders, and a folder named like the file.
+        std::fs::write(dir.join("old-graph.png"), b"old").unwrap();
+        std::fs::create_dir_all(dir.join("leftover/inner")).unwrap();
+        std::fs::write(dir.join("leftover/inner/x.png"), b"x").unwrap();
+        write_single_file(&dir, SHARED_IMAGE, b"third").unwrap();
+        assert_eq!(names(&dir), ["graph.png"]);
+        assert_eq!(std::fs::read(&path).unwrap(), b"third");
+
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir_all(dir.join("graph.png/sub")).unwrap();
+        write_single_file(&dir, SHARED_IMAGE, b"fourth").unwrap();
+        assert_eq!(names(&dir), ["graph.png"]);
+        assert_eq!(std::fs::read(&path).unwrap(), b"fourth");
+
+        // Nothing outside the folder is touched.
+        std::fs::write(root.join("keep.txt"), b"keep").unwrap();
+        write_single_file(&dir, SHARED_IMAGE, b"fifth").unwrap();
+        assert_eq!(names(&root), ["keep.txt", "share"]);
+
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

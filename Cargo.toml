@@ -51,6 +51,8 @@ eframe = { version = "0.36.2", default-features = false, features = [
 ] }
 jni = "0.21"
 log = "0.4"
+# The graph's Share writes a PNG for the share sheet (src/app/share.rs).
+png = "0.18"
 # eframe's `NativeOptions::android_app` is winit's `AndroidApp`; the version eframe uses.
 winit = { version = "0.30", default-features = false }
 
