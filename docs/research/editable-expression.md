@@ -266,9 +266,23 @@ while building them, each the simplest one and the closest to typing the number 
   and then does what it does. A tap on the display or the line outside the number commits too.
 - **Edit in the history** is a context menu item (right click, or a long press on Android), and
   it is the only new control: it reloads the calculation's tape, so the expression line shows
-  that calculation with its typed numbers editable. A plain click still recalls the result, as
-  in Windows. Standard mode entries that an operator logged (`2 + 3 +` logs `2 + 3 =`) open as
-  if `=` had been pressed there.
+  that calculation with its typed numbers editable, the caret in the last one. Standard mode
+  entries that an operator logged (`2 + 3 +` logs `2 + 3 =`) open as if `=` had been pressed
+  there.
+- **A plain click or tap on a history entry recalls it with its tape too** (2026-11-18, Konst's
+  report from the edittest APK: after a recall only the result took the caret). The tape is
+  replayed, then the engine is left as Windows' recall leaves it: the result after `C` with the
+  entry's expression line, so `=` doesn't repeat the entry's last operation and a new number
+  starts over, as before. The angle unit and F-E stay as they were at the recall. The line's
+  numbers then take the caret like after a fresh calculation, the display shows the edited
+  result live, and committing adds a new entry (the recalled one stays). Unlike Edit, no caret
+  is shown until the user taps or clicks. The recall is an item of the tape (`Recalled`), so
+  keys after it can still be edited with the recalled numbers. Entries without a tape (a
+  calculation longer than 400 commands) still recall only the result.
+- **Where calculations come back.** The history isn't persisted (as in Windows), so there is no
+  restart case and the tapes stay in memory only. A mode switch keeps each mode's history with
+  its tapes. A memory recall brings a value, not a calculation: it stays a computed value (on
+  the display it can be copied and edited, as after MR).
 - **Screen readers:** the display says "Editing %1" while the caret is shown, and the menu item
   has the name "Edit". The expression line stays one text node: its numbers aren't new Tab
   stops, so the Tab order is unchanged.
