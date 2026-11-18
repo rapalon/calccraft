@@ -383,6 +383,38 @@ fn write_layout_shots() {
                 });
             }),
         ));
+        pages.push((
+            "LineEdit".into(),
+            Box::new(|app| {
+                use crate::engine::Op;
+                app.set_mode(Mode::Scientific);
+                let number = |app: &mut CalculatorApp, n: &str| {
+                    for c in n.chars() {
+                        let digit = c.to_digit(10).unwrap() as u8;
+                        app.engine_mut().execute(Command::Digit(digit));
+                    }
+                };
+                let key = |app: &mut CalculatorApp, command| app.engine_mut().execute(command);
+                number(app, "2");
+                for (a, op, b) in [
+                    ("5", Op::Multiply, "7"),
+                    ("100", Op::Subtract, "92"),
+                    ("6", Op::Multiply, "54"),
+                ] {
+                    key(app, Command::Operator(Op::Add));
+                    key(app, Command::OpenParen);
+                    number(app, a);
+                    key(app, Command::Operator(op));
+                    number(app, b);
+                    key(app, Command::CloseParen);
+                }
+                let item = app.engine().expression_parts().1[4].item;
+                app.engine_mut().edit_operand(item, None);
+                key(app, Command::Backspace);
+                key(app, Command::Backspace);
+                number(app, "85");
+            }),
+        ));
         for (name, setup) in pages {
             let name = format!("{}-{name}", screen.name);
             if !name.contains(&filter) {

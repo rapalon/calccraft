@@ -1687,23 +1687,16 @@ impl CalculatorApp {
         #[cfg(feature = "support-prompt")]
         crate::support::note_display(ui.ctx(), rect);
         let p = self.palette;
-        let painter = ui.painter();
         let right = rect.right() - 12.0;
         let max_width = rect.width() - 24.0;
-        let calc = self.engine();
 
-        let expression = numbers().localize_expression(&calc.expression());
         // Keep on top shows only the result (`DisplayModeAlwaysOnTop` sets the expression
         // row's height to 0).
-        if !expression.is_empty() && !self.compact {
-            let galley =
-                layout_elided_left(painter, &expression, FontId::proportional(14.0), max_width);
-            let pos = pos2(right - galley.size().x, expression_top);
-            let name = tr_format("Format_CalculatorExpression", &[&expression]);
-            let line = Rect::from_min_size(pos, galley.size());
-            access::text(ui, line, Id::new("expression"), &name, false);
-            painter.galley(pos, galley, p.text_secondary);
+        if !self.compact {
+            self.draw_expression_line(ui, rect, expression_top, max_width);
         }
+        let calc = self.engine();
+        let painter = ui.painter();
 
         // Screen readers read the display out whenever it changes ("Display is 7"),
         // and say "point" for a decimal point that has no digits after it yet. Hex,
@@ -1770,13 +1763,143 @@ impl CalculatorApp {
         }
     }
 
+    /// The expression line at `top`, right-aligned in `rect`. A tap or click on one of its
+    /// typed numbers edits it (CalcCraft's own, docs/research/editable-expression.md); the
+    /// number being edited is drawn in the text color with its caret, and the line, a little
+    /// larger then, scrolls to keep the caret in view instead of cutting the line's start.
+    fn draw_expression_line(&mut self, ui: &Ui, rect: Rect, top: f32, max_width: f32) {
+        let p = self.palette;
+        let calc = self.engine();
+        let (line, parts) = calc.expression_parts();
+        if line.is_empty() {
+            return;
+        }
+        let edit = calc.number_edit();
+        let decimal = match calc.radix() {
+            Some(radix) if radix != Radix::Decimal => ".".to_string(),
+            _ => numbers().decimal.clone(),
+        };
+        let (text, ranges) = caret::localize_line(&line, &parts, &decimal);
+        let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+        let right = rect.right() - 12.0;
+        let size = if edit.is_some() { 16.0 } else { 14.0 };
+        let font = FontId::proportional(size);
+        // The edited number in the text color, the rest in the secondary color.
+        let edited = edit
+            .as_ref()
+            .and_then(|edit| ranges.iter().find(|(_, item)| *item == edit.item))
+            .map(|(range, _)| range.clone());
+        let (galley, shift) = match &edited {
+            Some(range) => {
+                let mut job = LayoutJob::default();
+                let chars: Vec<char> = text.chars().collect();
+                let pieces = [
+                    (0..range.start, p.text_secondary),
+                    (range.clone(), p.text),
+                    (range.end..chars.len(), p.text_secondary),
+                ];
+                for (piece, color) in pieces {
+                    let piece: String = chars[piece].iter().collect();
+                    job.append(&piece, 0.0, TextFormat::simple(font.clone(), color));
+                }
+                (painter.layout_job(job), 0)
+            }
+            None => {
+                let galley = layout_elided_left(&painter, &text, font.clone(), max_width);
+                // An elided line starts with `…` in place of its first characters.
+                let shown = galley.text().chars().count();
+                let shift = (text.chars().count() + 1).saturating_sub(shown);
+                (galley, shift.saturating_sub(1))
+            }
+        };
+        let width = galley.size().x;
+        let mut pos = pos2(right - width, top);
+        let caret_x = edit.as_ref().zip(edited.as_ref()).map(|(edit, range)| {
+            let number: String = text.chars().skip(range.start).take(range.len()).collect();
+            let stops =
+                caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
+            let index = range.start + stops.index(edit.caret);
+            galley
+                .pos_from_cursor(egui::text::CCursor::new(index))
+                .left()
+        });
+        // A line wider than the display scrolls so the caret is in view.
+        if let Some(x) = caret_x
+            && pos.x + x < rect.left() + 12.0
+        {
+            pos.x = rect.left() + 12.0 - x;
+        }
+        let line_rect = Rect::from_min_size(pos, galley.size());
+        let name = tr_format("Format_CalculatorExpression", &[&text]);
+        access::text(ui, line_rect, Id::new("expression"), &name, false);
+        if let Some(range) = &edited {
+            // A light background marks the number being edited.
+            let start = galley.pos_from_cursor(egui::text::CCursor::new(range.start));
+            let end = galley.pos_from_cursor(egui::text::CCursor::new(range.end));
+            let mark = Rect::from_x_y_ranges(start.left()..=end.left(), start.y_range())
+                .translate(pos.to_vec2())
+                .expand2(vec2(3.0, 1.0));
+            painter.rect_filled(mark, 4.0, p.subtle_hover);
+        }
+        painter.galley(pos, galley.clone(), p.text_secondary);
+        if let Some(x) = caret_x {
+            let height = galley.size().y;
+            painter.vline(
+                (pos.x + x).round(),
+                pos.y + height * 0.1..=pos.y + height * 0.95,
+                Stroke::new(2.0, p.text),
+            );
+        }
+
+        // A tap or click: on a number, the caret goes there; elsewhere on the line, an edit
+        // ends.
+        let tap_area = Rect::from_x_y_ranges(
+            rect.left()..=rect.right(),
+            (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0),
+        );
+        let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
+        if !tap.clicked() || access::is_covered(ui) {
+            return;
+        }
+        let Some(pointer) = tap.interact_pointer_pos() else {
+            return;
+        };
+        let index = galley.cursor_from_pos(pointer - pos).index.0;
+        let index = if shift > 0 && index > 0 {
+            index - 1 + shift
+        } else {
+            index
+        };
+        let hit = ranges
+            .iter()
+            .find(|(range, _)| range.start <= index && index <= range.end)
+            .cloned();
+        let calc = self.engine_mut();
+        let Some((range, item)) = hit else {
+            calc.commit_edit();
+            return;
+        };
+        if !calc.edit_operand(item, None) {
+            return;
+        }
+        if let Some(edit) = calc.number_edit() {
+            let number: String = text.chars().skip(range.start).take(range.len()).collect();
+            let stops =
+                caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
+            calc.edit_operand(item, Some(stops.nearest(index - range.start)));
+        }
+        if let Some(id) = access::focused(ui.ctx()) {
+            ui.memory_mut(|memory| memory.surrender_focus(id));
+        }
+    }
+
     /// The caret's keys (CalcCraft's own): Left, Right, Home, End, Ctrl+Left and Ctrl+Right
     /// move it, Delete removes the character after it, and Esc hides it. Left while a number
     /// is typed and no control has the keyboard focus shows it. Returns whether the key was
     /// for the caret.
     fn caret_key(&mut self, ctx: &Context, key: Key, modifiers: Modifiers) -> bool {
         let calc = self.engine();
-        let shown = calc.entry_caret().is_some();
+        let shown = calc.caret_shown();
         let start = !shown
             && key == Key::ArrowLeft
             && modifiers.is_none()
@@ -1786,11 +1909,39 @@ impl CalculatorApp {
             return false;
         }
         let word = modifiers.command;
+        // Where the caret is: in a number of the line (at its start or end?), or the display.
+        let line = calc.number_edit().map(|edit| {
+            let end = match &edit.exponent {
+                Some(digits) => edit.caret.exponent && edit.caret.index == digits.len(),
+                None => edit.caret.index == edit.mantissa.len(),
+            };
+            (edit.caret == crate::engine::Caret::default(), end)
+        });
+        let entry_at_start = calc.entry_caret() == Some(crate::engine::Caret::default());
+        let last_part = calc.expression_parts().1.last().map(|part| part.item);
         let calc = self.engine_mut();
         match key {
             Key::ArrowLeft if start => {
                 calc.move_entry_caret(CaretMove::End);
                 calc.move_entry_caret(CaretMove::Left);
+            }
+            // Ctrl+arrows go on from a number's start or end to the next number: in the line,
+            // and between the line's last number and the display's.
+            Key::ArrowLeft if word && line.is_some_and(|(start, _)| start) => {
+                calc.edit_neighbor(true);
+            }
+            Key::ArrowLeft if word && line.is_none() && entry_at_start => {
+                if let Some(item) = last_part {
+                    calc.edit_operand(item, None);
+                }
+            }
+            Key::ArrowRight if word && line.is_some_and(|(_, end)| end) => {
+                if !calc.edit_neighbor(false) {
+                    calc.commit_edit();
+                    if calc.can_show_entry_caret() {
+                        calc.show_entry_caret(crate::engine::Caret::default());
+                    }
+                }
             }
             Key::ArrowLeft if word => calc.move_entry_caret(CaretMove::Start),
             Key::ArrowLeft => calc.move_entry_caret(CaretMove::Left),
@@ -2308,18 +2459,21 @@ impl CalculatorApp {
 
         // The memory items show the Calculator font's MC, M+ and M− glyphs as text.
         let items = match menu.target {
-            MenuTarget::History(i, _) => vec![
-                (
-                    icon_label(ICON_COPY, 16.0),
-                    tr("CopyHistoryMenuItem.Text"),
-                    FlyoutAction::CopyHistory(i),
-                ),
-                (
-                    icon_label(ICON_DELETE, 16.0),
-                    tr("DeleteHistoryMenuItem.Text"),
-                    FlyoutAction::DeleteHistory(i),
-                ),
-            ],
+            MenuTarget::History(i, _) => {
+                let items = vec![
+                    (
+                        icon_label(ICON_COPY, 16.0),
+                        tr("CopyHistoryMenuItem.Text"),
+                        FlyoutAction::CopyHistory(i),
+                    ),
+                    (
+                        icon_label(ICON_DELETE, 16.0),
+                        tr("DeleteHistoryMenuItem.Text"),
+                        FlyoutAction::DeleteHistory(i),
+                    ),
+                ];
+                items
+            }
             MenuTarget::Memory(i) => vec![
                 (
                     text("MC", 11.0, semibold()),
@@ -2394,8 +2548,8 @@ impl CalculatorApp {
             };
             painter.rect_filled(item, RADIUS, fill);
             let icon = painter.layout_job(icon);
-            let icon_pos = pos2(item.left() + ICON_CENTER, item.center().y) - icon.size() / 2.0;
-            painter.galley(icon_pos, icon, p.text);
+            let icon_center = pos2(item.left() + ICON_CENTER, item.center().y);
+            painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
             painter.text(
                 pos2(item.left() + TEXT_LEFT, item.center().y),
                 Align2::LEFT_CENTER,

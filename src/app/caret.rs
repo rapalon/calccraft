@@ -4,7 +4,35 @@
 //! Programmer mode's spaces, BIN's leading zeros, a minus sign and `e+`. Pure, so it's
 //! tested on every platform.
 
-use crate::engine::Caret;
+use std::ops::Range;
+
+use crate::engine::{Caret, ExpressionPart};
+
+/// The expression line (en-US, from `Calculator::expression_parts`) with the region's decimal
+/// separator, as `localize_expression` writes it, and where its numbers are in it, in
+/// characters (a tap's galley position is a character index).
+pub(super) fn localize_line(
+    line: &str,
+    parts: &[ExpressionPart],
+    decimal: &str,
+) -> (String, Vec<(Range<usize>, usize)>) {
+    let localize = |piece: &str| piece.replace('.', decimal);
+    let mut text = String::new();
+    let mut ranges = Vec::new();
+    let mut at = 0;
+    for part in parts {
+        if part.range.start < at || part.range.end > line.len() {
+            continue;
+        }
+        text.push_str(&localize(&line[at..part.range.start]));
+        let start = text.chars().count();
+        text.push_str(&localize(&line[part.range.clone()]));
+        ranges.push((start..text.chars().count(), part.item));
+        at = part.range.end;
+    }
+    text.push_str(&localize(&line[at..]));
+    (text, ranges)
+}
 
 /// The caret stops of a number shown as `shown`: the character index in `shown` before each
 /// character of `mantissa` (the typed digits with the decimal point) and after the last one,
@@ -151,6 +179,40 @@ mod tests {
         let stops = Stops::new("1.5e-30", ".", "1.5", Some("30"));
         assert_eq!(stops.index(caret), 6);
         assert_eq!(stops.nearest(6), caret);
+    }
+
+    #[test]
+    fn the_line_in_the_regions_format() {
+        let parts = [
+            ExpressionPart {
+                range: 0..3,
+                item: 0,
+            },
+            ExpressionPart {
+                range: 10..14,
+                item: 4,
+            },
+        ];
+        let (text, ranges) = localize_line("1.5 + sqr(2.25) =", &parts, ",");
+        assert_eq!(text, "1,5 + sqr(2,25) =");
+        assert_eq!(ranges, [(0..3, 0), (10..14, 4)]);
+        // A separator of another length, and characters of more than one byte before.
+        let (text, ranges) = localize_line(
+            "sin₀(0.5) × 2",
+            &[
+                ExpressionPart {
+                    range: 7..10,
+                    item: 1,
+                },
+                ExpressionPart {
+                    range: 15..16,
+                    item: 3,
+                },
+            ],
+            "٫٫",
+        );
+        assert_eq!(text, "sin₀(0٫٫5) × 2");
+        assert_eq!(ranges, [(5..9, 1), (13..14, 3)]);
     }
 
     #[test]
