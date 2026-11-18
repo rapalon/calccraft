@@ -370,6 +370,19 @@ fn write_layout_shots() {
                 }
             }),
         ));
+        pages.push((
+            "Caret".into(),
+            Box::new(|app| {
+                app.set_mode(Mode::Scientific);
+                for digit in [1, 2, 3, 4, 5, 6, 7] {
+                    app.engine_mut().execute(Command::Digit(digit));
+                }
+                app.engine_mut().show_entry_caret(crate::engine::Caret {
+                    exponent: false,
+                    index: 2,
+                });
+            }),
+        ));
         for (name, setup) in pages {
             let name = format!("{}-{name}", screen.name);
             if !name.contains(&filter) {

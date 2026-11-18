@@ -3,6 +3,7 @@
 pub(crate) mod access;
 #[cfg(target_os = "android")]
 pub(crate) mod android;
+mod caret;
 mod converter_view;
 mod date_view;
 mod graph_canvas;
@@ -34,7 +35,7 @@ use eframe::egui::{
 
 use crate::brand;
 use crate::converter::Category;
-use crate::engine::{Angle, Calculator, Command, Func, HistoryEntry, Op, Radix};
+use crate::engine::{Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, Radix};
 use icons::{
     ICON_BACK, ICON_BACK_TO_FULL, ICON_BACKSPACE, ICON_CALCULATOR, ICON_CALENDAR,
     ICON_CHEVRON_DOWN, ICON_CHEVRON_UP, ICON_CODE, ICON_COPY, ICON_DELETE, ICON_DIVIDE,
@@ -1336,6 +1337,17 @@ impl CalculatorApp {
     }
 
     fn handle_key(&mut self, ctx: &Context, key: Key, modifiers: Modifiers, now: f64) {
+        // Esc closes what is open first, and hides the caret before it is `C`.
+        let popup = self.context_menu.is_some()
+            || self.programmer.popup_open()
+            || self.scientific.popup_open()
+            || self.flyout != Flyout::None;
+        if !self.keypad_disabled()
+            && !(key == Key::Escape && popup)
+            && self.caret_key(ctx, key, modifiers)
+        {
+            return;
+        }
         let programmer = self.mode == Mode::Programmer;
         // The Scientific mode's letter keys, some with Shift or Ctrl (sinh is Ctrl+S).
         let scientific = (self.mode == Mode::Scientific && key != Key::Escape)
@@ -1656,7 +1668,7 @@ impl CalculatorApp {
         }
     }
 
-    fn draw_display(&self, ui: &Ui, rect: Rect) {
+    fn draw_display(&mut self, ui: &Ui, rect: Rect) {
         let base_size = (rect.height() * 0.46).clamp(28.0, 72.0);
         let center_y = rect.top() + rect.height() * 0.6;
         self.draw_display_sized(ui, rect, rect.top() + 6.0, base_size, center_y);
@@ -1665,7 +1677,7 @@ impl CalculatorApp {
     /// The expression line from `expression_top` and the number, at most `base_size` pt
     /// and vertically centered on `center_y`, right-aligned in `rect`.
     fn draw_display_sized(
-        &self,
+        &mut self,
         ui: &Ui,
         rect: Rect,
         expression_top: f32,
@@ -1697,7 +1709,10 @@ impl CalculatorApp {
         // and say "point" for a decimal point that has no digits after it yet. Hex,
         // octal and binary numbers are read digit by digit.
         let display = self.display_text();
+        let caret = calc.entry_caret();
         let name = match display.strip_suffix(numbers().decimal.as_str()) {
+            // While the caret is shown the number is being edited (CalcCraft's own).
+            _ if caret.is_some() => tr_format("CalcCraft.EditingNumber", &[&display]),
             _ if calc.radix().is_some_and(|radix| radix != Radix::Decimal) && !calc.has_error() => {
                 let digits = programmer_view::spell_digits(&display);
                 tr_format("Format_CalculatorResults", &[&digits])
@@ -1714,10 +1729,84 @@ impl CalculatorApp {
             painter.layout_no_wrap(display.clone(), FontId::new(base_size, semibold()), p.text);
         if galley.size().x > max_width {
             let size = (base_size * max_width / galley.size().x).max(10.0);
-            galley = painter.layout_no_wrap(display, FontId::new(size, semibold()), p.text);
+            galley = painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
         }
         let pos = pos2(right - galley.size().x, center_y - galley.size().y / 2.0);
-        painter.galley(pos, galley, p.text);
+        let number = Rect::from_min_size(pos, galley.size());
+
+        // The caret in the number being typed (CalcCraft's own,
+        // docs/research/editable-expression.md): a tap or click places it.
+        let (mantissa, exponent) = calc.entry_characters();
+        let decimal = match calc.radix() {
+            Some(radix) if radix != Radix::Decimal => ".",
+            _ => numbers().decimal.as_str(),
+        };
+        let stops = caret::Stops::new(&display, decimal, &mantissa, exponent.as_deref());
+        if let Some(caret) = caret {
+            let cursor = egui::text::CCursor::new(stops.index(caret));
+            let at = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
+            let x = at.left().round();
+            painter.vline(
+                x,
+                at.top() + at.height() * 0.12..=at.bottom() - at.height() * 0.08,
+                Stroke::new(2.0, p.text),
+            );
+        }
+        let tap_area =
+            Rect::from_x_y_ranges(rect.left()..=right + 12.0, number.expand(8.0).y_range());
+        let tap = ui.interact(tap_area, Id::new("display-caret"), Sense::CLICK);
+        painter.galley(pos, galley.clone(), p.text);
+        if tap.clicked()
+            && !access::is_covered(ui)
+            && let Some(pointer) = tap.interact_pointer_pos()
+        {
+            let index = galley.cursor_from_pos(pointer - pos).index.0;
+            if self.engine_mut().show_entry_caret(stops.nearest(index)) {
+                // The keys edit the number now, not the focused button.
+                if let Some(id) = access::focused(ui.ctx()) {
+                    ui.memory_mut(|memory| memory.surrender_focus(id));
+                }
+            }
+        }
+    }
+
+    /// The caret's keys (CalcCraft's own): Left, Right, Home, End, Ctrl+Left and Ctrl+Right
+    /// move it, Delete removes the character after it, and Esc hides it. Left while a number
+    /// is typed and no control has the keyboard focus shows it. Returns whether the key was
+    /// for the caret.
+    fn caret_key(&mut self, ctx: &Context, key: Key, modifiers: Modifiers) -> bool {
+        let calc = self.engine();
+        let shown = calc.entry_caret().is_some();
+        let start = !shown
+            && key == Key::ArrowLeft
+            && modifiers.is_none()
+            && access::focused(ctx).is_none()
+            && calc.can_show_entry_caret();
+        if !shown && !start {
+            return false;
+        }
+        let word = modifiers.command;
+        let calc = self.engine_mut();
+        match key {
+            Key::ArrowLeft if start => {
+                calc.move_entry_caret(CaretMove::End);
+                calc.move_entry_caret(CaretMove::Left);
+            }
+            Key::ArrowLeft if word => calc.move_entry_caret(CaretMove::Start),
+            Key::ArrowLeft => calc.move_entry_caret(CaretMove::Left),
+            Key::ArrowRight if word => calc.move_entry_caret(CaretMove::End),
+            Key::ArrowRight => calc.move_entry_caret(CaretMove::Right),
+            Key::Home => calc.move_entry_caret(CaretMove::Start),
+            Key::End => calc.move_entry_caret(CaretMove::End),
+            Key::Delete => calc.delete_after_caret(),
+            Key::Escape => {
+                calc.hide_entry_caret();
+            }
+            _ => return false,
+        }
+        // egui would move the focus with the arrows too.
+        ctx.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
+        true
     }
 
     // ------------------------------------------------------------ memory row
