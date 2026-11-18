@@ -30,6 +30,11 @@ pub(super) fn set_covered(ctx: &Context, covered: bool) {
     ctx.data_mut(|data| data.insert_temp(covered_id(), covered));
 }
 
+/// Whether the controls drawn now are covered by a popup or a flyout (`set_covered`).
+pub(super) fn is_covered(ui: &Ui) -> bool {
+    covered(ui)
+}
+
 fn covered(ui: &Ui) -> bool {
     ui.ctx()
         .data(|data| data.get_temp(covered_id()))

@@ -507,6 +507,9 @@ mod tests {
             "CalcCraft.KeyVibrationMilliseconds",
             "CalcCraft.KeyVibrationFixedStrength",
             "CalcCraft.Keyboard",
+            "CalcCraft.Edit",
+            "CalcCraft.EditingNumber",
+            "CalcCraft.SelectedOperator",
         ];
         for language in languages() {
             let table = parse(own(language));
@@ -529,6 +532,11 @@ mod tests {
             // And the Pulse duration's milliseconds.
             let ms = load(language).get("CalcCraft.KeyVibrationMilliseconds");
             assert_eq!(ms.matches("%1").count(), 1, "{language}");
+            // And the edited number and the selected operator of the expression line.
+            for key in ["CalcCraft.EditingNumber", "CalcCraft.SelectedOperator"] {
+                let text = load(language).get(key);
+                assert_eq!(text.matches("%1").count(), 1, "{language} {key}");
+            }
         }
         assert_eq!(
             format_message(

@@ -16,10 +16,12 @@
 //! engine with precedence, a radix and a word size (see `integer.rs`). The Scientific
 //! mode's functions are in `math.rs`.
 
+mod caret;
 mod integer;
 mod math;
 #[cfg(test)]
 mod ms_oracle;
+mod tape;
 
 use std::cmp::Ordering;
 
@@ -27,9 +29,12 @@ use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{Signed, ToPrimitive, Zero};
 
+pub use caret::{Caret, CaretMove};
 use integer::IntegerMode;
 pub use integer::{Radix, WordSize};
 pub use math::Angle;
+use tape::{Edit, Tape};
+pub use tape::{ExpressionPart, PartKind};
 
 pub type Number = BigRational;
 
@@ -437,6 +442,8 @@ pub struct HistoryEntry {
     /// The result as the display showed it (Windows keeps this string): with the mode's
     /// digits and notation, and thousands separators.
     pub text: String,
+    /// The keys of the calculation, to edit it again (CalcCraft's own, `tape.rs`).
+    tape: Option<Box<Tape>>,
 }
 
 /// The kind of the previous command (`m_nLastCom`); many decisions depend on it.
@@ -511,6 +518,9 @@ struct Input {
     digits: String,
     /// The exponent, once `exp` was pressed (`m_hasExponent`).
     exponent: Option<Exponent>,
+    /// The caret, once the display was tapped (CalcCraft's own, `caret.rs`); keys edit
+    /// there. Hidden, they add at the end, as in Windows.
+    caret: Option<Caret>,
 }
 
 impl Input {
@@ -704,13 +714,23 @@ struct Pending {
 struct Token {
     text: String,
     value: Option<Number>,
+    /// The tape item (`tape.rs`) whose command added the token.
+    created: usize,
+    /// For an operand that is a typed number, the tape item that typed it: the number that
+    /// can be edited in the expression line.
+    source: Option<usize>,
+    /// A binary operator's symbol, which can be replaced in the expression line.
+    operator: bool,
 }
 
 impl Token {
-    fn new(text: impl Into<String>) -> Self {
+    fn new(text: impl Into<String>, created: usize) -> Self {
         Self {
             text: text.into(),
             value: None,
+            created,
+            source: None,
+            operator: false,
         }
     }
 }
@@ -729,11 +749,21 @@ struct HistoryLine {
     operand_starts: Vec<Option<usize>>,
     /// The last operand is a parenthesized group (`m_bLastOpndBrace`).
     last_operand_brace: bool,
+    /// The tape item being done, which the new tokens remember (CalcCraft's own).
+    item: usize,
 }
 
 impl HistoryLine {
+    /// A new line, whose tokens come from the tape item `item` on.
+    fn starting_at(item: usize) -> Self {
+        Self {
+            item,
+            ..Self::default()
+        }
+    }
+
     fn push(&mut self, token: impl Into<String>) -> usize {
-        self.tokens.push(Token::new(token));
+        self.tokens.push(Token::new(token, self.item));
         self.tokens.len() - 1
     }
 
@@ -741,10 +771,13 @@ impl HistoryLine {
         self.last_operand_start.is_some()
     }
 
-    fn add_operand(&mut self, text: String, value: Number) {
+    fn add_operand(&mut self, text: String, value: Number, source: Option<usize>) {
         self.tokens.push(Token {
             text,
             value: Some(value),
+            created: self.item,
+            source,
+            operator: false,
         });
         self.last_operand_start = Some(self.tokens.len() - 1);
         self.last_operand_brace = false;
@@ -768,7 +801,8 @@ impl HistoryLine {
 
     fn add_bin_op(&mut self, symbol: &str) {
         self.last_bin_op_start = Some(self.push(" "));
-        self.push(symbol);
+        let at = self.push(symbol);
+        self.tokens[at].operator = true;
         self.push(" ");
         self.last_operand_start = None;
     }
@@ -813,7 +847,7 @@ impl HistoryLine {
     fn enclose_in_brackets(&mut self) {
         let start = self.operand_starts.last().copied().flatten().unwrap_or(0);
         self.tokens
-            .insert(start.min(self.tokens.len()), Token::new("("));
+            .insert(start.min(self.tokens.len()), Token::new("(", self.item));
         self.push(")");
     }
 
@@ -826,7 +860,7 @@ impl HistoryLine {
         };
         let at = self.last_operand_start.unwrap_or(self.tokens.len());
         self.tokens
-            .insert(at.min(self.tokens.len()), Token::new(text));
+            .insert(at.min(self.tokens.len()), Token::new(text, self.item));
         if !self.last_operand_brace {
             self.push(")");
         }
@@ -835,12 +869,41 @@ impl HistoryLine {
     }
 
     fn render(&self) -> String {
-        let text: String = self
-            .tokens
-            .iter()
-            .map(|token| if token.text == "=" { " =" } else { &token.text })
-            .collect();
-        text.trim_end().to_string()
+        self.render_parts().0
+    }
+
+    /// The line, and where its numbers and binary operators are in it, with the tape items
+    /// they come from.
+    fn render_parts(&self) -> (String, Vec<ExpressionPart>) {
+        let mut text = String::new();
+        let mut parts = Vec::new();
+        for (i, token) in self.tokens.iter().enumerate() {
+            let start = text.len();
+            text.push_str(if token.text == "=" { " =" } else { &token.text });
+            let range = start..text.len();
+            let part = if let Some(item) = token.source {
+                Some((item, PartKind::Number))
+            } else if token.value.is_some() {
+                // The steps that computed it come after the steps that made the tokens before
+                // it (but for the step that adds it and the steps after that one).
+                let floor = self.tokens[..i]
+                    .iter()
+                    .map(|before| before.created)
+                    .filter(|&created| created < token.created)
+                    .max()
+                    .map_or(0, |created| created + 1);
+                Some((token.created, PartKind::Computed { floor }))
+            } else if token.operator {
+                Some((token.created, PartKind::Operator))
+            } else {
+                None
+            };
+            if let Some((item, kind)) = part {
+                parts.push(ExpressionPart { range, item, kind });
+            }
+        }
+        text.truncate(text.trim_end().len());
+        (text, parts)
     }
 }
 
@@ -880,8 +943,22 @@ pub struct Calculator {
     line: HistoryLine,
     /// The expression line as last shown; Windows refreshes it only at certain steps.
     shown: String,
+    /// Where the typed numbers are in `shown` (CalcCraft's own, for editing them).
+    shown_parts: Vec<ExpressionPart>,
     memory: Vec<Number>,
     history: Vec<HistoryEntry>,
+    /// What was done since the last `C`, to replay it with a number edited (`tape.rs`).
+    tape: Tape,
+    /// A replay is running: it adds no history and doesn't touch the memory.
+    replaying: bool,
+    /// `current` is the typed number of this tape item, until it changes.
+    current_source: Option<usize>,
+    /// The tape item of the number being typed.
+    typing_item: Option<usize>,
+    /// The value the next `rand` gives: a replay gives the recorded one again.
+    next_random: Option<Number>,
+    /// A number of the expression line being edited, or a copy of the display's.
+    edit: Option<Box<Edit>>,
 }
 
 impl Default for Calculator {
@@ -908,8 +985,15 @@ impl Default for Calculator {
             error: None,
             line: HistoryLine::default(),
             shown: String::new(),
+            shown_parts: Vec::new(),
             memory: Vec::new(),
             history: Vec::new(),
+            tape: Tape::default(),
+            replaying: false,
+            current_source: None,
+            typing_item: None,
+            next_random: None,
+            edit: None,
         }
     }
 }
@@ -918,11 +1002,13 @@ impl Calculator {
     /// The Scientific mode's engine: operator precedence, parentheses, 32 digits and the
     /// scientific functions (`SetScientificMode`).
     pub fn with_precedence() -> Self {
-        Self {
+        let mut calc = Self {
             precedence: true,
             digits: SCIENTIFIC_DIGITS,
             ..Self::default()
-        }
+        };
+        calc.restart_tape();
+        calc
     }
 
     /// Whether this is the Scientific mode's engine.
@@ -943,11 +1029,13 @@ impl Calculator {
     /// The Programmer mode's engine: precedence, parentheses and integer mode, starting
     /// in decimal with 64-bit words, and no history (Windows' `SetProgrammerMode`).
     pub fn programmer() -> Self {
-        Self {
+        let mut calc = Self {
             precedence: true,
             integer: Some(IntegerMode::default()),
             ..Self::default()
-        }
+        };
+        calc.restart_tape();
+        calc
     }
 
     // --------------------------------------------------------------- queries
@@ -956,6 +1044,13 @@ impl Calculator {
     /// it is in the current radix, in digit groups, and a binary number starts with a
     /// whole group of 4 digits.
     pub fn display(&self) -> String {
+        // While a number of the expression line is edited: what `=` would give.
+        if let Some(preview) = self.edit_preview() {
+            return match preview {
+                Ok(text) => text.clone(),
+                Err(error) => error.message().to_string(),
+            };
+        }
         if let Some(error) = self.error {
             return error.message().to_string();
         }
@@ -1040,17 +1135,21 @@ impl Calculator {
     }
 
     /// The expression line above the display, e.g. `5 + sqr(3)`.
+    #[cfg_attr(not(test), allow(dead_code))] // The UI draws `expression_parts`.
     pub fn expression(&self) -> String {
-        self.shown.clone()
+        self.expression_parts().0
     }
 
     pub fn has_error(&self) -> bool {
-        self.error.is_some()
+        self.error().is_some()
     }
 
     /// The error the display shows, if any.
     pub fn error(&self) -> Option<CalcError> {
-        self.error
+        match self.edit_preview() {
+            Some(preview) => preview.as_ref().err().copied(),
+            None => self.error,
+        }
     }
 
     /// How many parentheses are open (the `(` counter of the Scientific mode).
@@ -1131,6 +1230,9 @@ impl Calculator {
                 self.error.is_none() && !self.memory.is_empty()
             }
             Command::OpenParen | Command::CloseParen => self.precedence && self.error.is_none(),
+            // A selected operator of the expression line can be changed back from one that
+            // gave an error (`tape.rs`).
+            Command::Operator(_) if self.selected_operator().is_some() => true,
             _ => self.error.is_none(),
         }
     }
@@ -1138,7 +1240,7 @@ impl Calculator {
     /// Text to copy to the clipboard (without thousands separators, and in the
     /// Programmer mode without the spaces between digit groups).
     pub fn copy_text(&self) -> Option<String> {
-        if self.error.is_some() {
+        if self.error().is_some() {
             None
         } else {
             Some(self.display().replace([',', ' '], ""))
@@ -1148,9 +1250,20 @@ impl Calculator {
     // -------------------------------------------------------------- commands
 
     pub fn execute(&mut self, command: Command) {
+        // An edited number takes the keys that type (`tape.rs`); the others end the edit.
+        if self.edit.is_some() && self.edit_key(command) {
+            return;
+        }
         if !self.is_enabled(command) {
             return;
         }
+        self.record_command(command);
+        self.execute_recorded(command);
+        self.after_command(command);
+    }
+
+    /// `execute` once the command is on the tape.
+    fn execute_recorded(&mut self, command: Command) {
         if self.error.is_some() {
             // Windows' view model clears the error first; only digits and the
             // decimal point (and in the Programmer mode a bit or a new radix) then
@@ -1181,7 +1294,9 @@ impl Calculator {
             Command::MemoryRecall => self.memory_recall_item(0),
             Command::MemoryClear => {
                 self.process(command);
-                self.memory.clear();
+                if !self.replaying {
+                    self.memory.clear();
+                }
             }
             _ => self.process(command),
         }
@@ -1204,7 +1319,8 @@ impl Calculator {
             Command::ClearEntry => self.clear_entry(),
             Command::Backspace => {
                 if self.record {
-                    self.input.backspace();
+                    let max = self.digits as usize;
+                    self.input.backspace_at_caret(self.integer.as_ref(), max);
                 }
             }
             Command::OpenParen => self.open_paren(),
@@ -1214,12 +1330,19 @@ impl Calculator {
             Command::WordSize(word) => self.set_word_size(word),
             Command::Pi => self.constant(math::pi()),
             Command::Euler => self.constant(math::euler()),
-            Command::Random => self.constant(math::random()),
+            Command::Random => {
+                let value = self.next_random.take().unwrap_or_else(math::random);
+                self.constant(value)
+            }
             // `exp` works only while a number is typed; otherwise it's ignored (a setting,
             // so there is no command to forget).
             Command::Exponent => {
                 if self.record && self.integer.is_none() {
+                    let shown = self.input.caret.is_some();
                     self.input.try_begin_exponent();
+                    if shown {
+                        self.input.caret = Some(self.input.end_caret());
+                    }
                 }
             }
             Command::ToggleNotation => self.notation = !self.notation,
@@ -1241,7 +1364,7 @@ impl Calculator {
         }
         // Any action hides the expression shown after `=`.
         if !self.no_prev_equ {
-            self.shown.clear();
+            self.hide_expression();
         }
         let ends_typing = matches!(
             command,
@@ -1271,6 +1394,7 @@ impl Calculator {
             if ends_typing {
                 self.record = false;
                 self.current = self.input.value(self.integer.as_ref());
+                self.current_source = self.typing_item.take();
                 self.display_num();
                 // A typed exponent can make the number too large for the display, which
                 // Windows' `DisplayNum` reports as an overflow.
@@ -1307,7 +1431,7 @@ impl Calculator {
 
     fn digit(&mut self, digit: u8) {
         let max = self.digits as usize;
-        if !self.input.try_add_digit(digit, self.integer.as_ref(), max) {
+        if !self.input.insert_digit(digit, self.integer.as_ref(), max) {
             return self.forget_command();
         }
         if self.last_key == Key::CloseParen {
@@ -1319,7 +1443,8 @@ impl Calculator {
         if self.last_key == Key::CloseParen {
             self.implicit_multiplication();
         }
-        if !(self.record && self.input.try_add_point()) {
+        let max = self.digits as usize;
+        if !(self.record && self.input.insert_point(self.integer.as_ref(), max)) {
             self.forget_command();
         }
     }
@@ -1381,6 +1506,7 @@ impl Calculator {
                     break;
                 }
                 self.current = self.operate(self.op);
+                self.current_source = None;
                 self.prev_op = self.op;
                 if self.error.is_none() {
                     self.display_num();
@@ -1415,6 +1541,7 @@ impl Calculator {
         // `5 + √` works on the 5 (so `5 + 1/x` isn't a division by zero).
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         if !self.line.operand_added() {
             self.add_operand();
@@ -1424,10 +1551,11 @@ impl Calculator {
         if func == Func::Degrees && !self.no_prev_equ {
             // `→deg` is Windows' old inverse of `dms`: `SciCalcFunctions` sends `IDC_INV`
             // through the engine, which hides the expression shown after `=` again.
-            self.shown.clear();
+            self.hide_expression();
         }
         if matches!(func, Func::Trig(_)) && math::too_big_for_trig(&self.current) {
             self.current = Number::zero();
+            self.current_source = None;
             return self.display_error(CalcError::InvalidInput);
         }
         let result = match (&mut self.integer, func) {
@@ -1441,6 +1569,7 @@ impl Calculator {
         match result {
             Ok(result) => {
                 self.current = result;
+                self.current_source = None;
                 self.display_num();
             }
             Err(error) => self.display_error(error),
@@ -1457,11 +1586,13 @@ impl Calculator {
         }
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         if !self.line.operand_added() {
             self.add_operand();
         }
         self.current = -self.current.clone();
+        self.current_source = None;
         self.display_num();
         self.line.add_unary_op(&Func::Negate.name(self.angle));
         self.refresh();
@@ -1473,6 +1604,7 @@ impl Calculator {
     fn constant(&mut self, value: Number) {
         self.check_and_add_last_bin_op_to_history(true);
         self.current = value;
+        self.current_source = None;
         self.display_num();
     }
 
@@ -1482,6 +1614,7 @@ impl Calculator {
     fn percent(&mut self) {
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         let hundred = Number::from_integer(100.into());
         let result = if matches!(self.op, Some(Op::Multiply | Op::Divide)) {
@@ -1490,7 +1623,10 @@ impl Calculator {
             &self.current * (&self.last / hundred)
         };
         match normalize(result) {
-            Ok(result) => self.current = result,
+            Ok(result) => {
+                self.current = result;
+                self.current_source = None;
+            }
             Err(error) => return self.display_error(error),
         }
         self.check_and_add_last_bin_op_to_history(true);
@@ -1515,6 +1651,7 @@ impl Calculator {
         // `5 + =` repeats the left operand: 5 + 5.
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         if !self.line.operand_added() {
             self.add_operand();
@@ -1555,11 +1692,13 @@ impl Calculator {
             self.hold = self.current.clone();
         } else {
             self.current = self.hold.clone();
+            self.current_source = None;
             self.display_num();
             self.line.add_bin_op(op.symbol(self.integer.is_some()));
             self.add_operand();
         }
         self.current = self.operate(Some(op));
+        self.current_source = None;
         self.prev_op = Some(op);
         self.last = self.current.clone();
         if self.error.is_none() {
@@ -1600,6 +1739,7 @@ impl Calculator {
         // `1 + (` starts the group at 0, but `1 + 3 (` starts it at 3.
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = Number::zero();
+            self.current_source = None;
         }
         self.this_key = Key::None;
         self.op = None;
@@ -1615,11 +1755,13 @@ impl Calculator {
         }
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         if !self.line.operand_added() {
             self.add_operand();
         }
         self.current = self.operate(self.op);
+        self.current_source = None;
         self.prev_op = self.op;
         // Resolve everything pending inside the parentheses.
         while let Some(Pending {
@@ -1634,6 +1776,7 @@ impl Calculator {
             self.op = Some(op);
             self.last = value;
             self.current = self.operate(Some(op));
+            self.current_source = None;
             self.prev_op = Some(op);
         }
         self.line.add_close_brace();
@@ -1664,8 +1807,8 @@ impl Calculator {
         self.op = None;
         self.prev_op = None;
         self.no_prev_equ = true;
-        self.shown.clear();
-        self.line = HistoryLine::default();
+        self.hide_expression();
+        self.line = HistoryLine::starting_at(self.line.item);
         self.clear_entry();
     }
 
@@ -1712,13 +1855,20 @@ impl Calculator {
     // -------------------------------------------------------- expression line
 
     fn refresh(&mut self) {
-        self.shown = self.line.render();
+        (self.shown, self.shown_parts) = self.line.render_parts();
     }
 
-    /// Adds the current value to the expression line.
+    /// Hides the expression line.
+    fn hide_expression(&mut self) {
+        self.shown.clear();
+        self.shown_parts.clear();
+    }
+
+    /// Adds the current value to the expression line, with the tape item that typed it.
     fn add_operand(&mut self) {
         let text = self.number_text();
-        self.line.add_operand(text, self.current.clone());
+        let source = self.current_source.take();
+        self.line.add_operand(text, self.current.clone(), source);
     }
 
     fn add_bin_op(&mut self, op: Op, refresh: bool) {
@@ -1738,7 +1888,8 @@ impl Calculator {
     /// Logs the expression so far with the current result and starts a new one. The
     /// Programmer mode has no history.
     fn complete_history_line(&mut self) {
-        if self.integer.is_none() {
+        // A replay adds no history (`tape.rs`).
+        if self.integer.is_none() && !self.replaying {
             let expression = self.line.render();
             self.history.insert(
                 0,
@@ -1746,11 +1897,12 @@ impl Calculator {
                     expression,
                     result: self.current.clone(),
                     text: self.format_value(&self.current),
+                    tape: self.entry_tape(),
                 },
             );
             self.history.truncate(HISTORY_LIMIT);
         }
-        self.line = HistoryLine::default();
+        self.line = HistoryLine::starting_at(self.line.item);
     }
 
     /// Makes the expression line end with a binary operator again when a new
@@ -1789,6 +1941,10 @@ impl Calculator {
 
     fn memory_store(&mut self) {
         self.process(Command::MemoryStore);
+        // A replay doesn't store again: the memory has the values that were stored.
+        if self.replaying {
+            return;
+        }
         let value = self.for_memory(self.current.clone());
         self.memory.insert(0, value);
         self.memory.truncate(MEMORY_LIMIT);
@@ -1796,31 +1952,33 @@ impl Calculator {
 
     /// Puts memory slot `index` on the display (MR, or a click in the memory list).
     pub fn memory_recall_item(&mut self, index: usize) {
+        self.commit_edit();
         let Some(value) = self.memory.get(index).cloned() else {
             return;
         };
         if self.error.is_some() {
             return;
         }
+        self.record_item(tape::Item::Recall(value.clone()));
+        self.recall_value(value);
+    }
+
+    /// Puts a value from the memory on the display; a replay gives the value MR gave.
+    fn recall_value(&mut self, value: Number) {
         self.begin(Command::MemoryRecall);
         // A finished function is logged with the number it showed: Windows' `IDC_RECALL`
         // logs `m_numberString`, which the recalled value replaces only in `DisplayNum`.
         self.check_and_add_last_bin_op_to_history(true);
         self.current = value;
+        self.current_source = None;
         self.display_num();
     }
 
     /// M+ (or M− when `subtract`) for memory slot `index`. With an empty memory,
     /// M+ stores the display and M− stores its negative.
     pub fn memory_add(&mut self, index: usize, subtract: bool) {
+        self.commit_edit();
         if self.error.is_some() {
-            return;
-        }
-        if self.memory.is_empty() {
-            self.memory_store();
-            if subtract {
-                self.memory[0] = self.for_memory(-&self.memory[0]);
-            }
             return;
         }
         let command = if subtract {
@@ -1828,6 +1986,14 @@ impl Calculator {
         } else {
             Command::MemoryAdd
         };
+        self.record_item(tape::Item::Memory(command));
+        if self.memory.is_empty() {
+            self.memory_store();
+            if subtract {
+                self.memory[0] = self.for_memory(-&self.memory[0]);
+            }
+            return;
+        }
         self.process(command);
         if let Some(cell) = self.memory.get(index) {
             let sum = if subtract {
@@ -1856,11 +2022,13 @@ impl Calculator {
     /// F-E is off: the view model turns it off when the Scientific mode is left. Memory,
     /// history, the word size and the angle unit stay.
     pub fn reset(&mut self) {
+        self.commit_edit();
         self.process(Command::Clear);
         self.notation = false;
         if self.integer.is_some() {
             self.process(Command::Radix(Radix::Decimal));
         }
+        self.restart_tape();
     }
 
     // ------------------------------------------------------------ programmer
@@ -1870,6 +2038,7 @@ impl Calculator {
     fn toggle_bit(&mut self, bit: u8) {
         if matches!(self.last_key, Key::Operator(_)) {
             self.current = self.last.clone();
+            self.current_source = None;
         }
         self.check_and_add_last_bin_op_to_history(true);
         let Some(mode) = &self.integer else {
@@ -1877,6 +2046,7 @@ impl Calculator {
         };
         if let Some(value) = mode.toggle_bit(&self.current, bit.into()) {
             self.current = value;
+            self.current_source = None;
             self.display_num();
         }
     }
@@ -1905,6 +2075,7 @@ impl Calculator {
             return;
         };
         self.current = mode.signed(&self.current);
+        self.current_source = None;
         mode.word = word;
         self.display_num();
     }
@@ -1915,16 +2086,41 @@ impl Calculator {
         }
     }
 
-    /// Shows a history entry's result and expression, as after `=`.
+    /// Shows a history entry's result and expression, as after `=`. An entry with a tape
+    /// comes back with its typed numbers editable, as if just worked out (`tape.rs`).
     pub fn recall_history(&mut self, index: usize) {
+        self.commit_edit();
         let Some(entry) = self.history.get(index).cloned() else {
             return;
         };
+        match entry.tape {
+            Some(tape) => self.recall_tape(&tape),
+            None => self.recall_entry(entry.result, entry.expression),
+        }
+    }
+
+    /// `recall_history`'s steps, which a replay repeats with the recalled entry's values.
+    fn recall_entry(&mut self, result: Number, expression: String) {
+        if !self.replaying {
+            self.restart_tape();
+        }
+        self.record_item(tape::Item::HistoryRecall(
+            result.clone(),
+            expression.clone(),
+        ));
+        let entry = HistoryEntry {
+            expression,
+            result,
+            text: String::new(),
+            tape: None,
+        };
         self.process(Command::Clear);
         self.current = entry.result.clone();
+        self.current_source = None;
         self.last = entry.result;
         self.record = false;
         self.shown = entry.expression;
+        self.shown_parts.clear();
         // The next key clears the expression line, as after `=`.
         self.no_prev_equ = false;
         self.this_key = Key::Equals;
@@ -1945,22 +2141,26 @@ impl Calculator {
     /// calculates 17. Invalid text shows `Invalid input`. Returns whether the
     /// text was accepted.
     pub fn paste(&mut self, text: &str) -> bool {
+        self.commit_edit();
         let valid = match &self.integer {
             Some(mode) => programmer_paste_is_valid(text, mode),
             None => paste_is_valid(text, self.precedence),
         };
         if !valid {
+            self.record_item(tape::Item::PasteError);
             self.display_error(CalcError::InvalidInput);
             return false;
         }
         // `OnPaste` sends CE straight to the engine, so F-E stays on (only the view
         // model's C and CE buttons turn it off), and in the error state the engine takes
         // CE as C.
-        self.process(if self.error.is_some() {
+        let clear = if self.error.is_some() {
             Command::Clear
         } else {
             Command::ClearEntry
-        });
+        };
+        self.record_item(tape::Item::Raw(clear));
+        self.process(clear);
 
         // A `-` at the start or after an operator is a sign. Windows presses ±
         // after the first digit that isn't 0, and remembers a sign before `(`

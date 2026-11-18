@@ -370,6 +370,84 @@ fn write_layout_shots() {
                 }
             }),
         ));
+        pages.push((
+            "Caret".into(),
+            Box::new(|app| {
+                app.set_mode(Mode::Scientific);
+                for digit in [1, 2, 3, 4, 5, 6, 7] {
+                    app.engine_mut().execute(Command::Digit(digit));
+                }
+                app.engine_mut().show_entry_caret(crate::engine::Caret {
+                    exponent: false,
+                    index: 2,
+                });
+            }),
+        ));
+        pages.push((
+            "LineEdit".into(),
+            Box::new(|app| {
+                use crate::engine::Op;
+                app.set_mode(Mode::Scientific);
+                let number = |app: &mut CalculatorApp, n: &str| {
+                    for c in n.chars() {
+                        let digit = c.to_digit(10).unwrap() as u8;
+                        app.engine_mut().execute(Command::Digit(digit));
+                    }
+                };
+                let key = |app: &mut CalculatorApp, command| app.engine_mut().execute(command);
+                number(app, "2");
+                for (a, op, b) in [
+                    ("5", Op::Multiply, "7"),
+                    ("100", Op::Subtract, "92"),
+                    ("6", Op::Multiply, "54"),
+                ] {
+                    key(app, Command::Operator(Op::Add));
+                    key(app, Command::OpenParen);
+                    number(app, a);
+                    key(app, Command::Operator(op));
+                    number(app, b);
+                    key(app, Command::CloseParen);
+                }
+                let numbers: Vec<_> = app
+                    .engine()
+                    .expression_parts()
+                    .1
+                    .into_iter()
+                    .filter(|part| part.kind == crate::engine::PartKind::Number)
+                    .collect();
+                let item = numbers[4].item;
+                app.engine_mut().edit_operand(item, None);
+                key(app, Command::Backspace);
+                key(app, Command::Backspace);
+                number(app, "85");
+            }),
+        ));
+        pages.push((
+            "OperatorEdit".into(),
+            Box::new(|app| {
+                use crate::engine::{Op, PartKind};
+                // Konst's chain: 10 + 2 = 12 + 4 = 16 ÷ 4 =, then ÷ selected and made +.
+                for command in [
+                    Command::Digit(1),
+                    Command::Digit(0),
+                    Command::Operator(Op::Add),
+                    Command::Digit(2),
+                    Command::Equals,
+                    Command::Operator(Op::Add),
+                    Command::Digit(4),
+                    Command::Equals,
+                    Command::Operator(Op::Divide),
+                    Command::Digit(4),
+                    Command::Equals,
+                ] {
+                    app.engine_mut().execute(command);
+                }
+                let parts = app.engine().expression_parts().1;
+                let operator = parts.iter().find(|part| part.kind == PartKind::Operator);
+                app.engine_mut().edit_part(&operator.unwrap().clone(), None);
+                app.engine_mut().execute(Command::Operator(Op::Add));
+            }),
+        ));
         for (name, setup) in pages {
             let name = format!("{}-{name}", screen.name);
             if !name.contains(&filter) {

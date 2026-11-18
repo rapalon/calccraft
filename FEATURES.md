@@ -46,10 +46,10 @@ own `NOT_STARTED` entry.
 | **Phase 5: Date Calculation** | 4 | 4 | 0 | 0 | 0 |
 | **Phase 6: Unit Conversion (13 categories)** | 14 | 13 | 0 | 0 | 1 |
 | **Phase 7: Graphing Calculator** | 6 | 6 | 0 | 0 | 0 |
-| **Phase 8: Application Shell, UX & Accessibility** | 12 | 11 | 0 | 1 | 0 |
-| **TOTAL** | **68** | **66** | **0** | **1** | **1** |
+| **Phase 8: Application Shell, UX & Accessibility** | 13 | 12 | 0 | 1 | 0 |
+| **TOTAL** | **69** | **67** | **0** | **1** | **1** |
 
-*Last updated: 2026-10-16 (CalcCraft 1.0.0)*
+*Last updated: 2026-11-18 (CalcCraft 1.4.2, editable entry and expression)*
 
 ---
 
@@ -1419,6 +1419,51 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     "Supported by you". Both share the bare `SHARE_URL`.
 - **Differences:** Windows Calculator has no support prompt.
 
+#### `FEAT-SHELL-013` Editable Entry and Expression (caret, tape, history Edit)
+- **Status:** `[x] COMPLETED`
+- **Priority:** `P2`
+- **Depends On:** `FEAT-CORE-007`, `FEAT-STD-003`
+- **Windows ref:** N/A (CalcCraft's own; Windows' issues #520, #163 and #2234 ask for it)
+- **Rust:** `src/engine/caret.rs` (A), `src/engine/tape.rs` (B, C), `src/app/caret.rs`,
+  `src/app.rs` (`draw_display_sized`, `draw_expression_line`, `caret_key`, the history menu);
+  spec and decisions in `docs/research/editable-expression.md`
+- **Description:** Always on, and nothing changes until the display or the expression line is
+  touched. (A) A tap or click on the number being typed places a caret: digits, the point, ⌫ and
+  Delete work there with the typing limits (16 or 32 digits, 4 exponent digits, the Programmer
+  word and radix), skipping group separators, the Programmer spaces and BIN's padding. (B) The
+  engine records a tape of the keys since the last `C`; a tap on a typed number of the expression
+  line edits it, the tape is replayed with the new number and the display shows what `=` gives,
+  live (`2 + (5 × 7) + (100 - 92) + (6 × 54)`, 92 → 85: 369 → 376). A tap on a computed value
+  (after `)`, a function, MR, π) edits a typed copy in place of that operand. A computed number
+  of the line (a result carried over after `=`, Standard's `5` in `2 + 3 +`, `%`'s value, MR)
+  is edited the same way: it is typed as a literal in place of the steps that computed it
+  (`12 + 4 =` after `10 + 2 =`: 12 → 15 gives `15 + 4 = 19`). A tap on a binary operator of the
+  line selects it, and the next operator key (keypad or keyboard) replaces it on the tape, with
+  each mode's precedence (`16 ÷ 4 =`, ÷ → +: `16 + 4 = 20`). (C) Edit in the history's context
+  menu, and a plain recall, open an entry's calculation the same way; editing one entry never
+  recomputes the later ones.
+- **Acceptance Criteria:**
+  - Left/Right, Home/End, Ctrl+Left/Right (start, end, then the next number or operator), Delete
+    and Esc work on the caret; on a selected operator Left/Right go on to the next part; the
+    arrows keep moving the focus while no caret is shown.
+  - Replaying an edited tape gives exactly what typing the edited keys fresh gives, in Standard,
+    Scientific and Programmer (property tests `replaying_an_edit_is_typing_it_fresh`,
+    `editing_operators_and_computed_numbers_is_typing_them_fresh` and
+    `caret_edits_replay_the_same`; Konst's chain in `konsts_chain`); the Microsoft golden vectors
+    pass unchanged.
+  - A computed number is offered only where the literal leaves the line, the display, the
+    settings and the next two `=`s as they were (a 32-digit 1/3 that later steps go on with
+    isn't); a tap alone changes nothing.
+  - Replays add no history and don't touch the memory; MR and `rand` replay their values.
+  - Committing an edit of a finished calculation (`=`, another key, or a tap elsewhere on the
+    line) adds a new history entry and keeps the old one; Esc cancels.
+  - Android uses the app's keypad, never the system keyboard; the screen reader hears
+    "Editing %1" and "Selected operator %1"; the new strings exist in all 50 languages.
+- **Differences:** Windows Calculator has no caret, no editable expression and no Edit in the
+  history. A number typed in the Programmer mode can be edited only in its radix; unary
+  functions (sin, √, x², …), parentheses and `=` can't be replaced, nor the operator of a
+  repeated `=` (`8 + 3 =` after `5 + 3 = =`); no selection.
+
 ---
 
 ## 5. Agent Quick-Check Commands
@@ -1462,3 +1507,5 @@ Windows source in `../win-calculator`.
 | 2026-11-17 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android: a Key vibration card after Language (Off, 1–100 %, 50 by default, `CalcCraftKeyVibration`) that taps through the Vibrator API (`PRIMITIVE_CLICK` scale, amplitude or duration, `app/vibration.rs`) instead of the phone maker's `KEYBOARD_TAP`, with the `VIBRATE` permission; the Regional format card is hidden where its list is empty (Android, Linux, macOS), which use en-US formats for now |
 | 2026-11-17 | Claude Code | `FEAT-SHELL-008` | Android Key vibration card: a Style drop-down (Auto, Click, Pulse, Heavy click) and a Duration slider (5–12 ms, explicit Pulse only) under the strength, with Auto picking Click on a calibrated actuator (resonant frequency, own click primitive) and Pulse otherwise, from the vibration lab's results by feel (`docs/vibration-lab-results.md`) |
 | 2026-11-18 | Claude Code | `FEAT-SHELL-002`, `FEAT-SHELL-008` | Android 1.4.1: a Screen orientation card (Auto = `USER`, Portrait = `SENSOR_PORTRAIT`, Landscape = `SENSOR_LANDSCAPE`, `CalcCraftScreenOrientation`, left out on Android 16's large screens) and no fixed orientation in the manifest; a landscape layout for phones on their side (`Landscape`: keys in their own column for Standard, Scientific, Programmer and the Graphing keypad), a wider Graphing equation panel at 800 px, and `layout_tests` with a software rasterizer for the Android screen sizes |
+| 2026-11-18 | Claude Code | `FEAT-SHELL-013` | Editable entry and expression (`docs/research/editable-expression.md`, A + B + C): a caret in the number being typed (`engine/caret.rs`, `app/caret.rs`); a tape of the keys since `C` that replays an edited number of the expression line through the same engine, with the live result and a new history entry for an edited finished calculation (`engine/tape.rs`, property tests); Edit in the history's context menu; "Edit" and "Editing %1" in all 50 languages |
+| 2026-11-18 | Claude Code | `FEAT-SHELL-013` | The expression line's computed numbers (carried-over results, `%`'s value, MR) are editable as literals in place of the steps that computed them, and its binary operators can be selected and replaced by the next operator key, replayed with each mode's precedence; no cascade into later history entries; "Selected operator %1" in all 50 languages (Konst's `10 + 2 = 12 + 4 = 16 ÷ 4` test) |
