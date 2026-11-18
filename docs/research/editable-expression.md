@@ -249,15 +249,50 @@ while building them, each the simplest one and the closest to typing the number 
   one. MS, M+, M− and MC replay only their effect on the calculation (they finish the number
   being typed); the memory isn't touched again. Replays add no history entries and play no
   vibration (the keypad vibrates, the engine doesn't).
-- **What can be edited.** In the expression line: the numbers that were typed. A number that
-  was computed (a group's value, `%`'s result, MR, π) can't be edited in the line in this
-  version. On the display: the number being typed (A), or a computed value that typing would
+- **What can be edited.** In the expression line: every number it shows (typed or computed, see
+  the next point) and every binary operator. On the display: the number being typed (A), or a
+  computed value that typing would
   replace: after `)`, a function, MR, π or `rand`, the copy replaces that last operand
   (Konst's `324`: `(6 × 54)` becomes the typed `524`), and after `=` or an operator the copy is
   a new number typed there. A display value whose replacement would change how the keys before
   it are read (a group opened right after a number, `2(3)`) gets no caret.
-- **In the Programmer mode** a number in the line can be edited only in the radix it was typed
-  in; after a radix change only the new numbers can.
+- **Computed numbers in the line** (2026-11-18, Konst's test on the edittest APK: in
+  `10 + 2 = 12 + 4 = 16 ÷ 4 = 4` the `12` and the `16` couldn't be edited). A number the line
+  shows that wasn't typed (a result carried over after `=`, Standard mode's `5` in `2 + 3 +`,
+  `%`'s value, MR, π, a number inside `sqr(…)`) is replaced by the same number typed as a
+  literal: the tape steps that computed it are dropped and the literal is typed in their place
+  (`12 + 4 =` comes from `10 + 2 = + 4 =` and becomes `12 + 4 =` typed fresh, then `15 + 4 =`).
+  Which steps those are is found by trying: the smallest range of steps before the number
+  whose replacement by the literal gives the same line, display, error, parentheses, settings
+  and next `=`; a number for which no range does (a rounded 1/3 that later steps go on with,
+  a group's value inside the line) can't be edited. The tap only offers the substitution: until
+  a key changes the number, Esc, `=` or a tap elsewhere leaves the original tape.
+- **No cascade.** Editing a calculation never recomputes the history entries after it: editing
+  `10 + 2 =` to `10 + 5 =` adds `10 + 5 = 15`, and `12 + 4 = 16` and `16 ÷ 4 = 4` stay as they
+  were (relay's decision for task f85238e3, Konst may change it). Every committed edit of a
+  finished calculation adds a new entry, as before.
+- **Binary operators** (+ − × ÷; in the Scientific mode also `mod`, `^` (xʸ), `yroot` (ʸ√x) and
+  `log base` (logᵧx); in the Programmer mode `%`, AND, OR, XOR, NAND, NOR, Lsh and Rsh). A tap
+  or click on one in the line selects it, drawn like the edited number but without a caret.
+  Another binary operator key (the keypad, or `+ - * /` and the mode's other operator keys on a
+  keyboard) then replaces it on the tape and the tape is replayed, so precedence comes out as
+  typing the edited calculation fresh: `2 + 3 × 4 =` with `×` changed to `+` is 9, and in the
+  Scientific mode `2 × 3 + 4 =` with `+` changed to `×` is 24 there and in the Standard mode
+  alike, while `2 + 3 × 4` → `2 × 3 + 4` follows each mode's rule. The display shows the new
+  result live and the operator stays selected, so another operator key replaces it again;
+  `=` commits (a finished calculation adds a new history entry), Esc cancels, and any other
+  key commits and then does what it does. An operator key that the mode doesn't have isn't on
+  its keypad and does nothing. In the error state that a replaced operator causes (`÷ 0`) the
+  operator keys stay enabled while it is selected, so it can be changed back.
+- **Unary functions stay as they are.** `sin`, `√`, `x²`, `1/x`, `negate`, `NOT`, `RoL` and
+  the others can't be selected or replaced in this version; the numbers inside them can be
+  edited. Neither can `(`, `)` or `=`.
+- **Keys.** Ctrl+Left and Ctrl+Right stop on the line's operators and computed numbers too, in
+  the order of the line; on a selected operator, Left and Right go on to the number before or
+  after it. Esc cancels.
+- **In the Programmer mode** a typed number in the line can be edited only in the radix it was
+  typed in; after a radix change only the new numbers can. A computed number is typed in the
+  current radix.
 - **Live result while editing the line.** While a number of the expression line is edited, the
   display shows what `=` would give for the edited expression. Committing an edit of a finished
   calculation (one ending with `=`) keeps the new result and adds the history entry; committing
@@ -285,4 +320,6 @@ while building them, each the simplest one and the closest to typing the number 
   the display it can be copied and edited, as after MR).
 - **Screen readers:** the display says "Editing %1" while the caret is shown, and the menu item
   has the name "Edit". The expression line stays one text node: its numbers aren't new Tab
-  stops, so the Tab order is unchanged.
+  stops, so the Tab order is unchanged. While one of its numbers is edited or an operator is
+  selected, its name adds "Editing %1" or "Selected operator %1" and it is read out when that
+  changes.
