@@ -173,6 +173,69 @@ fn keys_fit_every_screen() {
     }
 }
 
+/// At every Expression size, on every screen, in both orientations: the expression line stays
+/// above the result, the result above the rows and keys under it, and from Large up the line
+/// takes taps at least a finger's touch target high.
+#[test]
+fn expression_sizes_fit_every_screen() {
+    use super::expression_size::{ExpressionSize, TOUCH_HEIGHT};
+    for screen in &SCREENS {
+        for mode in [Mode::Standard, Mode::Scientific, Mode::Programmer] {
+            for size in ExpressionSize::ALL {
+                let ctx = Context::default();
+                let mut app = settled(&ctx, mode, screen);
+                app.expression_size = size;
+                // A line long enough to be cut on a phone held upright, and a result.
+                for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] {
+                    app.engine_mut().execute(Command::Digit(digit));
+                }
+                for _ in 0..4 {
+                    app.engine_mut().execute(Command::Operator(Op::Add));
+                    for digit in [9, 8, 7, 6, 5, 4, 3] {
+                        app.engine_mut().execute(Command::Digit(digit));
+                    }
+                }
+                app.engine_mut().execute(Command::Operator(Op::Multiply));
+                // egui reports a widget's rect from the frame before.
+                frame(&ctx, &mut app, screen, None);
+                let keys = buttons(&ctx, &mut app, screen);
+                let what = format!("{}: {mode:?}: {size:?}", screen.name);
+                let rect = |id: &str| ctx.read_response(Id::new(id)).unwrap().rect;
+                let line = rect("expression");
+                let taps = rect("expression-caret");
+                // The result's tap area is its number grown by 8 points.
+                let number = rect("display-caret").shrink(8.0);
+                // Small is Windows' layout, whose text boxes meet in their empty leading (the
+                // line 15 px over the result row in the Scientific mode); the larger sizes keep
+                // the whole boxes apart.
+                assert!(
+                    size == ExpressionSize::Small || line.bottom() <= number.top() + 0.5,
+                    "{what}: the line {line:?} runs into the result {number:?}"
+                );
+                assert!(
+                    line.left() >= screen.safe_rect().left() - 0.5,
+                    "{what}: the line {line:?} isn't cut"
+                );
+                for (name, key) in &keys {
+                    let under = key.center().y > number.center().y
+                        && key.x_range().intersects(number.x_range());
+                    assert!(
+                        !under || key.top() >= number.bottom() - 0.5,
+                        "{what}: the result {number:?} runs into {name} at {key:?}"
+                    );
+                }
+                if size.min_tap_height() > 0.0 {
+                    assert!(
+                        taps.height() >= TOUCH_HEIGHT - 0.01,
+                        "{what}: taps on the line are {} points high",
+                        taps.height()
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// A software rasterizer of egui's output: enough to look at a layout without a GPU.
 struct Canvas {
     width: usize,
@@ -422,6 +485,57 @@ fn write_layout_shots() {
                 number(app, "85");
             }),
         ));
+        // The Expression sizes, in the Standard and Scientific modes, with a line long enough
+        // to be cut on a phone held upright, and one with a number edited.
+        for size in super::expression_size::ExpressionSize::ALL {
+            for (mode, edit) in [
+                (Mode::Standard, false),
+                (Mode::Scientific, false),
+                (Mode::Standard, true),
+            ] {
+                let name = format!(
+                    "ExpressionSize-{size:?}-{mode:?}{}",
+                    if edit { "-Edit" } else { "" }
+                );
+                pages.push((
+                    name,
+                    Box::new(move |app| {
+                        use crate::engine::Op;
+                        app.set_mode(mode);
+                        app.expression_size = size;
+                        // The Standard mode collapses a chain, so its line is one step.
+                        let numbers: &[u32] = match mode {
+                            Mode::Standard => &[1234567, 89],
+                            _ => &[1234, 56, 789, 4321, 98765],
+                        };
+                        for (i, number) in numbers.iter().enumerate() {
+                            if i > 0 {
+                                app.engine_mut().execute(Command::Operator(Op::Add));
+                            }
+                            for c in number.to_string().chars() {
+                                let digit = c.to_digit(10).unwrap() as u8;
+                                app.engine_mut().execute(Command::Digit(digit));
+                            }
+                        }
+                        app.engine_mut().execute(match mode {
+                            Mode::Standard => Command::Equals,
+                            _ => Command::Operator(Op::Multiply),
+                        });
+                        if edit {
+                            let numbers: Vec<_> = app
+                                .engine()
+                                .expression_parts()
+                                .1
+                                .into_iter()
+                                .filter(|part| part.kind == crate::engine::PartKind::Number)
+                                .collect();
+                            let item = numbers[0].item;
+                            app.engine_mut().edit_operand(item, None);
+                        }
+                    }),
+                ));
+            }
+        }
         pages.push((
             "OperatorEdit".into(),
             Box::new(|app| {

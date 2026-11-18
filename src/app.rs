@@ -6,6 +6,7 @@ pub(crate) mod android;
 mod caret;
 mod converter_view;
 mod date_view;
+mod expression_size;
 mod graph_canvas;
 mod graphing_keypad;
 mod graphing_view;
@@ -38,6 +39,7 @@ use crate::converter::Category;
 use crate::engine::{
     Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, PartKind, Radix,
 };
+use expression_size::ExpressionSize;
 use icons::{
     ICON_BACK, ICON_BACK_TO_FULL, ICON_BACKSPACE, ICON_CALCULATOR, ICON_CALENDAR,
     ICON_CHEVRON_DOWN, ICON_CHEVRON_UP, ICON_CODE, ICON_COPY, ICON_DELETE, ICON_DIVIDE,
@@ -137,6 +139,8 @@ enum SettingsList {
     VibrationStyle,
     /// The Screen orientation card (the Android app).
     Orientation,
+    /// The Expression size card.
+    ExpressionSize,
 }
 
 impl SettingsList {
@@ -152,7 +156,16 @@ impl SettingsList {
             SettingsList::Region => app.region_choice.as_deref(),
             SettingsList::VibrationStyle => Some(vibration::style().key()),
             SettingsList::Orientation => Some(orientation::current().key()),
+            SettingsList::ExpressionSize => Some(app.expression_size.key()),
         }
+    }
+
+    /// Whether its entries are in the interface's language (not each in its own script).
+    fn in_interface_language(self) -> bool {
+        matches!(
+            self,
+            SettingsList::VibrationStyle | SettingsList::Orientation | SettingsList::ExpressionSize
+        )
     }
 }
 
@@ -171,6 +184,12 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
         return orientation::Orientation::ALL
             .into_iter()
             .map(|o| (Some(o.key()), tr(o.label_key())))
+            .collect();
+    }
+    if list == SettingsList::ExpressionSize {
+        return ExpressionSize::ALL
+            .into_iter()
+            .map(|size| (Some(size.key()), tr(size.label_key())))
             .collect();
     }
     let mut entries = vec![(None, tr("SystemThemeRadioButton.Content"))];
@@ -194,7 +213,8 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
                 .iter()
                 .map(|region| (Some(region.tag.as_str()), region.name.as_str())),
         ),
-        SettingsList::VibrationStyle | SettingsList::Orientation => {}
+        SettingsList::VibrationStyle | SettingsList::Orientation | SettingsList::ExpressionSize => {
+        }
     }
     entries
 }
@@ -285,6 +305,8 @@ impl ComboCard {
 /// The cards of the Settings page's Appearance group under the App theme card.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingsCard {
+    /// The expression line's size, in every build.
+    ExpressionSize,
     Language,
     /// The Android app's Screen orientation drop-down.
     Orientation,
@@ -293,14 +315,15 @@ enum SettingsCard {
     Region,
 }
 
-/// The cards under App theme, in order: Language, Screen orientation where the app can choose
+/// The cards under App theme, in order: Expression size (a display option, next to the
+/// theme), Language, Screen orientation where the app can choose
 /// it (the Android app, where Android honors it: `orientation::honored`), Key vibration where
 /// keys vibrate (the Android app), and Regional format where there are formats to choose. Where
 /// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
 /// setting", which changes nothing there: the formats are en-US until those systems' own are
 /// read.
 fn settings_cards(orientation: bool, key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
-    let mut cards = vec![SettingsCard::Language];
+    let mut cards = vec![SettingsCard::ExpressionSize, SettingsCard::Language];
     if orientation {
         cards.push(SettingsCard::Orientation);
     }
@@ -514,6 +537,26 @@ fn paint_orientation_icon(painter: &Painter, center: Pos2, color: Color32) {
 enum CardIcon {
     Glyph(char),
     Orientation,
+    ExpressionSize,
+}
+
+/// The Expression size card's icon: a small and a large A side by side (the icon font has no
+/// text size glyph).
+fn paint_expression_size_icon(painter: &Painter, center: Pos2, color: Color32) {
+    painter.text(
+        center + vec2(-4.5, 3.5),
+        Align2::CENTER_BOTTOM,
+        "A",
+        FontId::proportional(10.0),
+        color,
+    );
+    painter.text(
+        center + vec2(3.5, 6.5),
+        Align2::CENTER_BOTTOM,
+        "A",
+        FontId::proportional(17.0),
+        color,
+    );
 }
 
 /// An open Settings drop-down: which, and the box it opened from.
@@ -934,6 +977,8 @@ pub struct CalculatorApp {
     settings_popup: Option<SettingsPopup>,
     /// What was typed into an open Settings drop-down to find an item, and when.
     type_ahead: (String, f64),
+    /// The Expression size setting (CalcCraft's own): the expression line's size.
+    expression_size: ExpressionSize,
     #[cfg(feature = "support-prompt")]
     pub(crate) support: crate::support::SupportState,
 }
@@ -1060,6 +1105,11 @@ impl CalculatorApp {
             all_scripts: false,
             settings_popup: None,
             type_ahead: (String::new(), 0.0),
+            expression_size: ExpressionSize::parse(
+                cc.storage
+                    .and_then(|s| s.get_string(expression_size::STORAGE_KEY))
+                    .as_deref(),
+            ),
             #[cfg(feature = "support-prompt")]
             support: crate::support::SupportState::new(cc.storage),
         };
@@ -1692,6 +1742,24 @@ impl CalculatorApp {
         let right = rect.right() - 12.0;
         let max_width = rect.width() - 24.0;
 
+        // A larger Expression size (CalcCraft's own) makes the line taller than Windows'
+        // (`grow`): it moves up into the room above it first, and the rest pushes the result
+        // down. Measured at the size of an edit, so nothing moves when one starts. Small
+        // grows nothing: the layout stays Windows'.
+        let line_height = |size: f32| {
+            ui.painter()
+                .layout_no_wrap("0".into(), FontId::proportional(size), p.text)
+                .size()
+                .y
+        };
+        let edit_size = self.expression_size.edit_font_size();
+        let grow = if self.compact {
+            0.0
+        } else {
+            (line_height(edit_size) - line_height(ExpressionSize::Small.edit_font_size())).max(0.0)
+        };
+        let expression_top = expression_top - grow.min((expression_top - rect.top()).max(0.0));
+        let result_top = (grow > 0.0).then(|| expression_top + line_height(edit_size) + 2.0);
         // Keep on top shows only the result (`DisplayModeAlwaysOnTop` sets the expression
         // row's height to 0).
         if !self.compact {
@@ -1720,11 +1788,25 @@ impl CalculatorApp {
         access::text(ui, rect, Id::new("display-value"), &name, true);
 
         // Long numbers shrink to fit the width.
+        let mut size = base_size;
         let mut galley =
-            painter.layout_no_wrap(display.clone(), FontId::new(base_size, semibold()), p.text);
+            painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
         if galley.size().x > max_width {
-            let size = (base_size * max_width / galley.size().x).max(10.0);
+            size = (base_size * max_width / galley.size().x).max(10.0);
             galley = painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
+        }
+        // Below a taller expression line, and shrunk to stay in the display if it must.
+        let mut center_y = center_y;
+        if let Some(top) = result_top
+            && center_y - galley.size().y / 2.0 < top
+        {
+            let room = rect.bottom() - top;
+            if galley.size().y > room {
+                size = (size * room / galley.size().y).max(10.0);
+                galley =
+                    painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
+            }
+            center_y = top + galley.size().y / 2.0;
         }
         let pos = pos2(right - galley.size().x, center_y - galley.size().y / 2.0);
         let number = Rect::from_min_size(pos, galley.size());
@@ -1785,10 +1867,11 @@ impl CalculatorApp {
         let (text, ranges) = caret::localize_line(&line, &parts, &decimal);
         let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
         let right = rect.right() - 12.0;
+        // Windows' 14 px at the default Expression size (16 px while a part is edited).
         let size = if edit.is_some() || operator.is_some() {
-            16.0
+            self.expression_size.edit_font_size()
         } else {
-            14.0
+            self.expression_size.font_size()
         };
         let font = FontId::proportional(size);
         // The edited number or the selected operator in the text color, the rest in the
@@ -1879,10 +1962,16 @@ impl CalculatorApp {
 
         // A tap or click: on a number, the caret goes there; elsewhere on the line, an edit
         // ends.
-        let tap_area = Rect::from_x_y_ranges(
-            rect.left()..=rect.right(),
-            (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0),
-        );
+        let mut taps = (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0);
+        // At the sizes for fingers, at least a touch target high, inside the display (the
+        // header above keeps its buttons; the result's own tap area wins where they meet).
+        let height = taps.end() - taps.start();
+        let short = self.expression_size.min_tap_height() - height;
+        if short > 0.0 {
+            let top = (taps.start() - short / 2.0).max(rect.top());
+            taps = top..=top + height + short;
+        }
+        let tap_area = Rect::from_x_y_ranges(rect.left()..=rect.right(), taps);
         let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
         if !tap.clicked() || access::is_covered(ui) {
             return;
@@ -2885,10 +2974,7 @@ impl CalculatorApp {
                 });
                 self.type_ahead.0.clear();
                 self.opened_from(&ctx, list.box_id());
-                if !matches!(
-                    list,
-                    SettingsList::VibrationStyle | SettingsList::Orientation
-                ) {
+                if !list.in_interface_language() {
                     // The entries are in their own scripts.
                     self.all_scripts = true;
                     self.update_fonts(&ctx);
@@ -2933,6 +3019,9 @@ impl CalculatorApp {
                     // At once: the screen turns while Settings is open.
                     #[cfg(target_os = "android")]
                     android::set_orientation(choice);
+                }
+                SettingsList::ExpressionSize => {
+                    self.expression_size = ExpressionSize::parse(choice.as_deref());
                 }
             }
         }
@@ -3008,6 +3097,15 @@ impl CalculatorApp {
                 &chosen(SettingsList::Orientation),
             )
         });
+        let expression_size_card = ComboCard::new(
+            &painter,
+            p,
+            width - 2.0 * SIDE,
+            SettingsList::ExpressionSize,
+            tr("CalcCraft.ExpressionSize"),
+            tr("CalcCraft.ExpressionSizeDescription"),
+            &chosen(SettingsList::ExpressionSize),
+        );
         let language_card = ComboCard::new(
             &painter,
             p,
@@ -3073,6 +3171,7 @@ impl CalculatorApp {
             card_tops.push(card_top);
             cards_bottom = card_top
                 + match card {
+                    SettingsCard::ExpressionSize => expression_size_card.height,
                     SettingsCard::Language => language_card.height,
                     SettingsCard::Orientation => {
                         orientation_card.as_ref().map_or(0.0, |c| c.height)
@@ -3192,6 +3291,9 @@ impl CalculatorApp {
         // Windows follows its settings).
         for (kind, card_top) in cards.iter().zip(card_tops) {
             let combo = match kind {
+                SettingsCard::ExpressionSize => {
+                    Some((&expression_size_card, CardIcon::ExpressionSize))
+                }
                 SettingsCard::Language => Some((&language_card, CardIcon::Glyph(ICON_LANGUAGE))),
                 SettingsCard::Orientation => orientation_card
                     .as_ref()
@@ -3358,6 +3460,7 @@ impl CalculatorApp {
                 painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
             }
             CardIcon::Orientation => paint_orientation_icon(painter, icon_center, p.text),
+            CardIcon::ExpressionSize => paint_expression_size_icon(painter, icon_center, p.text),
         }
         let text_left = rect.left() + ComboCard::TEXT_X;
         painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
@@ -3816,6 +3919,10 @@ impl eframe::App for CalculatorApp {
             let value = choice.as_deref().unwrap_or(SYSTEM_CHOICE);
             storage.set_string(key, value.to_owned());
         }
+        storage.set_string(
+            expression_size::STORAGE_KEY,
+            self.expression_size.key().to_owned(),
+        );
         if orientation::AVAILABLE {
             storage.set_string(
                 orientation::STORAGE_KEY,
@@ -5027,20 +5134,29 @@ mod tests {
         use SettingsCard::*;
         // Windows and the web version: regional formats to choose, no screen orientation and
         // no key vibration.
-        assert_eq!(settings_cards(false, false, true), [Language, Region]);
+        assert_eq!(
+            settings_cards(false, false, true),
+            [ExpressionSize, Language, Region]
+        );
         // The Android app: no regional formats yet, Screen orientation and Key vibration
         // right after Language.
         assert_eq!(
             settings_cards(true, true, false),
-            [Language, Orientation, KeyVibration]
+            [ExpressionSize, Language, Orientation, KeyVibration]
         );
         // On Android 16's large screens, which ignore the app's orientation.
-        assert_eq!(settings_cards(false, true, false), [Language, KeyVibration]);
+        assert_eq!(
+            settings_cards(false, true, false),
+            [ExpressionSize, Language, KeyVibration]
+        );
         // Linux and macOS: the Regional format card would only offer "Use system setting".
-        assert_eq!(settings_cards(false, false, false), [Language]);
+        assert_eq!(
+            settings_cards(false, false, false),
+            [ExpressionSize, Language]
+        );
         assert_eq!(
             settings_cards(true, true, true),
-            [Language, Orientation, KeyVibration, Region]
+            [ExpressionSize, Language, Orientation, KeyVibration, Region]
         );
         // This build's own cards.
         let cards = settings_cards(
@@ -6096,9 +6212,88 @@ mod tests {
 
     #[test]
     fn a_click_edits_a_carried_result_and_selects_an_operator() {
+        // At every Expression size: the taps follow the glyphs at the size drawn.
+        for size in ExpressionSize::ALL {
+            click_edits_a_carried_result_and_selects_an_operator(size);
+        }
+    }
+
+    #[test]
+    fn expression_size_is_saved() {
+        let ctx = Context::default();
+        // A new install has Windows' size, and saves it.
+        let mut app = start_in(&ctx);
+        assert_eq!(app.expression_size, ExpressionSize::Small);
+        let mut storage = MemoryStorage::default();
+        eframe::App::save(&mut app, &mut storage);
+        assert_eq!(
+            storage
+                .0
+                .get(expression_size::STORAGE_KEY)
+                .map(String::as_str),
+            Some("Small")
+        );
+        // A choice comes back at the next start.
+        app.expression_size = ExpressionSize::ExtraLarge;
+        eframe::App::save(&mut app, &mut storage);
+        let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+        cc.storage = Some(&storage);
+        let app = CalculatorApp::new(&cc);
+        assert_eq!(app.expression_size, ExpressionSize::ExtraLarge);
+        // The Settings drop-down lists the four sizes, smallest first.
+        let entries = settings_entries(SettingsList::ExpressionSize);
+        let keys: Vec<_> = entries.iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            keys,
+            [
+                Some("Small"),
+                Some("Medium"),
+                Some("Large"),
+                Some("ExtraLarge")
+            ]
+        );
+        assert_eq!(
+            SettingsList::ExpressionSize.choice(&app),
+            Some("ExtraLarge")
+        );
+    }
+
+    #[test]
+    fn the_default_expression_size_keeps_the_layout() {
+        // Small draws the line at Windows' 14 px where it always was: 6 px under the
+        // display's top in the Standard mode, and the result where it was.
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        app.engine_mut().execute(Command::Digit(7));
+        app.engine_mut().execute(Command::Operator(Op::Add));
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        let line = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let number = ctx.read_response(Id::new("display-caret")).unwrap().rect;
+        let mut fourteen = 0.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            fourteen = ui
+                .painter()
+                .layout_no_wrap("7 +".into(), FontId::proportional(14.0), Color32::WHITE)
+                .size()
+                .y;
+        });
+        output.textures_delta.clear();
+        assert_eq!(line.height(), fourteen);
+        // At Large the line is taller and the result no higher than before.
+        app.expression_size = ExpressionSize::Large;
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        let large = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let large_number = ctx.read_response(Id::new("display-caret")).unwrap().rect;
+        assert!(large.height() > line.height());
+        assert!(large_number.top() >= number.top());
+        assert_eq!(large.right(), line.right());
+    }
+
+    fn click_edits_a_carried_result_and_selects_an_operator(size: ExpressionSize) {
         // Konst's chain: 10 + 2 = 12 + 4 = 16 ÷ 4 = 4, the line `16 ÷ 4 =`.
         let ctx = Context::default();
         let mut app = start_in(&ctx);
+        app.expression_size = size;
         let keys = [
             Command::Digit(1),
             Command::Digit(0),

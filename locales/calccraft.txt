@@ -32,6 +32,12 @@ CalcCraft.ScreenOrientationDescription=Select which orientation the app uses
 CalcCraft.ScreenOrientationAuto=Auto
 CalcCraft.ScreenOrientationPortrait=Portrait
 CalcCraft.ScreenOrientationLandscape=Landscape
+CalcCraft.ExpressionSize=Expression size
+CalcCraft.ExpressionSizeDescription=Select the size of the expression above the result
+CalcCraft.ExpressionSizeSmall=Small
+CalcCraft.ExpressionSizeMedium=Medium
+CalcCraft.ExpressionSizeLarge=Large
+CalcCraft.ExpressionSizeExtraLarge=Extra large
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -76,6 +82,12 @@ CalcCraft.ScreenOrientationDescription=Select which orientation the app uses
 CalcCraft.ScreenOrientationAuto=Auto
 CalcCraft.ScreenOrientationPortrait=Portrait
 CalcCraft.ScreenOrientationLandscape=Landscape
+CalcCraft.ExpressionSize=Expression size
+CalcCraft.ExpressionSizeDescription=Select the size of the expression above the result
+CalcCraft.ExpressionSizeSmall=Small
+CalcCraft.ExpressionSizeMedium=Medium
+CalcCraft.ExpressionSizeLarge=Large
+CalcCraft.ExpressionSizeExtraLarge=Extra large
 
 [af-ZA]
 CalcCraft.Language=Taal
@@ -105,6 +117,12 @@ CalcCraft.ScreenOrientationDescription=Kies watter oriëntasie die toep gebruik
 CalcCraft.ScreenOrientationAuto=Outomaties
 CalcCraft.ScreenOrientationPortrait=Portret
 CalcCraft.ScreenOrientationLandscape=Landskap
+CalcCraft.ExpressionSize=Uitdrukkinggrootte
+CalcCraft.ExpressionSizeDescription=Kies die grootte van die uitdrukking bo die resultaat
+CalcCraft.ExpressionSizeSmall=Klein
+CalcCraft.ExpressionSizeMedium=Medium
+CalcCraft.ExpressionSizeLarge=Groot
+CalcCraft.ExpressionSizeExtraLarge=Ekstra groot
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
@@ -134,6 +152,12 @@ CalcCraft.ScreenOrientationDescription=መተግበሪያው የሚጠቀመው�
 CalcCraft.ScreenOrientationAuto=ራስ-ሰር
 CalcCraft.ScreenOrientationPortrait=ቁም
 CalcCraft.ScreenOrientationLandscape=አግድም
+CalcCraft.ExpressionSize=የአገላለጽ መጠን
+CalcCraft.ExpressionSizeDescription=ከውጤቱ በላይ ያለውን የአገላለጽ መጠን ይምረጡ
+CalcCraft.ExpressionSizeSmall=ትንሽ
+CalcCraft.ExpressionSizeMedium=መካከለኛ
+CalcCraft.ExpressionSizeLarge=ትልቅ
+CalcCraft.ExpressionSizeExtraLarge=በጣም ትልቅ
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
@@ -163,6 +187,12 @@ CalcCraft.ScreenOrientationDescription=Tətbiqin istifadə etdiyi istiqaməti se
 CalcCraft.ScreenOrientationAuto=Avtomatik
 CalcCraft.ScreenOrientationPortrait=Portret
 CalcCraft.ScreenOrientationLandscape=Albom
+CalcCraft.ExpressionSize=İfadə ölçüsü
+CalcCraft.ExpressionSizeDescription=Nəticənin üstündəki ifadənin ölçüsünü seçin
+CalcCraft.ExpressionSizeSmall=Kiçik
+CalcCraft.ExpressionSizeMedium=Orta
+CalcCraft.ExpressionSizeLarge=Böyük
+CalcCraft.ExpressionSizeExtraLarge=Çox böyük
 
 [bg-BG]
 CalcCraft.Language=Език
@@ -192,6 +222,12 @@ CalcCraft.ScreenOrientationDescription=Изберете ориентацията
 CalcCraft.ScreenOrientationAuto=Автоматично
 CalcCraft.ScreenOrientationPortrait=Вертикална
 CalcCraft.ScreenOrientationLandscape=Хоризонтална
+CalcCraft.ExpressionSize=Размер на израза
+CalcCraft.ExpressionSizeDescription=Изберете размера на израза над резултата
+CalcCraft.ExpressionSizeSmall=Малък
+CalcCraft.ExpressionSizeMedium=Среден
+CalcCraft.ExpressionSizeLarge=Голям
+CalcCraft.ExpressionSizeExtraLarge=Много голям
 
 [ca-ES]
 CalcCraft.Language=Idioma
@@ -221,6 +257,12 @@ CalcCraft.ScreenOrientationDescription=Selecciona l'orientació que fa servir l'
 CalcCraft.ScreenOrientationAuto=Automàtic
 CalcCraft.ScreenOrientationPortrait=Vertical
 CalcCraft.ScreenOrientationLandscape=Horitzontal
+CalcCraft.ExpressionSize=Mida de l'expressió
+CalcCraft.ExpressionSizeDescription=Selecciona la mida de l'expressió sobre el resultat
+CalcCraft.ExpressionSizeSmall=Petita
+CalcCraft.ExpressionSizeMedium=Mitjana
+CalcCraft.ExpressionSizeLarge=Gran
+CalcCraft.ExpressionSizeExtraLarge=Molt gran
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
@@ -250,6 +292,12 @@ CalcCraft.ScreenOrientationDescription=Vyberte orientaci aplikace.
 CalcCraft.ScreenOrientationAuto=Automaticky
 CalcCraft.ScreenOrientationPortrait=Na výšku
 CalcCraft.ScreenOrientationLandscape=Na šířku
+CalcCraft.ExpressionSize=Velikost výrazu
+CalcCraft.ExpressionSizeDescription=Vyberte velikost výrazu nad výsledkem
+CalcCraft.ExpressionSizeSmall=Malá
+CalcCraft.ExpressionSizeMedium=Střední
+CalcCraft.ExpressionSizeLarge=Velká
+CalcCraft.ExpressionSizeExtraLarge=Extra velká
 
 [da-DK]
 CalcCraft.Language=Sprog
@@ -279,6 +327,12 @@ CalcCraft.ScreenOrientationDescription=Vælg, hvilken retning appen bruger
 CalcCraft.ScreenOrientationAuto=Automatisk
 CalcCraft.ScreenOrientationPortrait=Stående
 CalcCraft.ScreenOrientationLandscape=Liggende
+CalcCraft.ExpressionSize=Udtryksstørrelse
+CalcCraft.ExpressionSizeDescription=Vælg størrelsen på udtrykket over resultatet
+CalcCraft.ExpressionSizeSmall=Lille
+CalcCraft.ExpressionSizeMedium=Mellem
+CalcCraft.ExpressionSizeLarge=Stor
+CalcCraft.ExpressionSizeExtraLarge=Ekstra stor
 
 [de-DE]
 CalcCraft.Language=Sprache
@@ -308,6 +362,12 @@ CalcCraft.ScreenOrientationDescription=Auswählen der Ausrichtung der App
 CalcCraft.ScreenOrientationAuto=Automatisch
 CalcCraft.ScreenOrientationPortrait=Hochformat
 CalcCraft.ScreenOrientationLandscape=Querformat
+CalcCraft.ExpressionSize=Größe des Ausdrucks
+CalcCraft.ExpressionSizeDescription=Auswählen der Größe des Ausdrucks über dem Ergebnis
+CalcCraft.ExpressionSizeSmall=Klein
+CalcCraft.ExpressionSizeMedium=Mittel
+CalcCraft.ExpressionSizeLarge=Groß
+CalcCraft.ExpressionSizeExtraLarge=Sehr groß
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
@@ -337,6 +397,12 @@ CalcCraft.ScreenOrientationDescription=Επιλέξτε τον προσανατ�
 CalcCraft.ScreenOrientationAuto=Αυτόματα
 CalcCraft.ScreenOrientationPortrait=Κατακόρυφος
 CalcCraft.ScreenOrientationLandscape=Οριζόντιος
+CalcCraft.ExpressionSize=Μέγεθος παράστασης
+CalcCraft.ExpressionSizeDescription=Επιλέξτε το μέγεθος της παράστασης πάνω από το αποτέλεσμα
+CalcCraft.ExpressionSizeSmall=Μικρό
+CalcCraft.ExpressionSizeMedium=Μεσαίο
+CalcCraft.ExpressionSizeLarge=Μεγάλο
+CalcCraft.ExpressionSizeExtraLarge=Πολύ μεγάλο
 
 [es-ES]
 CalcCraft.Language=Idioma
@@ -366,6 +432,12 @@ CalcCraft.ScreenOrientationDescription=Seleccionar la orientación de la aplicac
 CalcCraft.ScreenOrientationAuto=Automático
 CalcCraft.ScreenOrientationPortrait=Vertical
 CalcCraft.ScreenOrientationLandscape=Horizontal
+CalcCraft.ExpressionSize=Tamaño de la expresión
+CalcCraft.ExpressionSizeDescription=Seleccionar el tamaño de la expresión sobre el resultado
+CalcCraft.ExpressionSizeSmall=Pequeño
+CalcCraft.ExpressionSizeMedium=Mediano
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Muy grande
 
 [es-MX]
 CalcCraft.Language=Idioma
@@ -395,6 +467,12 @@ CalcCraft.ScreenOrientationDescription=Seleccionar la orientación de la aplicac
 CalcCraft.ScreenOrientationAuto=Automático
 CalcCraft.ScreenOrientationPortrait=Vertical
 CalcCraft.ScreenOrientationLandscape=Horizontal
+CalcCraft.ExpressionSize=Tamaño de la expresión
+CalcCraft.ExpressionSizeDescription=Seleccionar el tamaño de la expresión sobre el resultado
+CalcCraft.ExpressionSizeSmall=Pequeño
+CalcCraft.ExpressionSizeMedium=Mediano
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Muy grande
 
 [et-EE]
 CalcCraft.Language=Keel
@@ -424,6 +502,12 @@ CalcCraft.ScreenOrientationDescription=Valige rakenduse ekraanisuund
 CalcCraft.ScreenOrientationAuto=Automaatne
 CalcCraft.ScreenOrientationPortrait=Püstpaigutus
 CalcCraft.ScreenOrientationLandscape=Rõhtpaigutus
+CalcCraft.ExpressionSize=Avaldise suurus
+CalcCraft.ExpressionSizeDescription=Valige tulemuse kohal oleva avaldise suurus
+CalcCraft.ExpressionSizeSmall=Väike
+CalcCraft.ExpressionSizeMedium=Keskmine
+CalcCraft.ExpressionSizeLarge=Suur
+CalcCraft.ExpressionSizeExtraLarge=Väga suur
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
@@ -453,6 +537,12 @@ CalcCraft.ScreenOrientationDescription=Hautatu aplikazioak erabiliko duen orient
 CalcCraft.ScreenOrientationAuto=Automatikoa
 CalcCraft.ScreenOrientationPortrait=Bertikala
 CalcCraft.ScreenOrientationLandscape=Horizontala
+CalcCraft.ExpressionSize=Adierazpenaren tamaina
+CalcCraft.ExpressionSizeDescription=Hautatu emaitzaren gaineko adierazpenaren tamaina
+CalcCraft.ExpressionSizeSmall=Txikia
+CalcCraft.ExpressionSizeMedium=Ertaina
+CalcCraft.ExpressionSizeLarge=Handia
+CalcCraft.ExpressionSizeExtraLarge=Oso handia
 
 [fi-FI]
 CalcCraft.Language=Kieli
@@ -482,6 +572,12 @@ CalcCraft.ScreenOrientationDescription=Valitse sovelluksen näytön suunta
 CalcCraft.ScreenOrientationAuto=Automaattinen
 CalcCraft.ScreenOrientationPortrait=Pysty
 CalcCraft.ScreenOrientationLandscape=Vaaka
+CalcCraft.ExpressionSize=Lausekkeen koko
+CalcCraft.ExpressionSizeDescription=Valitse tuloksen yläpuolella olevan lausekkeen koko
+CalcCraft.ExpressionSizeSmall=Pieni
+CalcCraft.ExpressionSizeMedium=Keskikokoinen
+CalcCraft.ExpressionSizeLarge=Suuri
+CalcCraft.ExpressionSizeExtraLarge=Erittäin suuri
 
 [fil-PH]
 CalcCraft.Language=Wika
@@ -511,6 +607,12 @@ CalcCraft.ScreenOrientationDescription=Piliin kung aling oryentasyon ang gagamit
 CalcCraft.ScreenOrientationAuto=Awtomatiko
 CalcCraft.ScreenOrientationPortrait=Patayo
 CalcCraft.ScreenOrientationLandscape=Pahiga
+CalcCraft.ExpressionSize=Laki ng expression
+CalcCraft.ExpressionSizeDescription=Piliin ang laki ng expression sa itaas ng resulta
+CalcCraft.ExpressionSizeSmall=Maliit
+CalcCraft.ExpressionSizeMedium=Katamtaman
+CalcCraft.ExpressionSizeLarge=Malaki
+CalcCraft.ExpressionSizeExtraLarge=Napakalaki
 
 [fr-CA]
 CalcCraft.Language=Langue
@@ -540,6 +642,12 @@ CalcCraft.ScreenOrientationDescription=Sélectionner l’orientation de l’appl
 CalcCraft.ScreenOrientationAuto=Automatique
 CalcCraft.ScreenOrientationPortrait=Portrait
 CalcCraft.ScreenOrientationLandscape=Paysage
+CalcCraft.ExpressionSize=Taille de l’expression
+CalcCraft.ExpressionSizeDescription=Sélectionner la taille de l’expression au-dessus du résultat
+CalcCraft.ExpressionSizeSmall=Petite
+CalcCraft.ExpressionSizeMedium=Moyenne
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Très grande
 
 [fr-FR]
 CalcCraft.Language=Langue
@@ -569,6 +677,12 @@ CalcCraft.ScreenOrientationDescription=Sélectionner l’orientation de l’appl
 CalcCraft.ScreenOrientationAuto=Automatique
 CalcCraft.ScreenOrientationPortrait=Portrait
 CalcCraft.ScreenOrientationLandscape=Paysage
+CalcCraft.ExpressionSize=Taille de l’expression
+CalcCraft.ExpressionSizeDescription=Sélectionner la taille de l’expression au-dessus du résultat
+CalcCraft.ExpressionSizeSmall=Petite
+CalcCraft.ExpressionSizeMedium=Moyenne
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Très grande
 
 [gl-ES]
 CalcCraft.Language=Idioma
@@ -598,6 +712,12 @@ CalcCraft.ScreenOrientationDescription=Seleccionar que orientación vai usar a a
 CalcCraft.ScreenOrientationAuto=Automático
 CalcCraft.ScreenOrientationPortrait=Vertical
 CalcCraft.ScreenOrientationLandscape=Horizontal
+CalcCraft.ExpressionSize=Tamaño da expresión
+CalcCraft.ExpressionSizeDescription=Seleccionar o tamaño da expresión sobre o resultado
+CalcCraft.ExpressionSizeSmall=Pequeno
+CalcCraft.ExpressionSizeMedium=Mediano
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Moi grande
 
 [hr-HR]
 CalcCraft.Language=Jezik
@@ -627,6 +747,12 @@ CalcCraft.ScreenOrientationDescription=Odaberite usmjerenje aplikacije
 CalcCraft.ScreenOrientationAuto=Automatski
 CalcCraft.ScreenOrientationPortrait=Okomito
 CalcCraft.ScreenOrientationLandscape=Vodoravno
+CalcCraft.ExpressionSize=Veličina izraza
+CalcCraft.ExpressionSizeDescription=Odaberite veličinu izraza iznad rezultata
+CalcCraft.ExpressionSizeSmall=Mala
+CalcCraft.ExpressionSizeMedium=Srednja
+CalcCraft.ExpressionSizeLarge=Velika
+CalcCraft.ExpressionSizeExtraLarge=Vrlo velika
 
 [hu-HU]
 CalcCraft.Language=Nyelv
@@ -656,6 +782,12 @@ CalcCraft.ScreenOrientationDescription=Válassza ki az alkalmazás tájolását
 CalcCraft.ScreenOrientationAuto=Automatikus
 CalcCraft.ScreenOrientationPortrait=Álló
 CalcCraft.ScreenOrientationLandscape=Fekvő
+CalcCraft.ExpressionSize=Kifejezés mérete
+CalcCraft.ExpressionSizeDescription=Válassza ki az eredmény feletti kifejezés méretét
+CalcCraft.ExpressionSizeSmall=Kicsi
+CalcCraft.ExpressionSizeMedium=Közepes
+CalcCraft.ExpressionSizeLarge=Nagy
+CalcCraft.ExpressionSizeExtraLarge=Nagyon nagy
 
 [id-ID]
 CalcCraft.Language=Bahasa
@@ -685,6 +817,12 @@ CalcCraft.ScreenOrientationDescription=Pilih orientasi yang digunakan aplikasi
 CalcCraft.ScreenOrientationAuto=Otomatis
 CalcCraft.ScreenOrientationPortrait=Potret
 CalcCraft.ScreenOrientationLandscape=Lanskap
+CalcCraft.ExpressionSize=Ukuran ekspresi
+CalcCraft.ExpressionSizeDescription=Pilih ukuran ekspresi di atas hasil
+CalcCraft.ExpressionSizeSmall=Kecil
+CalcCraft.ExpressionSizeMedium=Sedang
+CalcCraft.ExpressionSizeLarge=Besar
+CalcCraft.ExpressionSizeExtraLarge=Ekstra besar
 
 [is-IS]
 CalcCraft.Language=Tungumál
@@ -714,6 +852,12 @@ CalcCraft.ScreenOrientationDescription=Velja hvaða skjástefnu forritið notar
 CalcCraft.ScreenOrientationAuto=Sjálfvirkt
 CalcCraft.ScreenOrientationPortrait=Lóðrétt
 CalcCraft.ScreenOrientationLandscape=Lárétt
+CalcCraft.ExpressionSize=Stærð segðar
+CalcCraft.ExpressionSizeDescription=Velja stærð segðarinnar fyrir ofan niðurstöðuna
+CalcCraft.ExpressionSizeSmall=Lítil
+CalcCraft.ExpressionSizeMedium=Miðlungs
+CalcCraft.ExpressionSizeLarge=Stór
+CalcCraft.ExpressionSizeExtraLarge=Mjög stór
 
 [it-IT]
 CalcCraft.Language=Lingua
@@ -743,6 +887,12 @@ CalcCraft.ScreenOrientationDescription=Seleziona l'orientamento dell'app
 CalcCraft.ScreenOrientationAuto=Automatico
 CalcCraft.ScreenOrientationPortrait=Verticale
 CalcCraft.ScreenOrientationLandscape=Orizzontale
+CalcCraft.ExpressionSize=Dimensione dell'espressione
+CalcCraft.ExpressionSizeDescription=Seleziona la dimensione dell'espressione sopra il risultato
+CalcCraft.ExpressionSizeSmall=Piccola
+CalcCraft.ExpressionSizeMedium=Media
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Molto grande
 
 [ja-JP]
 CalcCraft.Language=言語
@@ -772,6 +922,12 @@ CalcCraft.ScreenOrientationDescription=アプリで使用する画面の向き�
 CalcCraft.ScreenOrientationAuto=自動
 CalcCraft.ScreenOrientationPortrait=縦
 CalcCraft.ScreenOrientationLandscape=横
+CalcCraft.ExpressionSize=式のサイズ
+CalcCraft.ExpressionSizeDescription=結果の上に表示する式のサイズを選択します
+CalcCraft.ExpressionSizeSmall=小
+CalcCraft.ExpressionSizeMedium=中
+CalcCraft.ExpressionSizeLarge=大
+CalcCraft.ExpressionSizeExtraLarge=特大
 
 [kk-KZ]
 CalcCraft.Language=Тіл
@@ -801,6 +957,12 @@ CalcCraft.ScreenOrientationDescription=Қолданба бағдарын таң�
 CalcCraft.ScreenOrientationAuto=Автоматты
 CalcCraft.ScreenOrientationPortrait=Тік
 CalcCraft.ScreenOrientationLandscape=Көлденең
+CalcCraft.ExpressionSize=Өрнек өлшемі
+CalcCraft.ExpressionSizeDescription=Нәтиже үстіндегі өрнектің өлшемін таңдау
+CalcCraft.ExpressionSizeSmall=Кіші
+CalcCraft.ExpressionSizeMedium=Орташа
+CalcCraft.ExpressionSizeLarge=Үлкен
+CalcCraft.ExpressionSizeExtraLarge=Өте үлкен
 
 [ko-KR]
 CalcCraft.Language=언어
@@ -830,6 +992,12 @@ CalcCraft.ScreenOrientationDescription=앱에서 사용할 화면 방향 선택
 CalcCraft.ScreenOrientationAuto=자동
 CalcCraft.ScreenOrientationPortrait=세로
 CalcCraft.ScreenOrientationLandscape=가로
+CalcCraft.ExpressionSize=식 크기
+CalcCraft.ExpressionSizeDescription=결과 위에 표시할 식의 크기 선택
+CalcCraft.ExpressionSizeSmall=작게
+CalcCraft.ExpressionSizeMedium=보통
+CalcCraft.ExpressionSizeLarge=크게
+CalcCraft.ExpressionSizeExtraLarge=아주 크게
 
 [lt-LT]
 CalcCraft.Language=Kalba
@@ -859,6 +1027,12 @@ CalcCraft.ScreenOrientationDescription=Pasirinkite, kokią padėtį naudoja prog
 CalcCraft.ScreenOrientationAuto=Automatinis
 CalcCraft.ScreenOrientationPortrait=Stačias
 CalcCraft.ScreenOrientationLandscape=Gulsčias
+CalcCraft.ExpressionSize=Reiškinio dydis
+CalcCraft.ExpressionSizeDescription=Pasirinkite virš rezultato rodomo reiškinio dydį
+CalcCraft.ExpressionSizeSmall=Mažas
+CalcCraft.ExpressionSizeMedium=Vidutinis
+CalcCraft.ExpressionSizeLarge=Didelis
+CalcCraft.ExpressionSizeExtraLarge=Labai didelis
 
 [lv-LV]
 CalcCraft.Language=Valoda
@@ -888,6 +1062,12 @@ CalcCraft.ScreenOrientationDescription=Atlasiet, kuru orientāciju izmanto lieto
 CalcCraft.ScreenOrientationAuto=Automātiski
 CalcCraft.ScreenOrientationPortrait=Portrets
 CalcCraft.ScreenOrientationLandscape=Ainava
+CalcCraft.ExpressionSize=Izteiksmes lielums
+CalcCraft.ExpressionSizeDescription=Atlasiet virs rezultāta redzamās izteiksmes lielumu
+CalcCraft.ExpressionSizeSmall=Mazs
+CalcCraft.ExpressionSizeMedium=Vidējs
+CalcCraft.ExpressionSizeLarge=Liels
+CalcCraft.ExpressionSizeExtraLarge=Ļoti liels
 
 [mk-MK]
 CalcCraft.Language=Јазик
@@ -917,6 +1097,12 @@ CalcCraft.ScreenOrientationDescription=Изберете ја ориентаци�
 CalcCraft.ScreenOrientationAuto=Автоматски
 CalcCraft.ScreenOrientationPortrait=Вертикално
 CalcCraft.ScreenOrientationLandscape=Хоризонтално
+CalcCraft.ExpressionSize=Големина на изразот
+CalcCraft.ExpressionSizeDescription=Изберете ја големината на изразот над резултатот
+CalcCraft.ExpressionSizeSmall=Мала
+CalcCraft.ExpressionSizeMedium=Средна
+CalcCraft.ExpressionSizeLarge=Голема
+CalcCraft.ExpressionSizeExtraLarge=Многу голема
 
 [ms-MY]
 CalcCraft.Language=Bahasa
@@ -946,6 +1132,12 @@ CalcCraft.ScreenOrientationDescription=Pilih orientasi untuk apl
 CalcCraft.ScreenOrientationAuto=Automatik
 CalcCraft.ScreenOrientationPortrait=Potret
 CalcCraft.ScreenOrientationLandscape=Landskap
+CalcCraft.ExpressionSize=Saiz ungkapan
+CalcCraft.ExpressionSizeDescription=Pilih saiz ungkapan di atas hasil
+CalcCraft.ExpressionSizeSmall=Kecil
+CalcCraft.ExpressionSizeMedium=Sederhana
+CalcCraft.ExpressionSizeLarge=Besar
+CalcCraft.ExpressionSizeExtraLarge=Sangat besar
 
 [nb-NO]
 CalcCraft.Language=Språk
@@ -975,6 +1167,12 @@ CalcCraft.ScreenOrientationDescription=Velg hvilken retning appen skal bruke
 CalcCraft.ScreenOrientationAuto=Automatisk
 CalcCraft.ScreenOrientationPortrait=Stående
 CalcCraft.ScreenOrientationLandscape=Liggende
+CalcCraft.ExpressionSize=Uttrykksstørrelse
+CalcCraft.ExpressionSizeDescription=Velg størrelsen på uttrykket over resultatet
+CalcCraft.ExpressionSizeSmall=Liten
+CalcCraft.ExpressionSizeMedium=Middels
+CalcCraft.ExpressionSizeLarge=Stor
+CalcCraft.ExpressionSizeExtraLarge=Ekstra stor
 
 [nl-NL]
 CalcCraft.Language=Taal
@@ -1004,6 +1202,12 @@ CalcCraft.ScreenOrientationDescription=Selecteer welke stand de app gebruikt
 CalcCraft.ScreenOrientationAuto=Automatisch
 CalcCraft.ScreenOrientationPortrait=Staand
 CalcCraft.ScreenOrientationLandscape=Liggend
+CalcCraft.ExpressionSize=Grootte van expressie
+CalcCraft.ExpressionSizeDescription=Selecteer de grootte van de expressie boven het resultaat
+CalcCraft.ExpressionSizeSmall=Klein
+CalcCraft.ExpressionSizeMedium=Middel
+CalcCraft.ExpressionSizeLarge=Groot
+CalcCraft.ExpressionSizeExtraLarge=Extra groot
 
 [pl-PL]
 CalcCraft.Language=Język
@@ -1033,6 +1237,12 @@ CalcCraft.ScreenOrientationDescription=Wybierz orientację aplikacji
 CalcCraft.ScreenOrientationAuto=Automatycznie
 CalcCraft.ScreenOrientationPortrait=Pionowa
 CalcCraft.ScreenOrientationLandscape=Pozioma
+CalcCraft.ExpressionSize=Rozmiar wyrażenia
+CalcCraft.ExpressionSizeDescription=Wybierz rozmiar wyrażenia nad wynikiem
+CalcCraft.ExpressionSizeSmall=Mały
+CalcCraft.ExpressionSizeMedium=Średni
+CalcCraft.ExpressionSizeLarge=Duży
+CalcCraft.ExpressionSizeExtraLarge=Bardzo duży
 
 [pt-BR]
 CalcCraft.Language=Idioma
@@ -1062,6 +1272,12 @@ CalcCraft.ScreenOrientationDescription=Selecionar a orientação do aplicativo
 CalcCraft.ScreenOrientationAuto=Automático
 CalcCraft.ScreenOrientationPortrait=Retrato
 CalcCraft.ScreenOrientationLandscape=Paisagem
+CalcCraft.ExpressionSize=Tamanho da expressão
+CalcCraft.ExpressionSizeDescription=Selecione o tamanho da expressão acima do resultado
+CalcCraft.ExpressionSizeSmall=Pequeno
+CalcCraft.ExpressionSizeMedium=Médio
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Extragrande
 
 [pt-PT]
 CalcCraft.Language=Idioma
@@ -1091,6 +1307,12 @@ CalcCraft.ScreenOrientationDescription=Selecionar a orientação da aplicação
 CalcCraft.ScreenOrientationAuto=Automático
 CalcCraft.ScreenOrientationPortrait=Vertical
 CalcCraft.ScreenOrientationLandscape=Horizontal
+CalcCraft.ExpressionSize=Tamanho da expressão
+CalcCraft.ExpressionSizeDescription=Selecione o tamanho da expressão acima do resultado
+CalcCraft.ExpressionSizeSmall=Pequeno
+CalcCraft.ExpressionSizeMedium=Médio
+CalcCraft.ExpressionSizeLarge=Grande
+CalcCraft.ExpressionSizeExtraLarge=Muito grande
 
 [ro-RO]
 CalcCraft.Language=Limbă
@@ -1120,6 +1342,12 @@ CalcCraft.ScreenOrientationDescription=Selectați orientarea aplicației
 CalcCraft.ScreenOrientationAuto=Automat
 CalcCraft.ScreenOrientationPortrait=Portret
 CalcCraft.ScreenOrientationLandscape=Peisaj
+CalcCraft.ExpressionSize=Dimensiunea expresiei
+CalcCraft.ExpressionSizeDescription=Selectați dimensiunea expresiei de deasupra rezultatului
+CalcCraft.ExpressionSizeSmall=Mică
+CalcCraft.ExpressionSizeMedium=Medie
+CalcCraft.ExpressionSizeLarge=Mare
+CalcCraft.ExpressionSizeExtraLarge=Foarte mare
 
 [ru-RU]
 CalcCraft.Language=Язык
@@ -1149,6 +1377,12 @@ CalcCraft.ScreenOrientationDescription=Выберите ориентацию п�
 CalcCraft.ScreenOrientationAuto=Авто
 CalcCraft.ScreenOrientationPortrait=Книжная
 CalcCraft.ScreenOrientationLandscape=Альбомная
+CalcCraft.ExpressionSize=Размер выражения
+CalcCraft.ExpressionSizeDescription=Выберите размер выражения над результатом
+CalcCraft.ExpressionSizeSmall=Маленький
+CalcCraft.ExpressionSizeMedium=Средний
+CalcCraft.ExpressionSizeLarge=Крупный
+CalcCraft.ExpressionSizeExtraLarge=Очень крупный
 
 [sk-SK]
 CalcCraft.Language=Jazyk
@@ -1178,6 +1412,12 @@ CalcCraft.ScreenOrientationDescription=Vyberte orientáciu aplikácie
 CalcCraft.ScreenOrientationAuto=Automaticky
 CalcCraft.ScreenOrientationPortrait=Na výšku
 CalcCraft.ScreenOrientationLandscape=Na šírku
+CalcCraft.ExpressionSize=Veľkosť výrazu
+CalcCraft.ExpressionSizeDescription=Vyberte veľkosť výrazu nad výsledkom
+CalcCraft.ExpressionSizeSmall=Malá
+CalcCraft.ExpressionSizeMedium=Stredná
+CalcCraft.ExpressionSizeLarge=Veľká
+CalcCraft.ExpressionSizeExtraLarge=Extra veľká
 
 [sl-SI]
 CalcCraft.Language=Jezik
@@ -1207,6 +1447,12 @@ CalcCraft.ScreenOrientationDescription=Izberite usmerjenost aplikacije
 CalcCraft.ScreenOrientationAuto=Samodejno
 CalcCraft.ScreenOrientationPortrait=Pokončno
 CalcCraft.ScreenOrientationLandscape=Ležeče
+CalcCraft.ExpressionSize=Velikost izraza
+CalcCraft.ExpressionSizeDescription=Izberite velikost izraza nad rezultatom
+CalcCraft.ExpressionSizeSmall=Majhna
+CalcCraft.ExpressionSizeMedium=Srednja
+CalcCraft.ExpressionSizeLarge=Velika
+CalcCraft.ExpressionSizeExtraLarge=Zelo velika
 
 [sq-AL]
 CalcCraft.Language=Gjuha
@@ -1236,6 +1482,12 @@ CalcCraft.ScreenOrientationDescription=Zgjidh orientimin e aplikacionit
 CalcCraft.ScreenOrientationAuto=Automatik
 CalcCraft.ScreenOrientationPortrait=Vertikal
 CalcCraft.ScreenOrientationLandscape=Horizontal
+CalcCraft.ExpressionSize=Madhësia e shprehjes
+CalcCraft.ExpressionSizeDescription=Zgjidh madhësinë e shprehjes mbi rezultatin
+CalcCraft.ExpressionSizeSmall=E vogël
+CalcCraft.ExpressionSizeMedium=Mesatare
+CalcCraft.ExpressionSizeLarge=E madhe
+CalcCraft.ExpressionSizeExtraLarge=Shumë e madhe
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
@@ -1265,6 +1517,12 @@ CalcCraft.ScreenOrientationDescription=Izaberite orijentaciju aplikacije
 CalcCraft.ScreenOrientationAuto=Automatski
 CalcCraft.ScreenOrientationPortrait=Uspravno
 CalcCraft.ScreenOrientationLandscape=Položeno
+CalcCraft.ExpressionSize=Veličina izraza
+CalcCraft.ExpressionSizeDescription=Izaberite veličinu izraza iznad rezultata
+CalcCraft.ExpressionSizeSmall=Mala
+CalcCraft.ExpressionSizeMedium=Srednja
+CalcCraft.ExpressionSizeLarge=Velika
+CalcCraft.ExpressionSizeExtraLarge=Vrlo velika
 
 [sv-SE]
 CalcCraft.Language=Språk
@@ -1294,6 +1552,12 @@ CalcCraft.ScreenOrientationDescription=Välj vilken orientering appen använder
 CalcCraft.ScreenOrientationAuto=Automatisk
 CalcCraft.ScreenOrientationPortrait=Stående
 CalcCraft.ScreenOrientationLandscape=Liggande
+CalcCraft.ExpressionSize=Uttrycksstorlek
+CalcCraft.ExpressionSizeDescription=Välj storleken på uttrycket ovanför resultatet
+CalcCraft.ExpressionSizeSmall=Liten
+CalcCraft.ExpressionSizeMedium=Medel
+CalcCraft.ExpressionSizeLarge=Stor
+CalcCraft.ExpressionSizeExtraLarge=Extra stor
 
 [th-TH]
 CalcCraft.Language=ภาษา
@@ -1323,6 +1587,12 @@ CalcCraft.ScreenOrientationDescription=เลือกการวางแน�
 CalcCraft.ScreenOrientationAuto=อัตโนมัติ
 CalcCraft.ScreenOrientationPortrait=แนวตั้ง
 CalcCraft.ScreenOrientationLandscape=แนวนอน
+CalcCraft.ExpressionSize=ขนาดนิพจน์
+CalcCraft.ExpressionSizeDescription=เลือกขนาดของนิพจน์ที่อยู่เหนือผลลัพธ์
+CalcCraft.ExpressionSizeSmall=เล็ก
+CalcCraft.ExpressionSizeMedium=กลาง
+CalcCraft.ExpressionSizeLarge=ใหญ่
+CalcCraft.ExpressionSizeExtraLarge=ใหญ่พิเศษ
 
 [tr-TR]
 CalcCraft.Language=Dil
@@ -1352,6 +1622,12 @@ CalcCraft.ScreenOrientationDescription=Uygulamanın kullanacağı yönü seçin
 CalcCraft.ScreenOrientationAuto=Otomatik
 CalcCraft.ScreenOrientationPortrait=Dikey
 CalcCraft.ScreenOrientationLandscape=Yatay
+CalcCraft.ExpressionSize=İfade boyutu
+CalcCraft.ExpressionSizeDescription=Sonucun üzerindeki ifadenin boyutunu seçin
+CalcCraft.ExpressionSizeSmall=Küçük
+CalcCraft.ExpressionSizeMedium=Orta
+CalcCraft.ExpressionSizeLarge=Büyük
+CalcCraft.ExpressionSizeExtraLarge=Çok büyük
 
 [uk-UA]
 CalcCraft.Language=Мова
@@ -1381,6 +1657,12 @@ CalcCraft.ScreenOrientationDescription=Виберіть орієнтацію п�
 CalcCraft.ScreenOrientationAuto=Авто
 CalcCraft.ScreenOrientationPortrait=Книжкова
 CalcCraft.ScreenOrientationLandscape=Альбомна
+CalcCraft.ExpressionSize=Розмір виразу
+CalcCraft.ExpressionSizeDescription=Виберіть розмір виразу над результатом
+CalcCraft.ExpressionSizeSmall=Малий
+CalcCraft.ExpressionSizeMedium=Середній
+CalcCraft.ExpressionSizeLarge=Великий
+CalcCraft.ExpressionSizeExtraLarge=Дуже великий
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
@@ -1410,6 +1692,12 @@ CalcCraft.ScreenOrientationDescription=Chọn hướng màn hình cho ứng dụ
 CalcCraft.ScreenOrientationAuto=Tự động
 CalcCraft.ScreenOrientationPortrait=Dọc
 CalcCraft.ScreenOrientationLandscape=Ngang
+CalcCraft.ExpressionSize=Cỡ biểu thức
+CalcCraft.ExpressionSizeDescription=Chọn cỡ của biểu thức phía trên kết quả
+CalcCraft.ExpressionSizeSmall=Nhỏ
+CalcCraft.ExpressionSizeMedium=Vừa
+CalcCraft.ExpressionSizeLarge=Lớn
+CalcCraft.ExpressionSizeExtraLarge=Rất lớn
 
 [zh-CN]
 CalcCraft.Language=语言
@@ -1439,6 +1727,12 @@ CalcCraft.ScreenOrientationDescription=选择应用使用的屏幕方向
 CalcCraft.ScreenOrientationAuto=自动
 CalcCraft.ScreenOrientationPortrait=纵向
 CalcCraft.ScreenOrientationLandscape=横向
+CalcCraft.ExpressionSize=表达式大小
+CalcCraft.ExpressionSizeDescription=选择结果上方表达式的大小
+CalcCraft.ExpressionSizeSmall=小
+CalcCraft.ExpressionSizeMedium=中
+CalcCraft.ExpressionSizeLarge=大
+CalcCraft.ExpressionSizeExtraLarge=特大
 
 [zh-TW]
 CalcCraft.Language=語言
@@ -1468,3 +1762,9 @@ CalcCraft.ScreenOrientationDescription=選取應用程式使用的螢幕方向
 CalcCraft.ScreenOrientationAuto=自動
 CalcCraft.ScreenOrientationPortrait=直向
 CalcCraft.ScreenOrientationLandscape=橫向
+CalcCraft.ExpressionSize=運算式大小
+CalcCraft.ExpressionSizeDescription=選取結果上方運算式的大小
+CalcCraft.ExpressionSizeSmall=小
+CalcCraft.ExpressionSizeMedium=中
+CalcCraft.ExpressionSizeLarge=大
+CalcCraft.ExpressionSizeExtraLarge=特大
