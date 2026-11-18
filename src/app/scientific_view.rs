@@ -37,6 +37,10 @@ fn results_size(window_height: f32) -> (f32, f32, f32) {
     }
 }
 
+/// The height of the unit and F-E row and the memory row in the landscape layout
+/// (`Landscape`), 32 px each as in `Calculator.xaml`; the menu row comes under them.
+pub(super) const LANDSCAPE_ROWS: f32 = 64.0;
+
 /// From this size of the keys (with the menu row) on, they get larger (`Medium` and
 /// `Large` in `CalculatorScientificOperators.xaml`).
 const MEDIUM_KEYPAD: (f32, f32) = (527.0, 523.0);
@@ -423,15 +427,59 @@ impl CalculatorApp {
 
     /// The menu row (Trigonometry and Function) and the 5 × 7 keys.
     fn draw_scientific_keys(&mut self, ui: &Ui, rect: Rect, now: f64) {
-        let p = self.palette;
         let sizes = Sizes::for_keypad(rect);
-        let [menu_height, menu_font, glyph_size, chevron_size] = sizes.menu;
-        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), menu_height));
+        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), sizes.menu[0]));
         ui.painter().hline(
             rect.x_range().expand(MARGIN - 1.0),
             rect.top() + 0.5,
-            Stroke::new(1.0, p.divider),
+            Stroke::new(1.0, self.palette.divider),
         );
+        self.draw_scientific_menus(ui, menu_row, sizes);
+        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
+        self.draw_scientific_keypad(ui, keys, sizes, now);
+    }
+
+    /// The landscape layout's rows under the display (`Landscape`): the unit and F-E row, the
+    /// memory row and the menu row, sized for the `keys` in the other column. Drawn out of
+    /// reach while a flyout covers the keys (`covered`).
+    pub(super) fn draw_scientific_controls(
+        &mut self,
+        ui: &Ui,
+        rect: Rect,
+        keys: Rect,
+        covered: bool,
+        now: f64,
+    ) {
+        let sizes = Sizes::for_keypad(keys);
+        let angle_row = Rect::from_min_size(rect.min, vec2(rect.width(), LANDSCAPE_ROWS / 2.0));
+        let memory_row = angle_row.translate(vec2(0.0, angle_row.height()));
+        let menu_row = Rect::from_min_max(
+            pos2(rect.left() + MARGIN - 1.0, memory_row.bottom()),
+            pos2(rect.right() - MARGIN + 1.0, rect.bottom()),
+        );
+        let mut draw = || {
+            self.draw_angle_row(ui, angle_row);
+            self.draw_memory_row(ui, memory_row, now, !covered);
+            self.draw_scientific_menus(ui, menu_row, sizes);
+        };
+        if covered {
+            access::draw_covered(ui, draw);
+        } else {
+            draw();
+        }
+    }
+
+    /// The landscape layout's keys: the 5 × 7 keys alone, their menus being in the other
+    /// column.
+    pub(super) fn draw_scientific_keypad_only(&mut self, ui: &Ui, keys: Rect, now: f64) {
+        let sizes = Sizes::for_keypad(keys);
+        self.draw_scientific_keypad(ui, keys, sizes, now);
+    }
+
+    /// The Trigonometry and Function menu buttons in `menu_row`.
+    fn draw_scientific_menus(&mut self, ui: &Ui, menu_row: Rect, sizes: Sizes) {
+        let p = self.palette;
+        let [_, menu_font, glyph_size, chevron_size] = sizes.menu;
         let enabled = !self.scientific.calc.has_error();
         let mut left = menu_row.left();
         for menu in [Menu::Trigonometry, Menu::Function] {
@@ -513,9 +561,6 @@ impl CalculatorApp {
                 }
             }
         }
-
-        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
-        self.draw_scientific_keypad(ui, keys, sizes, now);
     }
 
     fn draw_scientific_keypad(&mut self, ui: &Ui, rect: Rect, sizes: Sizes, now: f64) {

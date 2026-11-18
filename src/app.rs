@@ -10,6 +10,7 @@ mod graphing_keypad;
 mod graphing_view;
 pub(crate) mod icons;
 mod math_label;
+mod orientation;
 pub(crate) mod palette;
 mod programmer_view;
 mod region;
@@ -81,6 +82,19 @@ const COMPACT_MIN_SIZE: egui::Vec2 = vec2(280.0, 360.0);
 /// (`ColumnHistory` is `240*` next to `320*`), up to 320 px.
 const DOCK_WIDTH: f32 = 560.0;
 const DOCK_MAX_WIDTH: f32 = 320.0;
+/// A window lower than Windows' smallest one (`MIN_SIZE`) and at least `LANDSCAPE_RATIO` times
+/// as wide as high is a phone on its side (only the Android app gets one: the desktop and web
+/// windows are at least 500 high). The Standard, Scientific and Programmer modes then put their
+/// keys in a column of their own on the right, which keeps them some 50 px high, instead of
+/// under the display, where seven rows would be 30 px or less (`Landscape`).
+const LANDSCAPE_HEIGHT: f32 = 500.0;
+const LANDSCAPE_RATIO: f32 = 1.4;
+/// The left column's share of the width in the landscape layout.
+const LANDSCAPE_SPLIT: f32 = 0.45;
+/// The display's height in the landscape layout when the history and memory list shares its
+/// column, and the least height of that list.
+const LANDSCAPE_DISPLAY: f32 = 96.0;
+const LANDSCAPE_DOCK_MIN: f32 = 160.0;
 /// The memory buttons are at most 80 px wide (`MaxWidth="80"`).
 const MEMORY_BUTTON_MAX_WIDTH: f32 = 80.0;
 /// How long (in seconds) a button looks pressed after its keyboard key is pressed.
@@ -118,6 +132,8 @@ enum SettingsList {
     Region,
     /// The Key vibration card's Style (the Android app).
     VibrationStyle,
+    /// The Screen orientation card (the Android app).
+    Orientation,
 }
 
 impl SettingsList {
@@ -132,19 +148,26 @@ impl SettingsList {
             SettingsList::Language => app.language_choice.as_deref(),
             SettingsList::Region => app.region_choice.as_deref(),
             SettingsList::VibrationStyle => Some(vibration::style().key()),
+            SettingsList::Orientation => Some(orientation::current().key()),
         }
     }
 }
 
 /// A Settings drop-down's entries: the Windows setting (`None`) first, then the languages or
 /// regional formats by their own names (`Deutsch (Deutschland)`), sorted. The key vibration's
-/// styles are in the card's order, by their stored keys.
+/// styles and the screen orientations are in the card's order, by their stored keys.
 fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static str)> {
     static LANGUAGES: OnceLock<Vec<(&'static str, String)>> = OnceLock::new();
     if list == SettingsList::VibrationStyle {
         return vibration::Style::ALL
             .into_iter()
             .map(|style| (Some(style.key()), tr(style.label_key())))
+            .collect();
+    }
+    if list == SettingsList::Orientation {
+        return orientation::Orientation::ALL
+            .into_iter()
+            .map(|o| (Some(o.key()), tr(o.label_key())))
             .collect();
     }
     let mut entries = vec![(None, tr("SystemThemeRadioButton.Content"))];
@@ -168,7 +191,7 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
                 .iter()
                 .map(|region| (Some(region.tag.as_str()), region.name.as_str())),
         ),
-        SettingsList::VibrationStyle => {}
+        SettingsList::VibrationStyle | SettingsList::Orientation => {}
     }
     entries
 }
@@ -260,18 +283,24 @@ impl ComboCard {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingsCard {
     Language,
+    /// The Android app's Screen orientation drop-down.
+    Orientation,
     /// The Android app's Key vibration slider.
     KeyVibration,
     Region,
 }
 
-/// The cards under App theme, in order: Language, Key vibration where keys vibrate (the
-/// Android app), and Regional format where there are formats to choose. Where
+/// The cards under App theme, in order: Language, Screen orientation where the app can choose
+/// it (the Android app, where Android honors it: `orientation::honored`), Key vibration where
+/// keys vibrate (the Android app), and Regional format where there are formats to choose. Where
 /// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
 /// setting", which changes nothing there: the formats are en-US until those systems' own are
 /// read.
-fn settings_cards(key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
+fn settings_cards(orientation: bool, key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
     let mut cards = vec![SettingsCard::Language];
+    if orientation {
+        cards.push(SettingsCard::Orientation);
+    }
     if key_vibration {
         cards.push(SettingsCard::KeyVibration);
     }
@@ -449,6 +478,39 @@ fn paint_vibration_icon(painter: &Painter, center: Pos2, color: Color32) {
             painter.line_segment([pos2(x, center.y - half), pos2(x, center.y + half)], stroke);
         }
     }
+}
+
+/// Whether Settings has the Screen orientation card: in the Android app, where Android honors
+/// the app's orientation (`orientation::honored`: not on Android 16's large screens).
+fn orientation_card() -> bool {
+    #[cfg(target_os = "android")]
+    return android::orientation_honored();
+    #[cfg(not(target_os = "android"))]
+    orientation::AVAILABLE
+}
+
+/// The Screen orientation card's icon: a phone with a turning arrow around its top right
+/// corner (the icon font has no rotation glyph, like the vibration card's).
+fn paint_orientation_icon(painter: &Painter, center: Pos2, color: Color32) {
+    let stroke = Stroke::new(1.3, color);
+    let phone = Rect::from_center_size(center + vec2(-2.0, 1.5), vec2(8.0, 13.0));
+    painter.rect_stroke(phone, 2.0, stroke, StrokeKind::Middle);
+    // A quarter circle from above the phone to its right, clockwise, with its arrowhead.
+    let at = |degrees: f32| {
+        let angle = degrees.to_radians();
+        center + vec2(angle.cos(), angle.sin()) * 9.5
+    };
+    let arc: Vec<Pos2> = (0..=8).map(|i| at(-105.0 + i as f32 * 10.0)).collect();
+    let end = at(-25.0);
+    painter.add(egui::Shape::line(arc, stroke));
+    painter.line_segment([end, end + vec2(-3.5, -0.5)], stroke);
+    painter.line_segment([end, end + vec2(0.5, -3.5)], stroke);
+}
+
+/// A Settings card's icon: a glyph of the icon font, or one drawn in code.
+enum CardIcon {
+    Glyph(char),
+    Orientation,
 }
 
 /// An open Settings drop-down: which, and the box it opened from.
@@ -709,6 +771,75 @@ fn app_rect(ui: &Ui) -> Rect {
     ui.ctx().content_rect().intersect(ui.max_rect())
 }
 
+/// The landscape layout of the Standard, Scientific and Programmer modes on a phone on its
+/// side (see `LANDSCAPE_HEIGHT`): the header, the display and the mode's controls (memory
+/// row, unit and F-E, radix list, menus) in a left column, with the history and memory list
+/// under them where there is room, and the keys alone in the right column. Windows has no
+/// window this low, so this is CalcCraft's own, from the parts of its docked layout.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Landscape {
+    /// The whole left column, which a click closes an open flyout in.
+    left: Rect,
+    header: Rect,
+    display: Rect,
+    /// The mode's rows under the display, `controls_height` high.
+    controls: Rect,
+    /// The history and memory list (docked), if the column has room for it.
+    dock: Option<Rect>,
+    /// The right column, which a history or memory flyout covers.
+    right: Rect,
+    /// The keys, inside `right`'s margins.
+    keys: Rect,
+}
+
+impl Landscape {
+    /// The two columns of `full`, if it is a landscape phone screen: the left one and the keys.
+    fn columns(full: Rect) -> Option<(Rect, Rect)> {
+        if full.height() >= LANDSCAPE_HEIGHT || full.width() < full.height() * LANDSCAPE_RATIO {
+            return None;
+        }
+        let left = full.with_max_x((full.left() + full.width() * LANDSCAPE_SPLIT).round());
+        Some((left, full.with_min_x(left.right())))
+    }
+
+    /// The layout of `full` with `controls_height` of the mode's rows under the display, if
+    /// it is a landscape phone screen (`columns`).
+    fn new(full: Rect, controls_height: f32) -> Option<Self> {
+        let (left, right) = Self::columns(full)?;
+        let keys = Rect::from_min_max(
+            right.min + vec2(0.0, MARGIN),
+            right.max - vec2(MARGIN, MARGIN),
+        );
+        let header = Rect::from_min_size(left.min, vec2(left.width(), HEADER_HEIGHT));
+        let room = left.height() - HEADER_HEIGHT - controls_height;
+        let docked = room - LANDSCAPE_DISPLAY >= LANDSCAPE_DOCK_MIN;
+        let display_height = if docked {
+            LANDSCAPE_DISPLAY
+        } else {
+            room.max(0.0)
+        };
+        let display = Rect::from_min_size(header.left_bottom(), vec2(left.width(), display_height));
+        let controls =
+            Rect::from_min_size(display.left_bottom(), vec2(left.width(), controls_height));
+        // The docked panel's tabs are 3 px higher than it, and its list has its own margins.
+        let dock = docked.then(|| {
+            Rect::from_min_max(
+                pos2(left.left() + MARGIN, controls.bottom() + 3.0 + GAP),
+                left.max,
+            )
+        });
+        Some(Self {
+            left,
+            header,
+            display,
+            controls,
+            dock,
+            right,
+            keys,
+        })
+    }
+}
+
 /// The window's content size: the size of egui's area, which every platform reports.
 /// `ViewportInfo::inner_rect` would also give it, but it is always `None` on Wayland,
 /// which doesn't tell a window its position.
@@ -843,6 +974,16 @@ impl CalculatorApp {
             #[cfg(target_os = "android")]
             android::vibrator_capabilities();
         }
+        if orientation::AVAILABLE {
+            let stored = cc
+                .storage
+                .and_then(|storage| storage.get_string(orientation::STORAGE_KEY));
+            orientation::set(orientation::Orientation::parse(stored.as_deref()));
+            // Before the first frame: the manifest asks for no orientation, so a phone held
+            // upright with Landscape chosen turns once, before anything is drawn.
+            #[cfg(target_os = "android")]
+            android::set_orientation(orientation::current());
+        }
         // Before anything looks up a string or formats a number.
         let language = strings::set_language(language_choice.as_deref());
         let region = &region::set_region(region_choice.as_deref()).tag;
@@ -873,6 +1014,13 @@ impl CalculatorApp {
             .and_then(|id| id.parse().ok())
             .and_then(Mode::from_serialization_id)
             .unwrap_or(Mode::Standard);
+        // For screenshots of every mode: `CALCCRAFT_MODE=<serialization id>` (17 is Graphing).
+        #[cfg(not(target_arch = "wasm32"))]
+        let mode = std::env::var("CALCCRAFT_MODE")
+            .ok()
+            .and_then(|id| id.parse().ok())
+            .and_then(Mode::from_serialization_id)
+            .unwrap_or(mode);
         // Ctrl with plus, minus and 0 zoom the graph, not the whole window, and Windows
         // Calculator has no such zoom elsewhere either.
         cc.egui_ctx.options_mut(|o| o.zoom_with_keyboard = false);
@@ -934,6 +1082,26 @@ impl CalculatorApp {
             || self.scientific.popup_open()
             || self.graphing.popup_open()
             || self.settings_popup.is_some()
+    }
+
+    /// The landscape layout of the calculator mode on screen in `full`, if `full` is a phone
+    /// on its side (`Landscape`). Its left column holds the rows that are above the keys in
+    /// the other layouts: the memory row, the Scientific mode's unit and F-E row, memory row
+    /// and menus, or the Programmer mode's radix list, the row under it and its menus.
+    fn landscape(&self, full: Rect) -> Option<Landscape> {
+        if self.compact || self.page == Page::Settings {
+            return None;
+        }
+        let (_, keys) = Landscape::columns(full)?;
+        let controls = match self.mode {
+            Mode::Standard => MEMORY_ROW_HEIGHT,
+            Mode::Scientific => {
+                scientific_view::LANDSCAPE_ROWS + scientific_view::Sizes::for_keypad(keys).menu[0]
+            }
+            Mode::Programmer => programmer_view::LANDSCAPE_ROWS + Self::keypad_sizes(keys).1[0],
+            _ => return None,
+        };
+        Landscape::new(full, controls)
     }
 
     /// The engine of the calculator mode on screen (or used last).
@@ -1717,7 +1885,8 @@ impl CalculatorApp {
         const HEADER_PADDING: f32 = 12.0;
         let p = self.palette;
         let painter = ui.painter().clone();
-        let top = rect.top() - 3.0;
+        // Not under a phone's status bar, where a tap would pull the bar down.
+        let top = (rect.top() - 3.0).max(ui.ctx().content_rect().top());
         let mut left = rect.left();
         // The Programmer mode has no history: the panel is the memory list alone.
         let programmer = self.mode == Mode::Programmer;
@@ -2418,7 +2587,10 @@ impl CalculatorApp {
                 });
                 self.type_ahead.0.clear();
                 self.opened_from(&ctx, list.box_id());
-                if list != SettingsList::VibrationStyle {
+                if !matches!(
+                    list,
+                    SettingsList::VibrationStyle | SettingsList::Orientation
+                ) {
                     // The entries are in their own scripts.
                     self.all_scripts = true;
                     self.update_fonts(&ctx);
@@ -2456,6 +2628,13 @@ impl CalculatorApp {
                     // One tap in the new style, to compare them by feel (none for Off).
                     #[cfg(target_os = "android")]
                     android::key_tap();
+                }
+                SettingsList::Orientation => {
+                    let choice = orientation::Orientation::parse(choice.as_deref());
+                    orientation::set(choice);
+                    // At once: the screen turns while Settings is open.
+                    #[cfg(target_os = "android")]
+                    android::set_orientation(choice);
                 }
             }
         }
@@ -2515,7 +2694,22 @@ impl CalculatorApp {
                 )
                 .unwrap_or_default()
         };
-        let cards = settings_cards(vibration::AVAILABLE, !region::regions().is_empty());
+        let cards = settings_cards(
+            orientation_card(),
+            vibration::AVAILABLE,
+            !region::regions().is_empty(),
+        );
+        let orientation_card = cards.contains(&SettingsCard::Orientation).then(|| {
+            ComboCard::new(
+                &painter,
+                p,
+                width - 2.0 * SIDE,
+                SettingsList::Orientation,
+                tr("CalcCraft.ScreenOrientation"),
+                tr("CalcCraft.ScreenOrientationDescription"),
+                &chosen(SettingsList::Orientation),
+            )
+        });
         let language_card = ComboCard::new(
             &painter,
             p,
@@ -2582,6 +2776,9 @@ impl CalculatorApp {
             cards_bottom = card_top
                 + match card {
                     SettingsCard::Language => language_card.height,
+                    SettingsCard::Orientation => {
+                        orientation_card.as_ref().map_or(0.0, |c| c.height)
+                    }
                     SettingsCard::KeyVibration => vibration_card.as_ref().map_or(0.0, |c| c.height),
                     SettingsCard::Region => region_card.as_ref().map_or(0.0, |c| c.height),
                 };
@@ -2693,12 +2890,17 @@ impl CalculatorApp {
             }
         }
 
-        // Language, Key vibration and Regional format (CalcCraft's own; Windows follows its
-        // settings).
+        // Language, Screen orientation, Key vibration and Regional format (CalcCraft's own;
+        // Windows follows its settings).
         for (kind, card_top) in cards.iter().zip(card_tops) {
             let combo = match kind {
-                SettingsCard::Language => Some((&language_card, ICON_LANGUAGE)),
-                SettingsCard::Region => region_card.as_ref().map(|card| (card, ICON_REGION)),
+                SettingsCard::Language => Some((&language_card, CardIcon::Glyph(ICON_LANGUAGE))),
+                SettingsCard::Orientation => orientation_card
+                    .as_ref()
+                    .map(|card| (card, CardIcon::Orientation)),
+                SettingsCard::Region => region_card
+                    .as_ref()
+                    .map(|card| (card, CardIcon::Glyph(ICON_REGION))),
                 SettingsCard::KeyVibration => None,
             };
             if let Some((card, icon)) = combo {
@@ -2706,7 +2908,6 @@ impl CalculatorApp {
                     pos2(left, top + card_top),
                     vec2(right - left, card.height),
                 );
-                let icon = icon_label(icon, 20.0);
                 if let Some(anchor) = self.draw_combo_card(ui, &painter, rect, card, icon) {
                     action = Some(SettingsAction::OpenList(card.list, anchor));
                 }
@@ -2832,7 +3033,7 @@ impl CalculatorApp {
         painter: &Painter,
         rect: Rect,
         card: &ComboCard,
-        icon: LayoutJob,
+        icon: CardIcon,
     ) -> Option<Rect> {
         let p = self.palette;
         painter.rect_filled(rect, RADIUS, p.card);
@@ -2849,12 +3050,17 @@ impl CalculatorApp {
         } else {
             rect.top() + ComboCard::PADDING
         };
-        let icon = painter.layout_job(icon);
         let icon_center = pos2(
             rect.left() + ComboCard::ICON_X,
             text_top + text_height / 2.0,
         );
-        painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
+        match icon {
+            CardIcon::Glyph(glyph) => {
+                let icon = painter.layout_job(icon_label(glyph, 20.0));
+                painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
+            }
+            CardIcon::Orientation => paint_orientation_icon(painter, icon_center, p.text),
+        }
         let text_left = rect.left() + ComboCard::TEXT_X;
         painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
         painter.galley(
@@ -3310,6 +3516,12 @@ impl eframe::App for CalculatorApp {
             let value = choice.as_deref().unwrap_or(SYSTEM_CHOICE);
             storage.set_string(key, value.to_owned());
         }
+        if orientation::AVAILABLE {
+            storage.set_string(
+                orientation::STORAGE_KEY,
+                orientation::current().key().to_owned(),
+            );
+        }
         if vibration::AVAILABLE {
             storage.set_string(vibration::STORAGE_KEY, vibration::strength().to_string());
             storage.set_string(vibration::STYLE_KEY, vibration::style().key().to_owned());
@@ -3342,8 +3554,13 @@ impl eframe::App for CalculatorApp {
             self.title_bar.apply(theme);
             self.title_bar_theme = Some(theme);
         }
-        self.docked =
-            self.mode.is_calculator() && !self.compact && app_rect(ui).width() >= DOCK_WIDTH;
+        // A phone on its side docks the list only where its left column has room for it.
+        self.docked = match self.landscape(app_rect(ui)) {
+            Some(landscape) => landscape.dock.is_some(),
+            None => {
+                self.mode.is_calculator() && !self.compact && app_rect(ui).width() >= DOCK_WIDTH
+            }
+        };
 
         // The controls under an open popup leave the Tab order, and the control a popup
         // was opened from with the keyboard gets the focus back when it closes.
@@ -3427,7 +3644,11 @@ impl CalculatorApp {
         }
 
         if self.mode == Mode::Graphing {
-            let header = Rect::from_min_size(full.min, vec2(full.width(), HEADER_HEIGHT));
+            // On a phone on its side the keys take the right column from the top.
+            let width = self
+                .graphing_split(ui, full)
+                .map_or(full.width(), |(left, _)| left.width());
+            let header = Rect::from_min_size(full.min, vec2(width, HEADER_HEIGHT));
             self.draw_header(ui, header);
             self.draw_graphing_mode(ui, full, header.bottom());
             self.draw_graphing_popups(ui);
@@ -3446,6 +3667,24 @@ impl CalculatorApp {
                 self.draw_date_mode(ui, full, header.bottom());
             } else {
                 self.draw_converter_mode(ui, full, header.bottom());
+            }
+            #[cfg(feature = "support-prompt")]
+            self.draw_support_popup(ui, full);
+            if self.flyout == Flyout::Navigation {
+                self.draw_navigation(ui, full);
+            }
+            return;
+        }
+
+        if let Some(landscape) = self.landscape(full) {
+            if landscape.dock.is_some() && matches!(self.flyout, Flyout::History | Flyout::Memory) {
+                self.flyout = Flyout::None;
+            }
+            self.draw_landscape(ui, landscape, now);
+            match self.mode {
+                Mode::Programmer => self.draw_programmer_popups(ui),
+                Mode::Scientific => self.draw_scientific_popups(ui),
+                _ => {}
             }
             #[cfg(feature = "support-prompt")]
             self.draw_support_popup(ui, full);
@@ -3564,6 +3803,63 @@ impl CalculatorApp {
         self.draw_support_popup(ui, full);
         if self.flyout == Flyout::Navigation {
             self.draw_navigation(ui, full);
+        }
+    }
+
+    /// Draws the Standard, Scientific or Programmer mode in its landscape layout. A history or
+    /// memory flyout covers the keys' column, as tall as the keys, like in the other layouts;
+    /// the left column stays in view, out of reach, and a click on it closes the flyout.
+    fn draw_landscape(&mut self, ui: &mut Ui, landscape: Landscape, now: f64) {
+        let flyout = match self.flyout {
+            Flyout::History => Some(Panel::History),
+            Flyout::Memory => Some(Panel::Memory),
+            Flyout::None | Flyout::Navigation => None,
+        };
+        let covered = flyout.is_some();
+        if covered {
+            access::draw_covered(ui, || self.draw_header(ui, landscape.header));
+        } else {
+            self.draw_header(ui, landscape.header);
+            if landscape.dock.is_none() {
+                self.context_menu = self
+                    .context_menu
+                    .filter(|menu| matches!(menu.target, MenuTarget::Radix(_)));
+            }
+        }
+        self.draw_display(ui, landscape.display);
+        match self.mode {
+            Mode::Scientific => {
+                self.draw_scientific_controls(ui, landscape.controls, landscape.keys, covered, now)
+            }
+            Mode::Programmer => self.draw_programmer_controls_column(
+                ui,
+                landscape.controls,
+                landscape.keys,
+                covered,
+                now,
+            ),
+            _ if covered => access::draw_covered(ui, || {
+                self.draw_memory_row(ui, landscape.controls, now, false)
+            }),
+            _ => self.draw_memory_row(ui, landscape.controls, now, true),
+        }
+        if let Some(panel) = flyout {
+            if ui
+                .interact(landscape.left, Id::new("display"), Sense::CLICK)
+                .clicked()
+            {
+                self.flyout = Flyout::None;
+            }
+            self.draw_flyout(ui, landscape.right, panel);
+        } else {
+            match self.mode {
+                Mode::Scientific => self.draw_scientific_keypad_only(ui, landscape.keys, now),
+                Mode::Programmer => self.draw_programmer_keypad_only(ui, landscape.keys, now),
+                _ => self.draw_keypad(ui, landscape.keys, now),
+            }
+        }
+        if let Some(dock) = landscape.dock {
+            self.draw_dock(ui, dock);
         }
     }
 
@@ -4394,6 +4690,9 @@ pub fn window_icon() -> egui::IconData {
 }
 
 #[cfg(test)]
+mod layout_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use egui::accesskit::{Action, NodeId, Role};
@@ -4403,20 +4702,35 @@ mod tests {
     #[test]
     fn settings_card_order() {
         use SettingsCard::*;
-        // Windows and the web version: regional formats to choose, no key vibration.
-        assert_eq!(settings_cards(false, true), [Language, Region]);
-        // The Android app: no regional formats yet, Key vibration right after Language.
-        assert_eq!(settings_cards(true, false), [Language, KeyVibration]);
+        // Windows and the web version: regional formats to choose, no screen orientation and
+        // no key vibration.
+        assert_eq!(settings_cards(false, false, true), [Language, Region]);
+        // The Android app: no regional formats yet, Screen orientation and Key vibration
+        // right after Language.
+        assert_eq!(
+            settings_cards(true, true, false),
+            [Language, Orientation, KeyVibration]
+        );
+        // On Android 16's large screens, which ignore the app's orientation.
+        assert_eq!(settings_cards(false, true, false), [Language, KeyVibration]);
         // Linux and macOS: the Regional format card would only offer "Use system setting".
-        assert_eq!(settings_cards(false, false), [Language]);
-        assert_eq!(settings_cards(true, true), [Language, KeyVibration, Region]);
+        assert_eq!(settings_cards(false, false, false), [Language]);
+        assert_eq!(
+            settings_cards(true, true, true),
+            [Language, Orientation, KeyVibration, Region]
+        );
         // This build's own cards.
-        let cards = settings_cards(vibration::AVAILABLE, !region::regions().is_empty());
+        let cards = settings_cards(
+            orientation_card(),
+            vibration::AVAILABLE,
+            !region::regions().is_empty(),
+        );
         assert_eq!(
             cards.contains(&Region),
             cfg!(any(windows, target_arch = "wasm32"))
         );
         assert_eq!(cards.contains(&KeyVibration), cfg!(target_os = "android"));
+        assert_eq!(cards.contains(&Orientation), cfg!(target_os = "android"));
     }
 
     #[test]
@@ -4566,7 +4880,7 @@ mod tests {
 
     /// The app as eframe starts it in `ctx`. In English, which other tests expect of `tr`,
     /// whatever the Windows display language.
-    fn start_in(ctx: &Context) -> CalculatorApp {
+    pub(super) fn start_in(ctx: &Context) -> CalculatorApp {
         let mut storage = MemoryStorage::default();
         storage.0.insert(LANGUAGE_KEY.into(), "en-US".into());
         let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());

@@ -33,7 +33,9 @@ pub fn run() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title(brand::TITLE)
             .with_inner_size([w, h])
-            .with_min_inner_size(app::MIN_SIZE)
+            // A smaller `CALCCRAFT_WINDOW_SIZE` lowers the minimum too, for screenshots at the
+            // Android app's sizes (a phone in landscape is some 360 points high).
+            .with_min_inner_size(app::MIN_SIZE.min(egui::vec2(w, h)))
             .with_icon(app::window_icon()),
         // Settings are saved, but the window always opens at the default size.
         persist_window: false,

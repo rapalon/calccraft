@@ -39,6 +39,11 @@ fn results_size(window_height: f32) -> (f32, f32, f32) {
     }
 }
 
+/// The landscape layout's radix list (its least height in `Calculator.xaml`) and, with the
+/// row under it (32 px), the rows over the menu row (`Landscape`).
+const LANDSCAPE_RADIX_LIST: f32 = 96.0;
+pub(super) const LANDSCAPE_ROWS: f32 = LANDSCAPE_RADIX_LIST + 32.0;
+
 /// The radix list is at most this high (`MaxHeight="244"`).
 const RADIX_LIST_MAX_HEIGHT: f32 = 244.0;
 /// From this keypad size on, the keys and the menu row get larger (`Medium`, `Large`).
@@ -570,7 +575,7 @@ impl CalculatorApp {
     /// Sizes of the keys' labels and of the menu row (`Small`, `Medium` and `Large` in
     /// `CalculatorProgrammerRadixOperators.xaml`): digits, hex letters, operators, and
     /// the menu row's height, text, icon and chevron.
-    fn keypad_sizes(keypad: Rect) -> ([f32; 3], [f32; 4]) {
+    pub(super) fn keypad_sizes(keypad: Rect) -> ([f32; 3], [f32; 4]) {
         let at_least = |(w, h): (f32, f32)| keypad.width() >= w && keypad.height() >= h;
         if at_least(LARGE_KEYPAD) {
             ([38.0, 38.0, 34.0], [70.0, 24.0, 24.0, 16.0])
@@ -583,15 +588,70 @@ impl CalculatorApp {
 
     /// The menu row (Bitwise and Bit shift) and the 5 × 6 keys.
     fn draw_programmer_keys(&mut self, ui: &Ui, rect: Rect, now: f64) {
-        let p = self.palette;
         let (key_sizes, menu_sizes) = Self::keypad_sizes(rect);
-        let [menu_height, menu_font, glyph_size, chevron_size] = menu_sizes;
-        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), menu_height));
+        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), menu_sizes[0]));
         ui.painter().hline(
             rect.x_range().expand(MARGIN - 1.0),
             rect.top() + 0.5,
-            Stroke::new(1.0, p.divider),
+            Stroke::new(1.0, self.palette.divider),
         );
+        self.draw_programmer_menus(ui, menu_row, menu_sizes, rect);
+        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
+        self.draw_programmer_keypad(ui, keys, key_sizes, now);
+    }
+
+    /// The landscape layout's rows under the display (`Landscape`): the radix list, the row
+    /// under it and, with the full keypad, the menu row, sized for the `keys` in the other
+    /// column. Drawn out of reach while the memory flyout covers the keys (`covered`).
+    pub(super) fn draw_programmer_controls_column(
+        &mut self,
+        ui: &Ui,
+        rect: Rect,
+        keys: Rect,
+        covered: bool,
+        now: f64,
+    ) {
+        let menu_sizes = Self::keypad_sizes(keys).1;
+        let radixes = Rect::from_min_size(rect.min, vec2(rect.width(), LANDSCAPE_RADIX_LIST));
+        let controls = Rect::from_min_size(
+            radixes.left_bottom(),
+            vec2(rect.width(), LANDSCAPE_ROWS - LANDSCAPE_RADIX_LIST),
+        );
+        let menu_row = Rect::from_min_max(
+            pos2(rect.left() + MARGIN - 1.0, controls.bottom()),
+            pos2(rect.right() - MARGIN + 1.0, rect.bottom()),
+        );
+        let bit_flip = self.programmer.bit_flip;
+        let mut draw = || {
+            self.draw_radix_list(ui, radixes);
+            self.draw_programmer_controls(ui, controls, now);
+            // The bit toggling keypad has no menus, as in the other layouts.
+            if !bit_flip {
+                self.draw_programmer_menus(ui, menu_row, menu_sizes, keys);
+            }
+        };
+        if covered {
+            access::draw_covered(ui, draw);
+        } else {
+            draw();
+        }
+    }
+
+    /// The landscape layout's keys: the 5 × 6 keys alone, their menus being in the other
+    /// column, or the bit toggling keypad.
+    pub(super) fn draw_programmer_keypad_only(&mut self, ui: &Ui, keys: Rect, now: f64) {
+        if self.programmer.bit_flip {
+            self.draw_bit_panel(ui, keys);
+        } else {
+            let key_sizes = Self::keypad_sizes(keys).0;
+            self.draw_programmer_keypad(ui, keys, key_sizes, now);
+        }
+    }
+
+    /// The Bitwise and Bit shift menu buttons in `menu_row`, for the keys in `keypad`.
+    fn draw_programmer_menus(&mut self, ui: &Ui, menu_row: Rect, menu_sizes: [f32; 4], rect: Rect) {
+        let p = self.palette;
+        let [_, menu_font, glyph_size, chevron_size] = menu_sizes;
         let enabled = !self.programmer.calc.has_error();
         let mut left = menu_row.left();
         for menu in [Menu::Bitwise, Menu::BitShift] {
@@ -673,9 +733,6 @@ impl CalculatorApp {
                 }
             }
         }
-
-        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
-        self.draw_programmer_keypad(ui, keys, key_sizes, now);
     }
 
     fn draw_programmer_keypad(&mut self, ui: &Ui, rect: Rect, sizes: [f32; 3], now: f64) {
