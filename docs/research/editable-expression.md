@@ -205,3 +205,68 @@ it. Windows users expect nothing more than ⌫. A tap-only caret serves both gro
   A settings switch is the alternative.
 - **After an edit of a finished calculation,** should the edit add a new history entry
   (recommended) or replace the old one?
+
+## Decisions
+
+Both open questions were answered on 2026-11-18 (task 246b6e2c, Konst through the relay),
+and A, B and C are built together on one branch. The rest of this section is the choices made
+while building them, each the simplest one and the closest to typing the number fresh.
+
+- **Always on, no setting.** Nothing changes until the user taps or clicks the display or the
+  expression line, so every pinned Windows behavior stays.
+- **A finished calculation that is edited and committed adds a new history entry.** The old
+  entry stays as it was. An edit that changes nothing adds nothing.
+- **Android: a caret only.** No selection, handles or magnifier, and never the system keyboard:
+  the app's keypad types at the caret. Desktop: click, Left/Right, Home/End, Ctrl+Left/Right,
+  Delete and Backspace. Copy and paste are unchanged (paste still replaces the entry).
+- **The caret is a position in the typed characters, not in the text shown.** It counts the
+  digits and the decimal point of the number, and the exponent's digits as a second segment
+  (`1.5e+3` has the stops before 1, 5, after it, and before and after 3). Group separators,
+  the Programmer mode's spaces and BIN's leading zeros are skipped, so the caret works the same
+  with `1,234,567`, `12,34,567`, `1.234.567` and `0001 0010`.
+- **Limits are checked on the candidate number.** A digit typed at the caret that would make the
+  number too long (16 or 32 digits) or too large for the word is refused, as a 17th digit is
+  today. Zeros typed before the first digit disappear, as they do when typed first (`05` is 5).
+  Backspace at the start of the exponent removes `e+0` only when the exponent has no digits.
+- **Ctrl+Left and Ctrl+Right jump to the start or end of the number,** and from there to the
+  previous or next number that can be edited (the line's operands, then the entry). The keys
+  move the caret only while it is shown; otherwise the arrows keep moving egui's focus. Left
+  while a number is typed and nothing has the keyboard focus shows the caret before the last
+  character.
+- **Esc first hides the caret** (and cancels an edit of the expression line); only the next
+  Esc is `C`.
+- **The tape starts at `C`** (and when the mode starts): editing reaches back to the last `C`.
+  The state after `C` equals a fresh engine with the same angle unit, F-E and Programmer radix
+  and word size, which the property test checks. It records at most 400 commands; a longer
+  calculation can't be edited until the next `C`.
+- **The tape records the commands as they came,** and a typed number as the keys that typed it
+  (⌫ and ± included), so an unedited replay is the original key for key. An edited number is
+  typed as its digits, with ± after them (after the first digit in the Programmer mode, where a
+  number like −128 in a BYTE fits only while negative), then `exp` and the exponent's digits.
+  MR, a history recall and `rand` replay the value they gave, not the memory's or a new random
+  one. MS, M+, M− and MC replay only their effect on the calculation (they finish the number
+  being typed); the memory isn't touched again. Replays add no history entries and play no
+  vibration (the keypad vibrates, the engine doesn't).
+- **What can be edited.** In the expression line: the numbers that were typed. A number that
+  was computed (a group's value, `%`'s result, MR, π) can't be edited in the line in this
+  version. On the display: the number being typed (A), or a computed value that typing would
+  replace: after `)`, a function, MR, π or `rand`, the copy replaces that last operand
+  (Konst's `324`: `(6 × 54)` becomes the typed `524`), and after `=` or an operator the copy is
+  a new number typed there. A display value whose replacement would change how the keys before
+  it are read (a group opened right after a number, `2(3)`) gets no caret.
+- **In the Programmer mode** a number in the line can be edited only in the radix it was typed
+  in; after a radix change only the new numbers can.
+- **Live result while editing the line.** While a number of the expression line is edited, the
+  display shows what `=` would give for the edited expression. Committing an edit of a finished
+  calculation (one ending with `=`) keeps the new result and adds the history entry; committing
+  an edit of an unfinished one returns to the calculation in progress, with the edited number.
+  `=` commits (and evaluates an unfinished expression), Esc cancels, and any other key commits
+  and then does what it does. A tap on the display or the line outside the number commits too.
+- **Edit in the history** is a context menu item (right click, or a long press on Android), and
+  it is the only new control: it reloads the calculation's tape, so the expression line shows
+  that calculation with its typed numbers editable. A plain click still recalls the result, as
+  in Windows. Standard mode entries that an operator logged (`2 + 3 +` logs `2 + 3 =`) open as
+  if `=` had been pressed there.
+- **Screen readers:** the display says "Editing %1" while the caret is shown, and the menu item
+  has the name "Edit". The expression line stays one text node: its numbers aren't new Tab
+  stops, so the Tab order is unchanged.
