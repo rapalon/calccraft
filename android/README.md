@@ -221,7 +221,7 @@ a debug key: uninstall the debug build first.
 ### 5. Version codes, and the release
 
 The bundle's `versionName` is `version` in `Cargo.toml`, and its `versionCode` is
-`major × 10000 + minor × 100 + patch` (1.3.2 is 10302), computed by `build-apk.ps1`. Play
+`major × 10000 + minor × 100 + patch` (1.4.0 is 10400), computed by `build-apk.ps1`. Play
 refuses a bundle whose version code isn't higher than every one uploaded before, to any track,
 so every Play upload needs a new version in `Cargo.toml` first: a patch bump is enough (the
 code may skip numbers but never repeat). The code must stay below 2100000000; the scheme
