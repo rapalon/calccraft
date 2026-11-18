@@ -46,6 +46,9 @@ What goes in it (`CalculatorApp::save`, `src/app.rs:2770-2789`; keys at `src/app
 - `SelectedAppTheme`, `Mode`, `UnitConverterPreferences` (category and units),
   `CalcCraftLanguage`, `CalcCraftRegionalFormat`, the graph theme (`graphing_view::THEME_KEY`),
   the keep-on-top window size (`calculatorAlwaysOnTopLastWidth`/`Height`, `src/app.rs:454-457`);
+- on Android, the Screen orientation choice `CalcCraftScreenOrientation` (`Auto`, `Portrait` or
+  `Landscape`, `src/app/orientation.rs`, added 2026-11-18) and the key vibration's
+  `CalcCraftKeyVibration`, `CalcCraftKeyVibrationStyle` and `CalcCraftKeyVibrationDuration`;
 - egui's memory (UI state such as scroll positions), which eframe saves with it;
 - with the `support-prompt` feature (on by default), `SupportStatsV2` (`src/support/stats.rs:6`,
   fields at `stats.rs:17-47`, written by `SupportState::save`, `src/support/view.rs:199`):
@@ -69,6 +72,10 @@ when the app closes.
   (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`).
 - The system theme (egui/winit), the Android SDK version and the system bars' insets
   (`src/app/android.rs:52`, `:90`), the page address's `?lang=`/`?region=` (`src/app/web.rs:17`).
+- The screen's smallest width in dp (Android, `Configuration.smallestScreenWidthDp`,
+  `android::orientation_honored`), only to leave out the Screen orientation setting where
+  Android 16 ignores an app's orientation (large screens). It sets the activity's requested
+  orientation (`setRequestedOrientation`), which needs no permission.
 
 ## Network
 

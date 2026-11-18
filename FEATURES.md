@@ -1109,6 +1109,25 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Converters switch between vertical and horizontal layouts.
   - Nothing clips or overlaps at the minimum window size, Windows' 320 × 500. Keep-on-top mode
     (320 × 394) lowers the minimum while it's on.
+  - A phone on its side (the Android app: lower than 500 px and at least 1.4 times as wide as
+    high, `Landscape`; Windows has no such window) splits the Standard, Scientific and
+    Programmer modes into two columns: the header, the display and the rows above the keys
+    (memory row; unit, F-E and the Trigonometry and Function menus; radix list, the row under
+    it and the Bitwise and Bit shift menus) on the left (45 %), the keys alone on the right,
+    from the top of the screen, so that the Scientific mode's seven rows stay at least 40 px
+    high on a 780 × 360 phone. Where the left column has room for 160 px of list under a 96 px
+    display, history and memory dock there (tabs as above); elsewhere they open as flyouts over
+    the keys' column, the left column covered. The Graphing mode uses its narrow layout (the
+    graph/equations switch) whatever the width, and its equations view puts the list and the
+    keypad's menu row on the left and the keys on the right. The converters' landscape layout,
+    the date page, Settings and the menu (which scroll) need no change. The layouts stay inside
+    the system bars and a camera cutout on either side (egui's safe area).
+  - In the two-column Graphing layout the equation panel is at least as wide as the keypad's
+    three menu buttons (up to half the window), which stuck out of a 300 px panel at 800 px.
+  - `cargo test layout_tests` checks every mode on a 915 × 412 and a 780 × 360 phone in
+    landscape, a 412 × 915 phone and a 1280 × 800 tablet both ways, with system bars: every key
+    in the safe area, the keypad's keys at least 40 px high. `cargo test write_layout_shots --
+    --ignored` paints them into `target/shots/` with a software rasterizer.
 - **Also:** the keypad and fonts scale with the window, the date page switches result sizes at
   480 px, and the converters switch to the horizontal layout in landscape windows and to larger
   sizes from 640 px.
@@ -1245,7 +1264,24 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     right of the text, or under it in cards narrower than 476 px. The Regional format card shows
     only where there are regional formats to choose (Windows and the web version): on Android,
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
-  - Android only: a Key vibration card right after the Language card, measured by feel on two
+  - Android only: a Screen orientation card right after the Language card, with a drop-down:
+    Auto (by default), Portrait, Landscape. Saved as `CalcCraftScreenOrientation` (`Auto`,
+    `Portrait`, `Landscape`) and applied at once and at start-up, before the first frame,
+    through `Activity.setRequestedOrientation` (`android::set_orientation`):
+    - Auto is `SCREEN_ORIENTATION_USER`: the system's setting. With auto-rotate on the app turns
+      with the device; with rotation lock on it stays in the orientation the system is locked
+      in.
+    - Portrait and Landscape are `SCREEN_ORIENTATION_SENSOR_PORTRAIT` and `SENSOR_LANDSCAPE`:
+      that orientation whatever the system's setting (Landscape stays landscape when the
+      system is locked in portrait, and the other way around), upright or upside down as the
+      device is held, so the content never shows upside down for someone holding it the other
+      way (`USER_PORTRAIT`/`USER_LANDSCAPE` would keep one side under rotation lock).
+    - The manifest fixes no orientation and handles rotations itself (`configChanges`), so the
+      activity isn't restarted: the input, history, memory and mode stay.
+    - The card is left out where Android ignores an app's orientation: from Android 16 (API 36,
+      which the app targets) on large screens, whose smallest width is 600 dp or more
+      (`orientation::honored`). The app turns with the device there.
+  - Android only: a Key vibration card after the Screen orientation card, measured by feel on two
     phones (`docs/vibration-lab-results.md`). In this order:
     1. A strength slider from 1 to 100, shown as a percentage (`50%`), 50 by default. Saved as
        `CalcCraftKeyVibration` (`1` to `100`). It has no Off position: Off is a style.
@@ -1289,7 +1325,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
     card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
   - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat` /
-    `CalcCraftKeyVibration` / `CalcCraftKeyVibrationStyle` / `CalcCraftKeyVibrationDuration`.
+    `CalcCraftScreenOrientation` / `CalcCraftKeyVibration` / `CalcCraftKeyVibrationStyle` /
+    `CalcCraftKeyVibrationDuration`.
   - About: icon, name and version; "Send feedback" and GitHub links.
 - **Differences:** no license or privacy statement links in About. `Esc` goes back; Windows
   ignores it on this page. Windows has no Language and Regional format settings (it follows
@@ -1424,3 +1461,4 @@ Windows source in `../win-calculator`.
 | 2026-11-17 | Claude Code | `FEAT-SHELL-012` | Google Play channels `play-free` (the popup leads to CalcCraft Pro's Play listing, or is hidden without `CALCCRAFT_PAID_ID`) and `play-paid` (no prompt, always "Supported by you"), with `build-apk.ps1 -Channel` / `-PaidApplicationId` and a check that no Play library contains the donate or Stripe address |
 | 2026-11-17 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android: a Key vibration card after Language (Off, 1–100 %, 50 by default, `CalcCraftKeyVibration`) that taps through the Vibrator API (`PRIMITIVE_CLICK` scale, amplitude or duration, `app/vibration.rs`) instead of the phone maker's `KEYBOARD_TAP`, with the `VIBRATE` permission; the Regional format card is hidden where its list is empty (Android, Linux, macOS), which use en-US formats for now |
 | 2026-11-17 | Claude Code | `FEAT-SHELL-008` | Android Key vibration card: a Style drop-down (Auto, Click, Pulse, Heavy click) and a Duration slider (5–12 ms, explicit Pulse only) under the strength, with Auto picking Click on a calibrated actuator (resonant frequency, own click primitive) and Pulse otherwise, from the vibration lab's results by feel (`docs/vibration-lab-results.md`) |
+| 2026-11-18 | Claude Code | `FEAT-SHELL-002`, `FEAT-SHELL-008` | Android 1.4.1: a Screen orientation card (Auto = `USER`, Portrait = `SENSOR_PORTRAIT`, Landscape = `SENSOR_LANDSCAPE`, `CalcCraftScreenOrientation`, left out on Android 16's large screens) and no fixed orientation in the manifest; a landscape layout for phones on their side (`Landscape`: keys in their own column for Standard, Scientific, Programmer and the Graphing keypad), a wider Graphing equation panel at 800 px, and `layout_tests` with a software rasterizer for the Android screen sizes |

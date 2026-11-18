@@ -261,10 +261,22 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
 - `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`) and
   glow, as in egui's `hello_android` example, without wgpu and `arboard`.
 - `AndroidManifest.xml`: the app handles every configuration change itself, since winit allows
-  one event loop per process; phones stay upright, because the layouts need some 500 points of
-  height; the keyboard pans the screen instead of shrinking it; and the app opts out of
+  one event loop per process (so a rotation only resizes the window, and the input, history and
+  mode stay); it fixes no screen orientation (Settings → Screen orientation picks it, see
+  below); the keyboard pans the screen instead of shrinking it; and the app opts out of
   predictive back (`enableOnBackInvokedCallback="false"`), without which Android 16 and later
   handle the back button themselves and the app never sees it.
+- Screen orientation (1.4.1): Settings → Screen orientation offers Auto (the default:
+  `SCREEN_ORIENTATION_USER`, which follows the system's auto-rotate, or stays in the
+  orientation it's locked in), Portrait and Landscape (`SENSOR_PORTRAIT` and
+  `SENSOR_LANDSCAPE`: that orientation whatever the system's setting, on whichever side the
+  device is held). `android.rs` `set_orientation` calls `Activity.setRequestedOrientation` at
+  start-up, before the first frame, and when the choice changes; it works on the activity
+  pointer, so it needs no change for GameActivity. Android 16 and later ignore an app's
+  orientation on large screens (smallest width 600 dp or more), so the card is left out there.
+  A phone on its side gets a landscape layout (the keys in a column of their own, see
+  `FEATURES.md`, `FEAT-SHELL-002`); `cargo test layout_tests` checks every mode at phone and
+  tablet sizes in both orientations.
 - `res/`: the launcher icon (adaptive from Android 8; `cargo test write_android_icons --
   --ignored` writes the PNGs from `src/icon.rs`) and a light and a dark theme for the system
   bars and the start-up background.

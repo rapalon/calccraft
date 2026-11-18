@@ -1,7 +1,7 @@
 //! The Android app's ties to the system, through JNI where only Java can tell: the parts of
 //! the screen under the status bar, the navigation bar and a camera cutout (NativeActivity
-//! draws under them), the user's languages, the back button, the keys' vibration, and
-//! whether the system keyboard is open.
+//! draws under them), the user's languages, the back button, the keys' vibration, whether
+//! the system keyboard is open, the screen orientation, and the share sheet.
 
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,7 +11,7 @@ use jni::JNIEnv;
 use jni::objects::{JIntArray, JObject, JString, JValue};
 use winit::platform::android::activity::AndroidApp;
 
-use super::vibration;
+use super::{orientation, vibration};
 
 /// The app's activity, which `android_main` gets from Android.
 static APP: OnceLock<AndroidApp> = OnceLock::new();
@@ -431,6 +431,56 @@ pub(super) fn input_hook(ctx: &Context, raw_input: &mut RawInput, back_closes: b
     if leave {
         move_task_to_back();
     }
+}
+
+/// Asks Android for the screen orientation of Settings → Screen orientation
+/// (`Activity.setRequestedOrientation`, `orientation::Orientation::requested`). The manifest
+/// asks for none, and lets the app handle the rotation itself (`configChanges`), so the
+/// activity isn't restarted: the next frames just get the new size. It goes through the
+/// activity itself, so it works for NativeActivity and GameActivity alike.
+pub(super) fn set_orientation(orientation: orientation::Orientation) {
+    with_activity(|env, activity| {
+        env.call_method(
+            activity,
+            "setRequestedOrientation",
+            "(I)V",
+            &[JValue::Int(orientation.requested())],
+        )?;
+        Ok(())
+    });
+}
+
+/// Whether Android honors the orientation the app asks for (`orientation::honored`): not on
+/// large screens from Android 16. Asked once: neither changes while the app runs (a foldable's
+/// two screens aside, where the setting simply stays).
+pub(super) fn orientation_honored() -> bool {
+    static HONORED: OnceLock<bool> = OnceLock::new();
+    *HONORED.get_or_init(|| {
+        with_activity(|env, activity| {
+            let sdk = sdk_version(env)?;
+            let resources = env
+                .call_method(
+                    activity,
+                    "getResources",
+                    "()Landroid/content/res/Resources;",
+                    &[],
+                )?
+                .l()?;
+            let configuration = env
+                .call_method(
+                    &resources,
+                    "getConfiguration",
+                    "()Landroid/content/res/Configuration;",
+                    &[],
+                )?
+                .l()?;
+            let smallest = env
+                .get_field(&configuration, "smallestScreenWidthDp", "I")?
+                .i()?;
+            Ok(orientation::honored(sdk, smallest))
+        })
+        .unwrap_or(true)
+    })
 }
 
 /// Sends the app to the background, as the back button does on an app's first screen.

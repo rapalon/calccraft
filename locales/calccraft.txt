@@ -24,6 +24,11 @@ CalcCraft.KeyVibrationDuration=Duration
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
 CalcCraft.Keyboard=Keyboard
+CalcCraft.ScreenOrientation=Screen orientation
+CalcCraft.ScreenOrientationDescription=Select which orientation the app uses
+CalcCraft.ScreenOrientationAuto=Auto
+CalcCraft.ScreenOrientationPortrait=Portrait
+CalcCraft.ScreenOrientationLandscape=Landscape
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -60,6 +65,11 @@ CalcCraft.KeyVibrationDuration=Duration
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
 CalcCraft.Keyboard=Keyboard
+CalcCraft.ScreenOrientation=Screen orientation
+CalcCraft.ScreenOrientationDescription=Select which orientation the app uses
+CalcCraft.ScreenOrientationAuto=Auto
+CalcCraft.ScreenOrientationPortrait=Portrait
+CalcCraft.ScreenOrientationLandscape=Landscape
 
 [af-ZA]
 CalcCraft.Language=Taal
@@ -81,6 +91,11 @@ CalcCraft.KeyVibrationDuration=Duur
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Die foon stel die sterkte vir hierdie styl
 CalcCraft.Keyboard=Sleutelbord
+CalcCraft.ScreenOrientation=Skermoriëntasie
+CalcCraft.ScreenOrientationDescription=Kies watter oriëntasie die toep gebruik
+CalcCraft.ScreenOrientationAuto=Outomaties
+CalcCraft.ScreenOrientationPortrait=Portret
+CalcCraft.ScreenOrientationLandscape=Landskap
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
@@ -102,6 +117,11 @@ CalcCraft.KeyVibrationDuration=ቆይታ
 CalcCraft.KeyVibrationMilliseconds=%1 ሚሴ
 CalcCraft.KeyVibrationFixedStrength=ለዚህ ቅጥ ጥንካሬው በስልኩ ይወሰናል
 CalcCraft.Keyboard=የቁልፍ ሰሌዳ
+CalcCraft.ScreenOrientation=የማያ ገጽ አቀማመጥ
+CalcCraft.ScreenOrientationDescription=መተግበሪያው የሚጠቀመውን አቀማመጥ ይምረጡ
+CalcCraft.ScreenOrientationAuto=ራስ-ሰር
+CalcCraft.ScreenOrientationPortrait=ቁም
+CalcCraft.ScreenOrientationLandscape=አግድም
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
@@ -123,6 +143,11 @@ CalcCraft.KeyVibrationDuration=Müddət
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bu üslub üçün gücü telefon təyin edir
 CalcCraft.Keyboard=Klaviatura
+CalcCraft.ScreenOrientation=Ekran istiqaməti
+CalcCraft.ScreenOrientationDescription=Tətbiqin istifadə etdiyi istiqaməti seçin
+CalcCraft.ScreenOrientationAuto=Avtomatik
+CalcCraft.ScreenOrientationPortrait=Portret
+CalcCraft.ScreenOrientationLandscape=Albom
 
 [bg-BG]
 CalcCraft.Language=Език
@@ -144,6 +169,11 @@ CalcCraft.KeyVibrationDuration=Продължителност
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силата за този стил се задава от телефона
 CalcCraft.Keyboard=Клавиатура
+CalcCraft.ScreenOrientation=Ориентация на екрана
+CalcCraft.ScreenOrientationDescription=Изберете ориентацията на приложението
+CalcCraft.ScreenOrientationAuto=Автоматично
+CalcCraft.ScreenOrientationPortrait=Вертикална
+CalcCraft.ScreenOrientationLandscape=Хоризонтална
 
 [ca-ES]
 CalcCraft.Language=Idioma
@@ -165,6 +195,11 @@ CalcCraft.KeyVibrationDuration=Durada
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El telèfon defineix la intensitat d'aquest estil
 CalcCraft.Keyboard=Teclat
+CalcCraft.ScreenOrientation=Orientació de la pantalla
+CalcCraft.ScreenOrientationDescription=Selecciona l'orientació que fa servir l'aplicació.
+CalcCraft.ScreenOrientationAuto=Automàtic
+CalcCraft.ScreenOrientationPortrait=Vertical
+CalcCraft.ScreenOrientationLandscape=Horitzontal
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
@@ -186,6 +221,11 @@ CalcCraft.KeyVibrationDuration=Délka
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Sílu tohoto stylu nastavuje telefon
 CalcCraft.Keyboard=Klávesnice
+CalcCraft.ScreenOrientation=Orientace obrazovky
+CalcCraft.ScreenOrientationDescription=Vyberte orientaci aplikace.
+CalcCraft.ScreenOrientationAuto=Automaticky
+CalcCraft.ScreenOrientationPortrait=Na výšku
+CalcCraft.ScreenOrientationLandscape=Na šířku
 
 [da-DK]
 CalcCraft.Language=Sprog
@@ -207,6 +247,11 @@ CalcCraft.KeyVibrationDuration=Varighed
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne type
 CalcCraft.Keyboard=Tastatur
+CalcCraft.ScreenOrientation=Skærmretning
+CalcCraft.ScreenOrientationDescription=Vælg, hvilken retning appen bruger
+CalcCraft.ScreenOrientationAuto=Automatisk
+CalcCraft.ScreenOrientationPortrait=Stående
+CalcCraft.ScreenOrientationLandscape=Liggende
 
 [de-DE]
 CalcCraft.Language=Sprache
@@ -228,6 +273,11 @@ CalcCraft.KeyVibrationDuration=Dauer
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bei dieser Art legt das Telefon die Stärke fest
 CalcCraft.Keyboard=Tastatur
+CalcCraft.ScreenOrientation=Bildschirmausrichtung
+CalcCraft.ScreenOrientationDescription=Auswählen der Ausrichtung der App
+CalcCraft.ScreenOrientationAuto=Automatisch
+CalcCraft.ScreenOrientationPortrait=Hochformat
+CalcCraft.ScreenOrientationLandscape=Querformat
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
@@ -249,6 +299,11 @@ CalcCraft.KeyVibrationDuration=Διάρκεια
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Την ένταση αυτού του στυλ την ορίζει το τηλέφωνο
 CalcCraft.Keyboard=Πληκτρολόγιο
+CalcCraft.ScreenOrientation=Προσανατολισμός οθόνης
+CalcCraft.ScreenOrientationDescription=Επιλέξτε τον προσανατολισμό της εφαρμογής
+CalcCraft.ScreenOrientationAuto=Αυτόματα
+CalcCraft.ScreenOrientationPortrait=Κατακόρυφος
+CalcCraft.ScreenOrientationLandscape=Οριζόντιος
 
 [es-ES]
 CalcCraft.Language=Idioma
@@ -270,6 +325,11 @@ CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
 CalcCraft.Keyboard=Teclado
+CalcCraft.ScreenOrientation=Orientación de la pantalla
+CalcCraft.ScreenOrientationDescription=Seleccionar la orientación de la aplicación
+CalcCraft.ScreenOrientationAuto=Automático
+CalcCraft.ScreenOrientationPortrait=Vertical
+CalcCraft.ScreenOrientationLandscape=Horizontal
 
 [es-MX]
 CalcCraft.Language=Idioma
@@ -291,6 +351,11 @@ CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
 CalcCraft.Keyboard=Teclado
+CalcCraft.ScreenOrientation=Orientación de la pantalla
+CalcCraft.ScreenOrientationDescription=Seleccionar la orientación de la aplicación
+CalcCraft.ScreenOrientationAuto=Automático
+CalcCraft.ScreenOrientationPortrait=Vertical
+CalcCraft.ScreenOrientationLandscape=Horizontal
 
 [et-EE]
 CalcCraft.Language=Keel
@@ -312,6 +377,11 @@ CalcCraft.KeyVibrationDuration=Kestus
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Selle stiili tugevuse määrab telefon
 CalcCraft.Keyboard=Klaviatuur
+CalcCraft.ScreenOrientation=Ekraani suund
+CalcCraft.ScreenOrientationDescription=Valige rakenduse ekraanisuund
+CalcCraft.ScreenOrientationAuto=Automaatne
+CalcCraft.ScreenOrientationPortrait=Püstpaigutus
+CalcCraft.ScreenOrientationLandscape=Rõhtpaigutus
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
@@ -333,6 +403,11 @@ CalcCraft.KeyVibrationDuration=Iraupena
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Estilo honen indarra telefonoak ezartzen du
 CalcCraft.Keyboard=Teklatua
+CalcCraft.ScreenOrientation=Pantailaren orientazioa
+CalcCraft.ScreenOrientationDescription=Hautatu aplikazioak erabiliko duen orientazioa
+CalcCraft.ScreenOrientationAuto=Automatikoa
+CalcCraft.ScreenOrientationPortrait=Bertikala
+CalcCraft.ScreenOrientationLandscape=Horizontala
 
 [fi-FI]
 CalcCraft.Language=Kieli
@@ -354,6 +429,11 @@ CalcCraft.KeyVibrationDuration=Kesto
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Puhelin määrittää tämän tyylin voimakkuuden
 CalcCraft.Keyboard=Näppäimistö
+CalcCraft.ScreenOrientation=Näytön suunta
+CalcCraft.ScreenOrientationDescription=Valitse sovelluksen näytön suunta
+CalcCraft.ScreenOrientationAuto=Automaattinen
+CalcCraft.ScreenOrientationPortrait=Pysty
+CalcCraft.ScreenOrientationLandscape=Vaaka
 
 [fil-PH]
 CalcCraft.Language=Wika
@@ -375,6 +455,11 @@ CalcCraft.KeyVibrationDuration=Tagal
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Ang telepono ang nagtatakda ng lakas para sa istilong ito
 CalcCraft.Keyboard=Keyboard
+CalcCraft.ScreenOrientation=Oryentasyon ng screen
+CalcCraft.ScreenOrientationDescription=Piliin kung aling oryentasyon ang gagamitin ng app
+CalcCraft.ScreenOrientationAuto=Awtomatiko
+CalcCraft.ScreenOrientationPortrait=Patayo
+CalcCraft.ScreenOrientationLandscape=Pahiga
 
 [fr-CA]
 CalcCraft.Language=Langue
@@ -396,6 +481,11 @@ CalcCraft.KeyVibrationDuration=Durée
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
 CalcCraft.Keyboard=Clavier
+CalcCraft.ScreenOrientation=Orientation de l’écran
+CalcCraft.ScreenOrientationDescription=Sélectionner l’orientation de l’appli
+CalcCraft.ScreenOrientationAuto=Automatique
+CalcCraft.ScreenOrientationPortrait=Portrait
+CalcCraft.ScreenOrientationLandscape=Paysage
 
 [fr-FR]
 CalcCraft.Language=Langue
@@ -417,6 +507,11 @@ CalcCraft.KeyVibrationDuration=Durée
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
 CalcCraft.Keyboard=Clavier
+CalcCraft.ScreenOrientation=Orientation de l’écran
+CalcCraft.ScreenOrientationDescription=Sélectionner l’orientation de l’application
+CalcCraft.ScreenOrientationAuto=Automatique
+CalcCraft.ScreenOrientationPortrait=Portrait
+CalcCraft.ScreenOrientationLandscape=Paysage
 
 [gl-ES]
 CalcCraft.Language=Idioma
@@ -438,6 +533,11 @@ CalcCraft.KeyVibrationDuration=Duración
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=O teléfono fixa a intensidade deste estilo
 CalcCraft.Keyboard=Teclado
+CalcCraft.ScreenOrientation=Orientación da pantalla
+CalcCraft.ScreenOrientationDescription=Seleccionar que orientación vai usar a aplicación
+CalcCraft.ScreenOrientationAuto=Automático
+CalcCraft.ScreenOrientationPortrait=Vertical
+CalcCraft.ScreenOrientationLandscape=Horizontal
 
 [hr-HR]
 CalcCraft.Language=Jezik
@@ -459,6 +559,11 @@ CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
 CalcCraft.Keyboard=Tipkovnica
+CalcCraft.ScreenOrientation=Usmjerenje zaslona
+CalcCraft.ScreenOrientationDescription=Odaberite usmjerenje aplikacije
+CalcCraft.ScreenOrientationAuto=Automatski
+CalcCraft.ScreenOrientationPortrait=Okomito
+CalcCraft.ScreenOrientationLandscape=Vodoravno
 
 [hu-HU]
 CalcCraft.Language=Nyelv
@@ -480,6 +585,11 @@ CalcCraft.KeyVibrationDuration=Időtartam
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Ennél a stílusnál az erősséget a telefon állítja be
 CalcCraft.Keyboard=Billentyűzet
+CalcCraft.ScreenOrientation=Képernyő tájolása
+CalcCraft.ScreenOrientationDescription=Válassza ki az alkalmazás tájolását
+CalcCraft.ScreenOrientationAuto=Automatikus
+CalcCraft.ScreenOrientationPortrait=Álló
+CalcCraft.ScreenOrientationLandscape=Fekvő
 
 [id-ID]
 CalcCraft.Language=Bahasa
@@ -501,6 +611,11 @@ CalcCraft.KeyVibrationDuration=Durasi
 CalcCraft.KeyVibrationMilliseconds=%1 md
 CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini diatur oleh ponsel
 CalcCraft.Keyboard=Keyboard
+CalcCraft.ScreenOrientation=Orientasi layar
+CalcCraft.ScreenOrientationDescription=Pilih orientasi yang digunakan aplikasi
+CalcCraft.ScreenOrientationAuto=Otomatis
+CalcCraft.ScreenOrientationPortrait=Potret
+CalcCraft.ScreenOrientationLandscape=Lanskap
 
 [is-IS]
 CalcCraft.Language=Tungumál
@@ -522,6 +637,11 @@ CalcCraft.KeyVibrationDuration=Lengd
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Síminn ákveður styrkinn fyrir þennan stíl
 CalcCraft.Keyboard=Lyklaborð
+CalcCraft.ScreenOrientation=Skjástefna
+CalcCraft.ScreenOrientationDescription=Velja hvaða skjástefnu forritið notar
+CalcCraft.ScreenOrientationAuto=Sjálfvirkt
+CalcCraft.ScreenOrientationPortrait=Lóðrétt
+CalcCraft.ScreenOrientationLandscape=Lárétt
 
 [it-IT]
 CalcCraft.Language=Lingua
@@ -543,6 +663,11 @@ CalcCraft.KeyVibrationDuration=Durata
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=L'intensità di questo stile è impostata dal telefono
 CalcCraft.Keyboard=Tastiera
+CalcCraft.ScreenOrientation=Orientamento dello schermo
+CalcCraft.ScreenOrientationDescription=Seleziona l'orientamento dell'app
+CalcCraft.ScreenOrientationAuto=Automatico
+CalcCraft.ScreenOrientationPortrait=Verticale
+CalcCraft.ScreenOrientationLandscape=Orizzontale
 
 [ja-JP]
 CalcCraft.Language=言語
@@ -564,6 +689,11 @@ CalcCraft.KeyVibrationDuration=長さ
 CalcCraft.KeyVibrationMilliseconds=%1 ミリ秒
 CalcCraft.KeyVibrationFixedStrength=このスタイルの強さはスマートフォンが設定します
 CalcCraft.Keyboard=キーボード
+CalcCraft.ScreenOrientation=画面の向き
+CalcCraft.ScreenOrientationDescription=アプリで使用する画面の向きを選択します
+CalcCraft.ScreenOrientationAuto=自動
+CalcCraft.ScreenOrientationPortrait=縦
+CalcCraft.ScreenOrientationLandscape=横
 
 [kk-KZ]
 CalcCraft.Language=Тіл
@@ -585,6 +715,11 @@ CalcCraft.KeyVibrationDuration=Ұзақтығы
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Бұл стильдің күшін телефон белгілейді
 CalcCraft.Keyboard=Пернетақта
+CalcCraft.ScreenOrientation=Экран бағдары
+CalcCraft.ScreenOrientationDescription=Қолданба бағдарын таңдау
+CalcCraft.ScreenOrientationAuto=Автоматты
+CalcCraft.ScreenOrientationPortrait=Тік
+CalcCraft.ScreenOrientationLandscape=Көлденең
 
 [ko-KR]
 CalcCraft.Language=언어
@@ -606,6 +741,11 @@ CalcCraft.KeyVibrationDuration=길이
 CalcCraft.KeyVibrationMilliseconds=%1ms
 CalcCraft.KeyVibrationFixedStrength=이 스타일의 세기는 휴대폰이 설정합니다
 CalcCraft.Keyboard=키보드
+CalcCraft.ScreenOrientation=화면 방향
+CalcCraft.ScreenOrientationDescription=앱에서 사용할 화면 방향 선택
+CalcCraft.ScreenOrientationAuto=자동
+CalcCraft.ScreenOrientationPortrait=세로
+CalcCraft.ScreenOrientationLandscape=가로
 
 [lt-LT]
 CalcCraft.Language=Kalba
@@ -627,6 +767,11 @@ CalcCraft.KeyVibrationDuration=Trukmė
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Šio stiliaus stiprumą nustato telefonas
 CalcCraft.Keyboard=Klaviatūra
+CalcCraft.ScreenOrientation=Ekrano padėtis
+CalcCraft.ScreenOrientationDescription=Pasirinkite, kokią padėtį naudoja programėlė
+CalcCraft.ScreenOrientationAuto=Automatinis
+CalcCraft.ScreenOrientationPortrait=Stačias
+CalcCraft.ScreenOrientationLandscape=Gulsčias
 
 [lv-LV]
 CalcCraft.Language=Valoda
@@ -648,6 +793,11 @@ CalcCraft.KeyVibrationDuration=Ilgums
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Šim stilam stiprumu nosaka tālrunis
 CalcCraft.Keyboard=Tastatūra
+CalcCraft.ScreenOrientation=Ekrāna orientācija
+CalcCraft.ScreenOrientationDescription=Atlasiet, kuru orientāciju izmanto lietotne
+CalcCraft.ScreenOrientationAuto=Automātiski
+CalcCraft.ScreenOrientationPortrait=Portrets
+CalcCraft.ScreenOrientationLandscape=Ainava
 
 [mk-MK]
 CalcCraft.Language=Јазик
@@ -669,6 +819,11 @@ CalcCraft.KeyVibrationDuration=Траење
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Јачината за овој стил ја одредува телефонот
 CalcCraft.Keyboard=Тастатура
+CalcCraft.ScreenOrientation=Ориентација на екранот
+CalcCraft.ScreenOrientationDescription=Изберете ја ориентацијата на апликацијата
+CalcCraft.ScreenOrientationAuto=Автоматски
+CalcCraft.ScreenOrientationPortrait=Вертикално
+CalcCraft.ScreenOrientationLandscape=Хоризонтално
 
 [ms-MY]
 CalcCraft.Language=Bahasa
@@ -690,6 +845,11 @@ CalcCraft.KeyVibrationDuration=Tempoh
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini ditetapkan oleh telefon
 CalcCraft.Keyboard=Papan kekunci
+CalcCraft.ScreenOrientation=Orientasi skrin
+CalcCraft.ScreenOrientationDescription=Pilih orientasi untuk apl
+CalcCraft.ScreenOrientationAuto=Automatik
+CalcCraft.ScreenOrientationPortrait=Potret
+CalcCraft.ScreenOrientationLandscape=Landskap
 
 [nb-NO]
 CalcCraft.Language=Språk
@@ -711,6 +871,11 @@ CalcCraft.KeyVibrationDuration=Varighet
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne stilen
 CalcCraft.Keyboard=Tastatur
+CalcCraft.ScreenOrientation=Skjermretning
+CalcCraft.ScreenOrientationDescription=Velg hvilken retning appen skal bruke
+CalcCraft.ScreenOrientationAuto=Automatisk
+CalcCraft.ScreenOrientationPortrait=Stående
+CalcCraft.ScreenOrientationLandscape=Liggende
 
 [nl-NL]
 CalcCraft.Language=Taal
@@ -732,6 +897,11 @@ CalcCraft.KeyVibrationDuration=Duur
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=De sterkte van deze stijl wordt door de telefoon bepaald
 CalcCraft.Keyboard=Toetsenbord
+CalcCraft.ScreenOrientation=Schermstand
+CalcCraft.ScreenOrientationDescription=Selecteer welke stand de app gebruikt
+CalcCraft.ScreenOrientationAuto=Automatisch
+CalcCraft.ScreenOrientationPortrait=Staand
+CalcCraft.ScreenOrientationLandscape=Liggend
 
 [pl-PL]
 CalcCraft.Language=Język
@@ -753,6 +923,11 @@ CalcCraft.KeyVibrationDuration=Czas trwania
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Siłę dla tego stylu ustawia telefon
 CalcCraft.Keyboard=Klawiatura
+CalcCraft.ScreenOrientation=Orientacja ekranu
+CalcCraft.ScreenOrientationDescription=Wybierz orientację aplikacji
+CalcCraft.ScreenOrientationAuto=Automatycznie
+CalcCraft.ScreenOrientationPortrait=Pionowa
+CalcCraft.ScreenOrientationLandscape=Pozioma
 
 [pt-BR]
 CalcCraft.Language=Idioma
@@ -774,6 +949,11 @@ CalcCraft.KeyVibrationDuration=Duração
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telefone
 CalcCraft.Keyboard=Teclado
+CalcCraft.ScreenOrientation=Orientação da tela
+CalcCraft.ScreenOrientationDescription=Selecionar a orientação do aplicativo
+CalcCraft.ScreenOrientationAuto=Automático
+CalcCraft.ScreenOrientationPortrait=Retrato
+CalcCraft.ScreenOrientationLandscape=Paisagem
 
 [pt-PT]
 CalcCraft.Language=Idioma
@@ -795,6 +975,11 @@ CalcCraft.KeyVibrationDuration=Duração
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telemóvel
 CalcCraft.Keyboard=Teclado
+CalcCraft.ScreenOrientation=Orientação do ecrã
+CalcCraft.ScreenOrientationDescription=Selecionar a orientação da aplicação
+CalcCraft.ScreenOrientationAuto=Automático
+CalcCraft.ScreenOrientationPortrait=Vertical
+CalcCraft.ScreenOrientationLandscape=Horizontal
 
 [ro-RO]
 CalcCraft.Language=Limbă
@@ -816,6 +1001,11 @@ CalcCraft.KeyVibrationDuration=Durată
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Intensitatea pentru acest stil este setată de telefon
 CalcCraft.Keyboard=Tastatură
+CalcCraft.ScreenOrientation=Orientarea ecranului
+CalcCraft.ScreenOrientationDescription=Selectați orientarea aplicației
+CalcCraft.ScreenOrientationAuto=Automat
+CalcCraft.ScreenOrientationPortrait=Portret
+CalcCraft.ScreenOrientationLandscape=Peisaj
 
 [ru-RU]
 CalcCraft.Language=Язык
@@ -837,6 +1027,11 @@ CalcCraft.KeyVibrationDuration=Длительность
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силу для этого стиля задаёт телефон
 CalcCraft.Keyboard=Клавиатура
+CalcCraft.ScreenOrientation=Ориентация экрана
+CalcCraft.ScreenOrientationDescription=Выберите ориентацию приложения
+CalcCraft.ScreenOrientationAuto=Авто
+CalcCraft.ScreenOrientationPortrait=Книжная
+CalcCraft.ScreenOrientationLandscape=Альбомная
 
 [sk-SK]
 CalcCraft.Language=Jazyk
@@ -858,6 +1053,11 @@ CalcCraft.KeyVibrationDuration=Trvanie
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Silu tohto štýlu nastavuje telefón
 CalcCraft.Keyboard=Klávesnica
+CalcCraft.ScreenOrientation=Orientácia obrazovky
+CalcCraft.ScreenOrientationDescription=Vyberte orientáciu aplikácie
+CalcCraft.ScreenOrientationAuto=Automaticky
+CalcCraft.ScreenOrientationPortrait=Na výšku
+CalcCraft.ScreenOrientationLandscape=Na šírku
 
 [sl-SI]
 CalcCraft.Language=Jezik
@@ -879,6 +1079,11 @@ CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Moč za ta slog določa telefon
 CalcCraft.Keyboard=Tipkovnica
+CalcCraft.ScreenOrientation=Usmerjenost zaslona
+CalcCraft.ScreenOrientationDescription=Izberite usmerjenost aplikacije
+CalcCraft.ScreenOrientationAuto=Samodejno
+CalcCraft.ScreenOrientationPortrait=Pokončno
+CalcCraft.ScreenOrientationLandscape=Ležeče
 
 [sq-AL]
 CalcCraft.Language=Gjuha
@@ -900,6 +1105,11 @@ CalcCraft.KeyVibrationDuration=Kohëzgjatja
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Forcën për këtë stil e cakton telefoni
 CalcCraft.Keyboard=Tastierë
+CalcCraft.ScreenOrientation=Orientimi i ekranit
+CalcCraft.ScreenOrientationDescription=Zgjidh orientimin e aplikacionit
+CalcCraft.ScreenOrientationAuto=Automatik
+CalcCraft.ScreenOrientationPortrait=Vertikal
+CalcCraft.ScreenOrientationLandscape=Horizontal
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
@@ -921,6 +1131,11 @@ CalcCraft.KeyVibrationDuration=Trajanje
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
 CalcCraft.Keyboard=Tastatura
+CalcCraft.ScreenOrientation=Orijentacija ekrana
+CalcCraft.ScreenOrientationDescription=Izaberite orijentaciju aplikacije
+CalcCraft.ScreenOrientationAuto=Automatski
+CalcCraft.ScreenOrientationPortrait=Uspravno
+CalcCraft.ScreenOrientationLandscape=Položeno
 
 [sv-SE]
 CalcCraft.Language=Språk
@@ -942,6 +1157,11 @@ CalcCraft.KeyVibrationDuration=Längd
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Telefonen bestämmer styrkan för den här stilen
 CalcCraft.Keyboard=Tangentbord
+CalcCraft.ScreenOrientation=Skärmorientering
+CalcCraft.ScreenOrientationDescription=Välj vilken orientering appen använder
+CalcCraft.ScreenOrientationAuto=Automatisk
+CalcCraft.ScreenOrientationPortrait=Stående
+CalcCraft.ScreenOrientationLandscape=Liggande
 
 [th-TH]
 CalcCraft.Language=ภาษา
@@ -963,6 +1183,11 @@ CalcCraft.KeyVibrationDuration=ระยะเวลา
 CalcCraft.KeyVibrationMilliseconds=%1 มิลลิวินาที
 CalcCraft.KeyVibrationFixedStrength=โทรศัพท์เป็นผู้กำหนดความแรงของรูปแบบนี้
 CalcCraft.Keyboard=แป้นพิมพ์
+CalcCraft.ScreenOrientation=การวางแนวหน้าจอ
+CalcCraft.ScreenOrientationDescription=เลือกการวางแนวที่แอปใช้
+CalcCraft.ScreenOrientationAuto=อัตโนมัติ
+CalcCraft.ScreenOrientationPortrait=แนวตั้ง
+CalcCraft.ScreenOrientationLandscape=แนวนอน
 
 [tr-TR]
 CalcCraft.Language=Dil
@@ -984,6 +1209,11 @@ CalcCraft.KeyVibrationDuration=Süre
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Bu stilin gücünü telefon belirler
 CalcCraft.Keyboard=Klavye
+CalcCraft.ScreenOrientation=Ekran yönü
+CalcCraft.ScreenOrientationDescription=Uygulamanın kullanacağı yönü seçin
+CalcCraft.ScreenOrientationAuto=Otomatik
+CalcCraft.ScreenOrientationPortrait=Dikey
+CalcCraft.ScreenOrientationLandscape=Yatay
 
 [uk-UA]
 CalcCraft.Language=Мова
@@ -1005,6 +1235,11 @@ CalcCraft.KeyVibrationDuration=Тривалість
 CalcCraft.KeyVibrationMilliseconds=%1 мс
 CalcCraft.KeyVibrationFixedStrength=Силу для цього стилю задає телефон
 CalcCraft.Keyboard=Клавіатура
+CalcCraft.ScreenOrientation=Орієнтація екрана
+CalcCraft.ScreenOrientationDescription=Виберіть орієнтацію програми
+CalcCraft.ScreenOrientationAuto=Авто
+CalcCraft.ScreenOrientationPortrait=Книжкова
+CalcCraft.ScreenOrientationLandscape=Альбомна
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
@@ -1026,6 +1261,11 @@ CalcCraft.KeyVibrationDuration=Thời lượng
 CalcCraft.KeyVibrationMilliseconds=%1 ms
 CalcCraft.KeyVibrationFixedStrength=Điện thoại đặt cường độ cho kiểu này
 CalcCraft.Keyboard=Bàn phím
+CalcCraft.ScreenOrientation=Hướng màn hình
+CalcCraft.ScreenOrientationDescription=Chọn hướng màn hình cho ứng dụng
+CalcCraft.ScreenOrientationAuto=Tự động
+CalcCraft.ScreenOrientationPortrait=Dọc
+CalcCraft.ScreenOrientationLandscape=Ngang
 
 [zh-CN]
 CalcCraft.Language=语言
@@ -1047,6 +1287,11 @@ CalcCraft.KeyVibrationDuration=时长
 CalcCraft.KeyVibrationMilliseconds=%1 毫秒
 CalcCraft.KeyVibrationFixedStrength=此样式的强度由手机设定
 CalcCraft.Keyboard=键盘
+CalcCraft.ScreenOrientation=屏幕方向
+CalcCraft.ScreenOrientationDescription=选择应用使用的屏幕方向
+CalcCraft.ScreenOrientationAuto=自动
+CalcCraft.ScreenOrientationPortrait=纵向
+CalcCraft.ScreenOrientationLandscape=横向
 
 [zh-TW]
 CalcCraft.Language=語言
@@ -1068,3 +1313,8 @@ CalcCraft.KeyVibrationDuration=時間長度
 CalcCraft.KeyVibrationMilliseconds=%1 毫秒
 CalcCraft.KeyVibrationFixedStrength=此樣式的強度由手機設定
 CalcCraft.Keyboard=鍵盤
+CalcCraft.ScreenOrientation=螢幕方向
+CalcCraft.ScreenOrientationDescription=選取應用程式使用的螢幕方向
+CalcCraft.ScreenOrientationAuto=自動
+CalcCraft.ScreenOrientationPortrait=直向
+CalcCraft.ScreenOrientationLandscape=橫向

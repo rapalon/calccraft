@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The Android app: Android's NativeActivity loads libcalculator.so (the Rust library, see
-     src/lib.rs) and its android_main runs the app. There is no Java code. build-apk.ps1 adds
+     src/lib.rs) and its android_main runs the app. build-apk.ps1 adds
      the version from Cargo.toml (see README.md). The only Java code is ShareProvider (java/),
      for the graph's Share: build-apk.ps1 compiles it, and fills in ${applicationId}. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -24,15 +24,14 @@
         android:theme="@style/CalcCraft">
 
         <!-- The app handles every configuration change itself: a restarted activity would
-             start a second winit event loop, which winit doesn't allow. Phones stay upright,
-             like Windows' calculator window, whose layouts need some 500 points of height
-             (Android 16 ignores this on tablets). The keyboard pans the screen instead of
-             shrinking it, for the same reason. -->
+             start a second winit event loop, which winit doesn't allow. A rotation only
+             changes the window's size. The orientation is Settings → Screen orientation's
+             (android.rs set_orientation), so none is fixed here. The keyboard pans the screen
+             instead of shrinking it, for the same reason. -->
         <activity
             android:name="android.app.NativeActivity"
             android:configChanges="density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true"
-            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan">
             <meta-data
                 android:name="android.app.lib_name"

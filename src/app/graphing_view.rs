@@ -24,8 +24,12 @@ use super::icons::{
     ICON_WARNING, icon_label,
 };
 use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH};
+use super::scientific_view::Sizes;
 use super::strings::{tr, tr_format};
-use super::{CalculatorApp, HEADER_HEIGHT, Kind, RADIUS, access, numbers, radio_button, semibold};
+use super::{
+    CalculatorApp, HEADER_HEIGHT, Kind, Landscape, MARGIN, RADIUS, access, numbers, radio_button,
+    semibold,
+};
 use crate::engine::Angle;
 use crate::graphing::analysis::{self, AnalysisError, Features, Period};
 use crate::graphing::plot::{LineStyle, View};
@@ -310,7 +314,7 @@ pub(super) struct GraphingState {
     pub(super) match_app_theme: bool,
     /// In a narrow window, whether the equations show instead of the graph
     /// (`SwitchModeToggleButton.IsOn`).
-    show_equations: bool,
+    pub(super) show_equations: bool,
     pub(super) analysis: Option<Analysis>,
     pub(super) popup: Option<Popup>,
     /// An Esc that closed a drop-down of the popup is still held (`swallow_held_escape`).
@@ -949,14 +953,46 @@ impl CalculatorApp {
 
     // ---------------------------------------------------------------- layout
 
+    /// On a phone on its side (`Landscape`), the equations view's two columns: the header, the
+    /// equations and the keypad's menu row on the left, and the keys alone on the right, from
+    /// the top, which keeps their seven rows at least 40 px high. `None` elsewhere, and for the
+    /// graph or the function analysis, which take the whole width.
+    pub(super) fn graphing_split(&self, ui: &Ui, full: Rect) -> Option<(Rect, Rect)> {
+        let (left, _) = Landscape::columns(full)?;
+        if !self.graphing.show_equations || self.graphing.analysis.is_some() {
+            return None;
+        }
+        // The left column is wide enough for the three menu buttons.
+        let keys_for = |left: f32| Rect::from_x_y_ranges(left..=full.right(), full.y_range());
+        let menus = Self::graphing_menus_width(ui, keys_for(left.right())) + 2.0 * MARGIN;
+        let split = left
+            .right()
+            .max(full.left() + menus)
+            .min(full.right() - 5.0 * 48.0);
+        Some((full.with_max_x(split), full.with_min_x(split)))
+    }
+
+    /// The equation panel's width in the two-column layout: a third of `full` within
+    /// `PANEL_MIN` and `PANEL_MAX`, but wide enough for the keypad's three menu buttons, which
+    /// would stick out of a 300 px panel (an 800 px window, a tablet held upright), up to half
+    /// the width.
+    fn panel_width(ui: &Ui, full: Rect) -> f32 {
+        let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+        let keypad = vec2(panel, (full.height() * 2.2 / 3.2).min(400.0));
+        let menus = Self::graphing_menus_width(ui, Rect::from_min_size(full.min, keypad));
+        panel.max(menus + 4.0).min(full.width() / 2.0)
+    }
+
     /// Draws the mode below the header (which ends at `top`).
     pub(super) fn draw_graphing_mode(&mut self, ui: &mut Ui, full: Rect, top: f32) {
-        let columns = full.width() >= COLUMNS_WIDTH;
+        // A phone on its side has the narrow window's switch between graph and equations.
+        let columns = full.width() >= COLUMNS_WIDTH && Landscape::columns(full).is_none();
+        let split = self.graphing_split(ui, full);
         let body = full.with_min_y(top);
         if self.graphing.capture != Capture::None {
             // A copy of the graph: draw it alone, as large as it is.
             let graph = if columns {
-                let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+                let panel = Self::panel_width(ui, full);
                 body.with_max_x(full.right() - panel)
             } else {
                 body
@@ -965,18 +1001,31 @@ impl CalculatorApp {
             return;
         }
         if columns {
-            let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+            let panel = Self::panel_width(ui, full);
             let graph = body.with_max_x(full.right() - panel).with_min_y(top + 4.0);
             let right = body.with_min_x(full.right() - panel);
             self.draw_graph(ui, graph, true);
             self.draw_equation_panel(ui, right);
         } else {
-            let header = Rect::from_min_max(
-                pos2(full.left(), top - HEADER_HEIGHT),
-                pos2(full.right(), top),
-            );
+            let right = split.map_or(full.right(), |(left, _)| left.right());
+            let header =
+                Rect::from_min_max(pos2(full.left(), top - HEADER_HEIGHT), pos2(right, top));
             self.draw_mode_switch(ui, header);
-            if self.graphing.show_equations {
+            if let Some((left, keys)) = split {
+                let keys = Rect::from_min_max(
+                    keys.min + vec2(0.0, MARGIN),
+                    keys.max - vec2(MARGIN, MARGIN),
+                );
+                let menu_height = Sizes::for_keypad(keys).menu[0];
+                let menu_row = Rect::from_min_max(
+                    pos2(left.left() + MARGIN, left.bottom() - MARGIN - menu_height),
+                    pos2(left.right() - MARGIN, left.bottom() - MARGIN),
+                );
+                let list = Rect::from_min_max(pos2(left.left(), top + 4.0), menu_row.left_top());
+                self.draw_equation_list(ui, list.with_max_x(left.right()));
+                self.graphing.keypad_rect = keys.union(menu_row);
+                self.draw_graphing_keypad_split(ui, menu_row, keys);
+            } else if self.graphing.show_equations {
                 self.draw_equation_panel(ui, body);
             } else {
                 self.draw_graph(ui, body.with_min_y(top + 4.0), true);
