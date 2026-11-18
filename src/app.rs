@@ -2305,6 +2305,11 @@ impl CalculatorApp {
                     .copy_text(numbers().localize(&self.engine().history()[i].text));
             }
             Some(FlyoutAction::DeleteHistory(i)) => self.engine_mut().delete_history_item(i),
+            Some(FlyoutAction::EditHistory(i)) => {
+                if self.engine_mut().edit_history(i) {
+                    self.flyout = Flyout::None;
+                }
+            }
             Some(FlyoutAction::CopyRadix(_) | FlyoutAction::CloseMenu) | None => {}
         }
     }
@@ -2460,7 +2465,7 @@ impl CalculatorApp {
         // The memory items show the Calculator font's MC, M+ and M− glyphs as text.
         let items = match menu.target {
             MenuTarget::History(i, _) => {
-                let items = vec![
+                let mut items = vec![
                     (
                         icon_label(ICON_COPY, 16.0),
                         tr("CopyHistoryMenuItem.Text"),
@@ -2472,6 +2477,15 @@ impl CalculatorApp {
                         FlyoutAction::DeleteHistory(i),
                     ),
                 ];
+                // CalcCraft's own, after Windows' items: edit the entry's numbers again (its
+                // pencil is painted).
+                if self.engine().can_edit_history(i) {
+                    items.push((
+                        LayoutJob::default(),
+                        tr("CalcCraft.Edit"),
+                        FlyoutAction::EditHistory(i),
+                    ));
+                }
                 items
             }
             MenuTarget::Memory(i) => vec![
@@ -2549,6 +2563,9 @@ impl CalculatorApp {
             painter.rect_filled(item, RADIUS, fill);
             let icon = painter.layout_job(icon);
             let icon_center = pos2(item.left() + ICON_CENTER, item.center().y);
+            if matches!(action, FlyoutAction::EditHistory(_)) {
+                paint_pencil(painter, icon_center, p.text);
+            }
             painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
             painter.text(
                 pos2(item.left() + TEXT_LEFT, item.center().y),
@@ -3712,6 +3729,8 @@ enum FlyoutAction {
     OpenMenu(MenuTarget, Pos2),
     CopyHistory(usize),
     DeleteHistory(usize),
+    /// Open a history entry's calculation to edit its numbers (CalcCraft's own).
+    EditHistory(usize),
     /// Copy a value of the Programmer mode's radix list.
     CopyRadix(Radix),
     CloseMenu,
@@ -4187,6 +4206,29 @@ fn format(size: f32, family: FontFamily) -> TextFormat {
         valign: Align::Center,
         ..Default::default()
     }
+}
+
+/// The history menu's Edit icon, a pencil like Fluent's `edit` (the embedded icon font has
+/// none), 16 px across, centered on `center`.
+fn paint_pencil(painter: &Painter, center: Pos2, color: Color32) {
+    let stroke = Stroke::new(1.2, color);
+    // Along the pencil from its tip (bottom left) to its end (top right), and across it.
+    let along = vec2(1.0, -1.0).normalized();
+    let across = vec2(1.0, 1.0).normalized() * 2.2;
+    let tip = center + vec2(-6.5, 6.5);
+    let wood = tip + along * 3.5;
+    let end = tip + along * 17.0;
+    let body = vec![
+        tip,
+        wood - across,
+        end - across,
+        end + across,
+        wood + across,
+    ];
+    painter.add(egui::Shape::closed_line(body, stroke));
+    // The eraser's band.
+    let band = tip + along * 14.0;
+    painter.line_segment([band - across, band + across], stroke);
 }
 
 /// If the text doesn't fit, cuts it from the left: `…+ sqr(5)`.
@@ -5941,6 +5983,77 @@ mod tests {
             "the From calendar opened under the page list"
         );
         assert!(app.date.popup_open());
+    }
+
+    #[test]
+    fn history_menu_edits_the_entry_and_a_click_edits_a_number() {
+        // The docked history, with "12 + 3 = 15".
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        for command in [
+            Command::Digit(1),
+            Command::Digit(2),
+            Command::Operator(Op::Add),
+            Command::Digit(3),
+            Command::Equals,
+            Command::Digit(7),
+        ] {
+            app.engine_mut().execute(command);
+        }
+        let size = vec2(DOCK_WIDTH + 100.0, 600.0);
+        run(&ctx, &mut app, size, vec![]);
+        let item = ctx.read_response(Id::new("history-item").with(0));
+        let item = item.unwrap().rect.center();
+        for event in [
+            Event::PointerMoved(item),
+            Event::PointerButton {
+                pos: item,
+                button: egui::PointerButton::Secondary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+            Event::PointerButton {
+                pos: item,
+                button: egui::PointerButton::Secondary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            },
+        ] {
+            run(&ctx, &mut app, size, vec![event]);
+        }
+        // Copy, Delete, then CalcCraft's Edit.
+        let edit = screen_reader_click(Id::new("context-menu-item").with(2));
+        run(&ctx, &mut app, size, vec![edit]);
+        assert_eq!(app.engine().expression(), "12 + 3 =");
+        assert_eq!(app.engine().number_edit().unwrap().text, "3");
+        run(&ctx, &mut app, size, vec![]);
+
+        // A click on the 12 of the line edits it, the caret where it was clicked.
+        let line = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let at = pos2(line.left() + 3.0, line.center().y);
+        let click = |pressed| Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        for event in [Event::PointerMoved(at), click(true), click(false)] {
+            run(&ctx, &mut app, size, vec![event]);
+        }
+        let edit = app.engine().number_edit().unwrap();
+        assert_eq!(edit.text, "12");
+        assert_eq!(edit.caret.index, 0);
+        app.engine_mut().execute(Command::Digit(9));
+        assert_eq!(app.engine().display(), "915");
+        // = keeps it and logs the new calculation; the old one stays.
+        app.engine_mut().execute(Command::Equals);
+        let history: Vec<_> = app
+            .engine()
+            .history()
+            .iter()
+            .map(|entry| entry.expression.clone())
+            .collect();
+        assert_eq!(history, ["912 + 3 =", "12 + 3 ="]);
     }
 
     #[test]

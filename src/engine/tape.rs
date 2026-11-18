@@ -819,7 +819,6 @@ impl Calculator {
     /// Opens a history entry's calculation again (CalcCraft's own "Edit"): its tape is
     /// replayed, so the expression line shows it with its typed numbers editable, and the
     /// caret goes into the last one. Returns whether the entry could be opened.
-    #[allow(dead_code)] // The history menu's Edit (option C) opens entries with it.
     pub fn edit_history(&mut self, index: usize) -> bool {
         self.commit_edit();
         let Some(tape) = self.history.get(index).and_then(|entry| entry.tape.clone()) else {
@@ -834,7 +833,6 @@ impl Calculator {
     }
 
     /// Whether `edit_history` can open a history entry.
-    #[allow(dead_code)] // The history menu (option C) asks it.
     pub fn can_edit_history(&self, index: usize) -> bool {
         self.history
             .get(index)
