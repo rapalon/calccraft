@@ -15,6 +15,14 @@ CalcCraft.KeyVibrationDescription=Choose how strongly keys vibrate when you tap 
 CalcCraft.KeyVibrationOff=Off
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Touch feedback is turned off in your phone's settings
+CalcCraft.KeyVibrationStyle=Style
+CalcCraft.KeyVibrationStyleAuto=Auto
+CalcCraft.KeyVibrationStyleClick=Click
+CalcCraft.KeyVibrationStylePulse=Pulse
+CalcCraft.KeyVibrationStyleHeavyClick=Heavy click
+CalcCraft.KeyVibrationDuration=Duration
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -42,6 +50,14 @@ CalcCraft.KeyVibrationDescription=Choose how strongly keys vibrate when you tap 
 CalcCraft.KeyVibrationOff=Off
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Touch feedback is turned off in your phone's settings
+CalcCraft.KeyVibrationStyle=Style
+CalcCraft.KeyVibrationStyleAuto=Auto
+CalcCraft.KeyVibrationStyleClick=Click
+CalcCraft.KeyVibrationStylePulse=Pulse
+CalcCraft.KeyVibrationStyleHeavyClick=Heavy click
+CalcCraft.KeyVibrationDuration=Duration
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Strength is set by the phone for this style
 
 [af-ZA]
 CalcCraft.Language=Taal
@@ -54,6 +70,14 @@ CalcCraft.KeyVibrationDescription=Kies hoe sterk sleutels vibreer wanneer jy hul
 CalcCraft.KeyVibrationOff=Af
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Raakterugvoer is in jou foon se instellings afgeskakel
+CalcCraft.KeyVibrationStyle=Styl
+CalcCraft.KeyVibrationStyleAuto=Outomaties
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Swaar klik
+CalcCraft.KeyVibrationDuration=Duur
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Die foon stel die sterkte vir hierdie styl
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
@@ -66,6 +90,14 @@ CalcCraft.KeyVibrationDescription=ቁልፎችን ሲነኩ ምን ያህል በ
 CalcCraft.KeyVibrationOff=ጠፍቷል
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=የንክኪ ግብረመልስ በስልክዎ ቅንብሮች ውስጥ ጠፍቷል
+CalcCraft.KeyVibrationStyle=ቅጥ
+CalcCraft.KeyVibrationStyleAuto=ራስ-ሰር
+CalcCraft.KeyVibrationStyleClick=ጠቅታ
+CalcCraft.KeyVibrationStylePulse=ምት
+CalcCraft.KeyVibrationStyleHeavyClick=ከባድ ጠቅታ
+CalcCraft.KeyVibrationDuration=ቆይታ
+CalcCraft.KeyVibrationMilliseconds=%1 ሚሴ
+CalcCraft.KeyVibrationFixedStrength=ለዚህ ቅጥ ጥንካሬው በስልኩ ይወሰናል
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
@@ -78,6 +110,14 @@ CalcCraft.KeyVibrationDescription=Düymələrə toxunanda nə qədər güclü ti
 CalcCraft.KeyVibrationOff=Deaktiv
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Toxunma rəyi telefonunuzun parametrlərində deaktivdir
+CalcCraft.KeyVibrationStyle=Üslub
+CalcCraft.KeyVibrationStyleAuto=Avtomatik
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Impuls
+CalcCraft.KeyVibrationStyleHeavyClick=Güclü klik
+CalcCraft.KeyVibrationDuration=Müddət
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Bu üslub üçün gücü telefon təyin edir
 
 [bg-BG]
 CalcCraft.Language=Език
@@ -90,6 +130,14 @@ CalcCraft.KeyVibrationDescription=Изберете колко силно да в
 CalcCraft.KeyVibrationOff=Изкл.
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Обратната връзка при докосване е изключена в настройките на телефона
+CalcCraft.KeyVibrationStyle=Стил
+CalcCraft.KeyVibrationStyleAuto=Автоматично
+CalcCraft.KeyVibrationStyleClick=Щракване
+CalcCraft.KeyVibrationStylePulse=Импулс
+CalcCraft.KeyVibrationStyleHeavyClick=Силно щракване
+CalcCraft.KeyVibrationDuration=Продължителност
+CalcCraft.KeyVibrationMilliseconds=%1 мс
+CalcCraft.KeyVibrationFixedStrength=Силата за този стил се задава от телефона
 
 [ca-ES]
 CalcCraft.Language=Idioma
@@ -102,6 +150,14 @@ CalcCraft.KeyVibrationDescription=Trieu amb quina intensitat vibren les tecles q
 CalcCraft.KeyVibrationOff=Desactivada
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=La resposta tàctil està desactivada a la configuració del telèfon
+CalcCraft.KeyVibrationStyle=Estil
+CalcCraft.KeyVibrationStyleAuto=Automàtic
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Pols
+CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
+CalcCraft.KeyVibrationDuration=Durada
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=El telèfon defineix la intensitat d'aquest estil
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
@@ -114,6 +170,14 @@ CalcCraft.KeyVibrationDescription=Vyberte, jak silně mají klávesy při klepnu
 CalcCraft.KeyVibrationOff=Vypnuto
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Odezva na dotyk je v nastavení telefonu vypnutá
+CalcCraft.KeyVibrationStyle=Styl
+CalcCraft.KeyVibrationStyleAuto=Automaticky
+CalcCraft.KeyVibrationStyleClick=Klepnutí
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Silné klepnutí
+CalcCraft.KeyVibrationDuration=Délka
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Sílu tohoto stylu nastavuje telefon
 
 [da-DK]
 CalcCraft.Language=Sprog
@@ -126,6 +190,14 @@ CalcCraft.KeyVibrationDescription=Vælg, hvor kraftigt tasterne vibrerer, når d
 CalcCraft.KeyVibrationOff=Fra
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Haptisk feedback er slået fra i telefonens indstillinger
+CalcCraft.KeyVibrationStyle=Type
+CalcCraft.KeyVibrationStyleAuto=Automatisk
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Kraftigt klik
+CalcCraft.KeyVibrationDuration=Varighed
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne type
 
 [de-DE]
 CalcCraft.Language=Sprache
@@ -138,6 +210,14 @@ CalcCraft.KeyVibrationDescription=Auswählen, wie stark die Tasten beim Tippen v
 CalcCraft.KeyVibrationOff=Aus
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Haptisches Feedback ist in den Einstellungen des Telefons deaktiviert
+CalcCraft.KeyVibrationStyle=Art
+CalcCraft.KeyVibrationStyleAuto=Automatisch
+CalcCraft.KeyVibrationStyleClick=Klick
+CalcCraft.KeyVibrationStylePulse=Impuls
+CalcCraft.KeyVibrationStyleHeavyClick=Kräftiger Klick
+CalcCraft.KeyVibrationDuration=Dauer
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Bei dieser Art legt das Telefon die Stärke fest
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
@@ -150,6 +230,14 @@ CalcCraft.KeyVibrationDescription=Επιλέξτε πόσο έντονα δον�
 CalcCraft.KeyVibrationOff=Ανενεργή
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Η απόκριση αφής είναι απενεργοποιημένη στις ρυθμίσεις του τηλεφώνου σας
+CalcCraft.KeyVibrationStyle=Στυλ
+CalcCraft.KeyVibrationStyleAuto=Αυτόματα
+CalcCraft.KeyVibrationStyleClick=Κλικ
+CalcCraft.KeyVibrationStylePulse=Παλμός
+CalcCraft.KeyVibrationStyleHeavyClick=Δυνατό κλικ
+CalcCraft.KeyVibrationDuration=Διάρκεια
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Την ένταση αυτού του στυλ την ορίζει το τηλέφωνο
 
 [es-ES]
 CalcCraft.Language=Idioma
@@ -162,6 +250,14 @@ CalcCraft.KeyVibrationDescription=Seleccionar con qué intensidad vibran las tec
 CalcCraft.KeyVibrationOff=Desactivada
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=La respuesta táctil está desactivada en los ajustes del teléfono
+CalcCraft.KeyVibrationStyle=Estilo
+CalcCraft.KeyVibrationStyleAuto=Automático
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Pulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clic fuerte
+CalcCraft.KeyVibrationDuration=Duración
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
 
 [es-MX]
 CalcCraft.Language=Idioma
@@ -174,6 +270,14 @@ CalcCraft.KeyVibrationDescription=Seleccionar qué tan fuerte vibran las teclas 
 CalcCraft.KeyVibrationOff=Desactivada
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=La respuesta táctil está desactivada en la configuración del teléfono
+CalcCraft.KeyVibrationStyle=Estilo
+CalcCraft.KeyVibrationStyleAuto=Automático
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Pulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clic fuerte
+CalcCraft.KeyVibrationDuration=Duración
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=El teléfono fija la intensidad de este estilo
 
 [et-EE]
 CalcCraft.Language=Keel
@@ -186,6 +290,14 @@ CalcCraft.KeyVibrationDescription=Valige, kui tugevalt klahvid puudutamisel vibr
 CalcCraft.KeyVibrationOff=Väljas
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Puutetagasiside on telefoni seadetes välja lülitatud
+CalcCraft.KeyVibrationStyle=Stiil
+CalcCraft.KeyVibrationStyleAuto=Automaatne
+CalcCraft.KeyVibrationStyleClick=Klõps
+CalcCraft.KeyVibrationStylePulse=Impulss
+CalcCraft.KeyVibrationStyleHeavyClick=Tugev klõps
+CalcCraft.KeyVibrationDuration=Kestus
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Selle stiili tugevuse määrab telefon
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
@@ -198,6 +310,14 @@ CalcCraft.KeyVibrationDescription=Hautatu zer indarrez dardaratuko diren teklak 
 CalcCraft.KeyVibrationOff=Desaktibatuta
 CalcCraft.KeyVibrationPercent=% %1
 CalcCraft.KeyVibrationSystemOff=Ukipen-erantzuna desaktibatuta dago telefonoaren ezarpenetan
+CalcCraft.KeyVibrationStyle=Estiloa
+CalcCraft.KeyVibrationStyleAuto=Automatikoa
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Pultsua
+CalcCraft.KeyVibrationStyleHeavyClick=Klik indartsua
+CalcCraft.KeyVibrationDuration=Iraupena
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Estilo honen indarra telefonoak ezartzen du
 
 [fi-FI]
 CalcCraft.Language=Kieli
@@ -210,6 +330,14 @@ CalcCraft.KeyVibrationDescription=Valitse, kuinka voimakkaasti näppäimet väri
 CalcCraft.KeyVibrationOff=Ei käytössä
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Kosketuspalaute on poistettu käytöstä puhelimen asetuksissa
+CalcCraft.KeyVibrationStyle=Tyyli
+CalcCraft.KeyVibrationStyleAuto=Automaattinen
+CalcCraft.KeyVibrationStyleClick=Napsautus
+CalcCraft.KeyVibrationStylePulse=Pulssi
+CalcCraft.KeyVibrationStyleHeavyClick=Voimakas napsautus
+CalcCraft.KeyVibrationDuration=Kesto
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Puhelin määrittää tämän tyylin voimakkuuden
 
 [fil-PH]
 CalcCraft.Language=Wika
@@ -222,6 +350,14 @@ CalcCraft.KeyVibrationDescription=Piliin kung gaano kalakas magva-vibrate ang mg
 CalcCraft.KeyVibrationOff=Naka-off
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Naka-off ang touch feedback sa mga setting ng iyong telepono
+CalcCraft.KeyVibrationStyle=Istilo
+CalcCraft.KeyVibrationStyleAuto=Awtomatiko
+CalcCraft.KeyVibrationStyleClick=Click
+CalcCraft.KeyVibrationStylePulse=Pulso
+CalcCraft.KeyVibrationStyleHeavyClick=Malakas na click
+CalcCraft.KeyVibrationDuration=Tagal
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Ang telepono ang nagtatakda ng lakas para sa istilong ito
 
 [fr-CA]
 CalcCraft.Language=Langue
@@ -234,6 +370,14 @@ CalcCraft.KeyVibrationDescription=Sélectionner l’intensité de la vibration d
 CalcCraft.KeyVibrationOff=Désactivée
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=La rétroaction tactile est désactivée dans les paramètres du téléphone
+CalcCraft.KeyVibrationStyle=Style
+CalcCraft.KeyVibrationStyleAuto=Automatique
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Impulsion
+CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
+CalcCraft.KeyVibrationDuration=Durée
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
 
 [fr-FR]
 CalcCraft.Language=Langue
@@ -246,6 +390,14 @@ CalcCraft.KeyVibrationDescription=Sélectionner l’intensité de la vibration d
 CalcCraft.KeyVibrationOff=Désactivée
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Le retour tactile est désactivé dans les paramètres du téléphone
+CalcCraft.KeyVibrationStyle=Style
+CalcCraft.KeyVibrationStyleAuto=Automatique
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Impulsion
+CalcCraft.KeyVibrationStyleHeavyClick=Clic fort
+CalcCraft.KeyVibrationDuration=Durée
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=L'intensité de ce style est fixée par le téléphone
 
 [gl-ES]
 CalcCraft.Language=Idioma
@@ -258,6 +410,14 @@ CalcCraft.KeyVibrationDescription=Seleccionar con que intensidade vibran as tecl
 CalcCraft.KeyVibrationOff=Desactivada
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=A resposta táctil está desactivada na configuración do teléfono
+CalcCraft.KeyVibrationStyle=Estilo
+CalcCraft.KeyVibrationStyleAuto=Automático
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Pulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clic forte
+CalcCraft.KeyVibrationDuration=Duración
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=O teléfono fixa a intensidade deste estilo
 
 [hr-HR]
 CalcCraft.Language=Jezik
@@ -270,6 +430,14 @@ CalcCraft.KeyVibrationDescription=Odaberite koliko snažno tipke vibriraju kada 
 CalcCraft.KeyVibrationOff=Isključeno
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Povratna informacija na dodir isključena je u postavkama telefona
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Automatski
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Snažan klik
+CalcCraft.KeyVibrationDuration=Trajanje
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
 
 [hu-HU]
 CalcCraft.Language=Nyelv
@@ -282,6 +450,14 @@ CalcCraft.KeyVibrationDescription=Válassza ki, milyen erősen rezegjenek a bill
 CalcCraft.KeyVibrationOff=Ki
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Az érintési visszajelzés ki van kapcsolva a telefon beállításaiban
+CalcCraft.KeyVibrationStyle=Stílus
+CalcCraft.KeyVibrationStyleAuto=Automatikus
+CalcCraft.KeyVibrationStyleClick=Kattintás
+CalcCraft.KeyVibrationStylePulse=Impulzus
+CalcCraft.KeyVibrationStyleHeavyClick=Erős kattintás
+CalcCraft.KeyVibrationDuration=Időtartam
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Ennél a stílusnál az erősséget a telefon állítja be
 
 [id-ID]
 CalcCraft.Language=Bahasa
@@ -294,6 +470,14 @@ CalcCraft.KeyVibrationDescription=Pilih seberapa kuat tombol bergetar saat Anda 
 CalcCraft.KeyVibrationOff=Nonaktif
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Umpan balik sentuhan dinonaktifkan di setelan ponsel Anda
+CalcCraft.KeyVibrationStyle=Gaya
+CalcCraft.KeyVibrationStyleAuto=Otomatis
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Denyut
+CalcCraft.KeyVibrationStyleHeavyClick=Klik kuat
+CalcCraft.KeyVibrationDuration=Durasi
+CalcCraft.KeyVibrationMilliseconds=%1 md
+CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini diatur oleh ponsel
 
 [is-IS]
 CalcCraft.Language=Tungumál
@@ -306,6 +490,14 @@ CalcCraft.KeyVibrationDescription=Velja hversu sterkt hnapparnir titra þegar ý
 CalcCraft.KeyVibrationOff=Slökkt
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Slökkt er á snertisvörun í stillingum símans
+CalcCraft.KeyVibrationStyle=Stíll
+CalcCraft.KeyVibrationStyleAuto=Sjálfvirkt
+CalcCraft.KeyVibrationStyleClick=Smellur
+CalcCraft.KeyVibrationStylePulse=Púls
+CalcCraft.KeyVibrationStyleHeavyClick=Þungur smellur
+CalcCraft.KeyVibrationDuration=Lengd
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Síminn ákveður styrkinn fyrir þennan stíl
 
 [it-IT]
 CalcCraft.Language=Lingua
@@ -318,6 +510,14 @@ CalcCraft.KeyVibrationDescription=Seleziona con quale intensità vibrano i tasti
 CalcCraft.KeyVibrationOff=Disattivata
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Il feedback tattile è disattivato nelle impostazioni del telefono
+CalcCraft.KeyVibrationStyle=Stile
+CalcCraft.KeyVibrationStyleAuto=Automatico
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Impulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clic deciso
+CalcCraft.KeyVibrationDuration=Durata
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=L'intensità di questo stile è impostata dal telefono
 
 [ja-JP]
 CalcCraft.Language=言語
@@ -330,6 +530,14 @@ CalcCraft.KeyVibrationDescription=キーをタップしたときの振動の強�
 CalcCraft.KeyVibrationOff=オフ
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=スマートフォンの設定でタッチ操作のバイブレーションがオフになっています
+CalcCraft.KeyVibrationStyle=スタイル
+CalcCraft.KeyVibrationStyleAuto=自動
+CalcCraft.KeyVibrationStyleClick=クリック
+CalcCraft.KeyVibrationStylePulse=パルス
+CalcCraft.KeyVibrationStyleHeavyClick=強いクリック
+CalcCraft.KeyVibrationDuration=長さ
+CalcCraft.KeyVibrationMilliseconds=%1 ミリ秒
+CalcCraft.KeyVibrationFixedStrength=このスタイルの強さはスマートフォンが設定します
 
 [kk-KZ]
 CalcCraft.Language=Тіл
@@ -342,6 +550,14 @@ CalcCraft.KeyVibrationDescription=Пернелерді түрткенде қан
 CalcCraft.KeyVibrationOff=Өшірулі
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Түрту кері байланысы телефон параметрлерінде өшірілген
+CalcCraft.KeyVibrationStyle=Стиль
+CalcCraft.KeyVibrationStyleAuto=Автоматты
+CalcCraft.KeyVibrationStyleClick=Шерту
+CalcCraft.KeyVibrationStylePulse=Импульс
+CalcCraft.KeyVibrationStyleHeavyClick=Күшті шерту
+CalcCraft.KeyVibrationDuration=Ұзақтығы
+CalcCraft.KeyVibrationMilliseconds=%1 мс
+CalcCraft.KeyVibrationFixedStrength=Бұл стильдің күшін телефон белгілейді
 
 [ko-KR]
 CalcCraft.Language=언어
@@ -354,6 +570,14 @@ CalcCraft.KeyVibrationDescription=키를 누를 때의 진동 세기 선택
 CalcCraft.KeyVibrationOff=끄기
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=휴대폰 설정에서 터치 진동이 꺼져 있습니다
+CalcCraft.KeyVibrationStyle=스타일
+CalcCraft.KeyVibrationStyleAuto=자동
+CalcCraft.KeyVibrationStyleClick=클릭
+CalcCraft.KeyVibrationStylePulse=펄스
+CalcCraft.KeyVibrationStyleHeavyClick=강한 클릭
+CalcCraft.KeyVibrationDuration=길이
+CalcCraft.KeyVibrationMilliseconds=%1ms
+CalcCraft.KeyVibrationFixedStrength=이 스타일의 세기는 휴대폰이 설정합니다
 
 [lt-LT]
 CalcCraft.Language=Kalba
@@ -366,6 +590,14 @@ CalcCraft.KeyVibrationDescription=Pasirinkite, kaip stipriai klavišai vibruoja 
 CalcCraft.KeyVibrationOff=Išjungta
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Lietimo atsakas išjungtas telefono nustatymuose
+CalcCraft.KeyVibrationStyle=Stilius
+CalcCraft.KeyVibrationStyleAuto=Automatinis
+CalcCraft.KeyVibrationStyleClick=Spustelėjimas
+CalcCraft.KeyVibrationStylePulse=Impulsas
+CalcCraft.KeyVibrationStyleHeavyClick=Stiprus spustelėjimas
+CalcCraft.KeyVibrationDuration=Trukmė
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Šio stiliaus stiprumą nustato telefonas
 
 [lv-LV]
 CalcCraft.Language=Valoda
@@ -378,6 +610,14 @@ CalcCraft.KeyVibrationDescription=Atlasiet, cik spēcīgi taustiņi vibrē, kad 
 CalcCraft.KeyVibrationOff=Izslēgta
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Skāriena atgriezeniskā saite ir izslēgta tālruņa iestatījumos
+CalcCraft.KeyVibrationStyle=Stils
+CalcCraft.KeyVibrationStyleAuto=Automātiski
+CalcCraft.KeyVibrationStyleClick=Klikšķis
+CalcCraft.KeyVibrationStylePulse=Impulss
+CalcCraft.KeyVibrationStyleHeavyClick=Spēcīgs klikšķis
+CalcCraft.KeyVibrationDuration=Ilgums
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Šim stilam stiprumu nosaka tālrunis
 
 [mk-MK]
 CalcCraft.Language=Јазик
@@ -390,6 +630,14 @@ CalcCraft.KeyVibrationDescription=Изберете колку силно да в
 CalcCraft.KeyVibrationOff=Исклучено
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Повратната информација при допир е исклучена во поставките на телефонот
+CalcCraft.KeyVibrationStyle=Стил
+CalcCraft.KeyVibrationStyleAuto=Автоматски
+CalcCraft.KeyVibrationStyleClick=Клик
+CalcCraft.KeyVibrationStylePulse=Импулс
+CalcCraft.KeyVibrationStyleHeavyClick=Силен клик
+CalcCraft.KeyVibrationDuration=Траење
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Јачината за овој стил ја одредува телефонот
 
 [ms-MY]
 CalcCraft.Language=Bahasa
@@ -402,6 +650,14 @@ CalcCraft.KeyVibrationDescription=Pilih sekuat mana kekunci bergetar apabila and
 CalcCraft.KeyVibrationOff=Mati
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Maklum balas sentuhan dimatikan dalam tetapan telefon anda
+CalcCraft.KeyVibrationStyle=Gaya
+CalcCraft.KeyVibrationStyleAuto=Automatik
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Denyut
+CalcCraft.KeyVibrationStyleHeavyClick=Klik kuat
+CalcCraft.KeyVibrationDuration=Tempoh
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Kekuatan gaya ini ditetapkan oleh telefon
 
 [nb-NO]
 CalcCraft.Language=Språk
@@ -414,6 +670,14 @@ CalcCraft.KeyVibrationDescription=Velg hvor kraftig tastene vibrerer når du try
 CalcCraft.KeyVibrationOff=Av
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Berøringsrespons er slått av i telefoninnstillingene
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Automatisk
+CalcCraft.KeyVibrationStyleClick=Klikk
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Kraftig klikk
+CalcCraft.KeyVibrationDuration=Varighet
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Telefonen bestemmer styrken for denne stilen
 
 [nl-NL]
 CalcCraft.Language=Taal
@@ -426,6 +690,14 @@ CalcCraft.KeyVibrationDescription=Selecteer hoe sterk de toetsen trillen als u e
 CalcCraft.KeyVibrationOff=Uit
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Aanraakfeedback is uitgeschakeld in de instellingen van de telefoon
+CalcCraft.KeyVibrationStyle=Stijl
+CalcCraft.KeyVibrationStyleAuto=Automatisch
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Stevige klik
+CalcCraft.KeyVibrationDuration=Duur
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=De sterkte van deze stijl wordt door de telefoon bepaald
 
 [pl-PL]
 CalcCraft.Language=Język
@@ -438,6 +710,14 @@ CalcCraft.KeyVibrationDescription=Wybierz, jak mocno klawisze wibrują po dotkni
 CalcCraft.KeyVibrationOff=Wyłączone
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Wibracja przy dotyku jest wyłączona w ustawieniach telefonu
+CalcCraft.KeyVibrationStyle=Styl
+CalcCraft.KeyVibrationStyleAuto=Automatycznie
+CalcCraft.KeyVibrationStyleClick=Kliknięcie
+CalcCraft.KeyVibrationStylePulse=Impuls
+CalcCraft.KeyVibrationStyleHeavyClick=Mocne kliknięcie
+CalcCraft.KeyVibrationDuration=Czas trwania
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Siłę dla tego stylu ustawia telefon
 
 [pt-BR]
 CalcCraft.Language=Idioma
@@ -450,6 +730,14 @@ CalcCraft.KeyVibrationDescription=Selecionar a intensidade da vibração das tec
 CalcCraft.KeyVibrationOff=Desativada
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=A resposta tátil está desativada nas configurações do telefone
+CalcCraft.KeyVibrationStyle=Estilo
+CalcCraft.KeyVibrationStyleAuto=Automático
+CalcCraft.KeyVibrationStyleClick=Clique
+CalcCraft.KeyVibrationStylePulse=Pulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clique forte
+CalcCraft.KeyVibrationDuration=Duração
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telefone
 
 [pt-PT]
 CalcCraft.Language=Idioma
@@ -462,6 +750,14 @@ CalcCraft.KeyVibrationDescription=Selecionar a intensidade com que as teclas vib
 CalcCraft.KeyVibrationOff=Desativada
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=O feedback tátil está desativado nas definições do telemóvel
+CalcCraft.KeyVibrationStyle=Estilo
+CalcCraft.KeyVibrationStyleAuto=Automático
+CalcCraft.KeyVibrationStyleClick=Clique
+CalcCraft.KeyVibrationStylePulse=Impulso
+CalcCraft.KeyVibrationStyleHeavyClick=Clique forte
+CalcCraft.KeyVibrationDuration=Duração
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=A intensidade deste estilo é definida pelo telemóvel
 
 [ro-RO]
 CalcCraft.Language=Limbă
@@ -474,6 +770,14 @@ CalcCraft.KeyVibrationDescription=Selectați cât de puternic vibrează tastele 
 CalcCraft.KeyVibrationOff=Dezactivată
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Feedbackul tactil este dezactivat în setările telefonului
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Automat
+CalcCraft.KeyVibrationStyleClick=Clic
+CalcCraft.KeyVibrationStylePulse=Impuls
+CalcCraft.KeyVibrationStyleHeavyClick=Clic puternic
+CalcCraft.KeyVibrationDuration=Durată
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Intensitatea pentru acest stil este setată de telefon
 
 [ru-RU]
 CalcCraft.Language=Язык
@@ -486,6 +790,14 @@ CalcCraft.KeyVibrationDescription=Выберите, насколько силь�
 CalcCraft.KeyVibrationOff=Выкл.
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Виброотклик отключен в настройках телефона
+CalcCraft.KeyVibrationStyle=Стиль
+CalcCraft.KeyVibrationStyleAuto=Авто
+CalcCraft.KeyVibrationStyleClick=Щелчок
+CalcCraft.KeyVibrationStylePulse=Импульс
+CalcCraft.KeyVibrationStyleHeavyClick=Сильный щелчок
+CalcCraft.KeyVibrationDuration=Длительность
+CalcCraft.KeyVibrationMilliseconds=%1 мс
+CalcCraft.KeyVibrationFixedStrength=Силу для этого стиля задаёт телефон
 
 [sk-SK]
 CalcCraft.Language=Jazyk
@@ -498,6 +810,14 @@ CalcCraft.KeyVibrationDescription=Vyberte, ako silno majú klávesy pri ťuknut�
 CalcCraft.KeyVibrationOff=Vypnuté
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Odozva na dotyk je v nastaveniach telefónu vypnutá
+CalcCraft.KeyVibrationStyle=Štýl
+CalcCraft.KeyVibrationStyleAuto=Automaticky
+CalcCraft.KeyVibrationStyleClick=Klepnutie
+CalcCraft.KeyVibrationStylePulse=Impulz
+CalcCraft.KeyVibrationStyleHeavyClick=Silné klepnutie
+CalcCraft.KeyVibrationDuration=Trvanie
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Silu tohto štýlu nastavuje telefón
 
 [sl-SI]
 CalcCraft.Language=Jezik
@@ -510,6 +830,14 @@ CalcCraft.KeyVibrationDescription=Izberite, kako močno tipke vibrirajo, ko se j
 CalcCraft.KeyVibrationOff=Izklopljeno
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Odziv na dotik je izklopljen v nastavitvah telefona
+CalcCraft.KeyVibrationStyle=Slog
+CalcCraft.KeyVibrationStyleAuto=Samodejno
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Utrip
+CalcCraft.KeyVibrationStyleHeavyClick=Močan klik
+CalcCraft.KeyVibrationDuration=Trajanje
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Moč za ta slog določa telefon
 
 [sq-AL]
 CalcCraft.Language=Gjuha
@@ -522,6 +850,14 @@ CalcCraft.KeyVibrationDescription=Zgjidh sa fort dridhen tastet kur i prek
 CalcCraft.KeyVibrationOff=Joaktive
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Reagimi me prekje është çaktivizuar te cilësimet e telefonit
+CalcCraft.KeyVibrationStyle=Stili
+CalcCraft.KeyVibrationStyleAuto=Automatik
+CalcCraft.KeyVibrationStyleClick=Klikim
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Klikim i fortë
+CalcCraft.KeyVibrationDuration=Kohëzgjatja
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Forcën për këtë stil e cakton telefoni
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
@@ -534,6 +870,14 @@ CalcCraft.KeyVibrationDescription=Izaberite koliko jako tasteri vibriraju kada i
 CalcCraft.KeyVibrationOff=Isključeno
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Povratne informacije na dodir su isključene u podešavanjima telefona
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Automatski
+CalcCraft.KeyVibrationStyleClick=Klik
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Snažan klik
+CalcCraft.KeyVibrationDuration=Trajanje
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Jačinu za ovaj stil određuje telefon
 
 [sv-SE]
 CalcCraft.Language=Språk
@@ -546,6 +890,14 @@ CalcCraft.KeyVibrationDescription=Välj hur kraftigt tangenterna vibrerar när d
 CalcCraft.KeyVibrationOff=Av
 CalcCraft.KeyVibrationPercent=%1 %
 CalcCraft.KeyVibrationSystemOff=Haptisk återkoppling är avstängd i telefonens inställningar
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Automatisk
+CalcCraft.KeyVibrationStyleClick=Klick
+CalcCraft.KeyVibrationStylePulse=Puls
+CalcCraft.KeyVibrationStyleHeavyClick=Kraftigt klick
+CalcCraft.KeyVibrationDuration=Längd
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Telefonen bestämmer styrkan för den här stilen
 
 [th-TH]
 CalcCraft.Language=ภาษา
@@ -558,6 +910,14 @@ CalcCraft.KeyVibrationDescription=เลือกความแรงของ�
 CalcCraft.KeyVibrationOff=ปิด
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=การตอบสนองแบบสัมผัสปิดอยู่ในการตั้งค่าโทรศัพท์ของคุณ
+CalcCraft.KeyVibrationStyle=รูปแบบ
+CalcCraft.KeyVibrationStyleAuto=อัตโนมัติ
+CalcCraft.KeyVibrationStyleClick=คลิก
+CalcCraft.KeyVibrationStylePulse=พัลส์
+CalcCraft.KeyVibrationStyleHeavyClick=คลิกหนัก
+CalcCraft.KeyVibrationDuration=ระยะเวลา
+CalcCraft.KeyVibrationMilliseconds=%1 มิลลิวินาที
+CalcCraft.KeyVibrationFixedStrength=โทรศัพท์เป็นผู้กำหนดความแรงของรูปแบบนี้
 
 [tr-TR]
 CalcCraft.Language=Dil
@@ -570,6 +930,14 @@ CalcCraft.KeyVibrationDescription=Tuşlara dokunduğunuzda ne kadar güçlü tit
 CalcCraft.KeyVibrationOff=Kapalı
 CalcCraft.KeyVibrationPercent=%%1
 CalcCraft.KeyVibrationSystemOff=Dokunma geri bildirimi telefonunuzun ayarlarında kapalı
+CalcCraft.KeyVibrationStyle=Stil
+CalcCraft.KeyVibrationStyleAuto=Otomatik
+CalcCraft.KeyVibrationStyleClick=Tıklama
+CalcCraft.KeyVibrationStylePulse=Darbe
+CalcCraft.KeyVibrationStyleHeavyClick=Güçlü tıklama
+CalcCraft.KeyVibrationDuration=Süre
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Bu stilin gücünü telefon belirler
 
 [uk-UA]
 CalcCraft.Language=Мова
@@ -582,6 +950,14 @@ CalcCraft.KeyVibrationDescription=Виберіть, наскільки силь�
 CalcCraft.KeyVibrationOff=Вимк.
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Тактильний відгук вимкнено в налаштуваннях телефона
+CalcCraft.KeyVibrationStyle=Стиль
+CalcCraft.KeyVibrationStyleAuto=Авто
+CalcCraft.KeyVibrationStyleClick=Клацання
+CalcCraft.KeyVibrationStylePulse=Імпульс
+CalcCraft.KeyVibrationStyleHeavyClick=Сильне клацання
+CalcCraft.KeyVibrationDuration=Тривалість
+CalcCraft.KeyVibrationMilliseconds=%1 мс
+CalcCraft.KeyVibrationFixedStrength=Силу для цього стилю задає телефон
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
@@ -594,6 +970,14 @@ CalcCraft.KeyVibrationDescription=Chọn mức độ rung của phím khi bạn 
 CalcCraft.KeyVibrationOff=Tắt
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=Phản hồi xúc giác đang tắt trong phần cài đặt của điện thoại
+CalcCraft.KeyVibrationStyle=Kiểu
+CalcCraft.KeyVibrationStyleAuto=Tự động
+CalcCraft.KeyVibrationStyleClick=Nhấp
+CalcCraft.KeyVibrationStylePulse=Xung
+CalcCraft.KeyVibrationStyleHeavyClick=Nhấp mạnh
+CalcCraft.KeyVibrationDuration=Thời lượng
+CalcCraft.KeyVibrationMilliseconds=%1 ms
+CalcCraft.KeyVibrationFixedStrength=Điện thoại đặt cường độ cho kiểu này
 
 [zh-CN]
 CalcCraft.Language=语言
@@ -606,6 +990,14 @@ CalcCraft.KeyVibrationDescription=选择点按按键时的振动强度
 CalcCraft.KeyVibrationOff=关
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=手机设置中已关闭触摸反馈
+CalcCraft.KeyVibrationStyle=样式
+CalcCraft.KeyVibrationStyleAuto=自动
+CalcCraft.KeyVibrationStyleClick=点击
+CalcCraft.KeyVibrationStylePulse=脉冲
+CalcCraft.KeyVibrationStyleHeavyClick=重击
+CalcCraft.KeyVibrationDuration=时长
+CalcCraft.KeyVibrationMilliseconds=%1 毫秒
+CalcCraft.KeyVibrationFixedStrength=此样式的强度由手机设定
 
 [zh-TW]
 CalcCraft.Language=語言
@@ -618,3 +1010,11 @@ CalcCraft.KeyVibrationDescription=選取點按按鍵時的震動強度
 CalcCraft.KeyVibrationOff=關閉
 CalcCraft.KeyVibrationPercent=%1%
 CalcCraft.KeyVibrationSystemOff=手機設定中已關閉觸控回饋
+CalcCraft.KeyVibrationStyle=樣式
+CalcCraft.KeyVibrationStyleAuto=自動
+CalcCraft.KeyVibrationStyleClick=點擊
+CalcCraft.KeyVibrationStylePulse=脈衝
+CalcCraft.KeyVibrationStyleHeavyClick=重擊
+CalcCraft.KeyVibrationDuration=時間長度
+CalcCraft.KeyVibrationMilliseconds=%1 毫秒
+CalcCraft.KeyVibrationFixedStrength=此樣式的強度由手機設定

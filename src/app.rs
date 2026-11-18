@@ -116,6 +116,8 @@ const SYSTEM_CHOICE: &str = "Default";
 enum SettingsList {
     Language,
     Region,
+    /// The Key vibration card's Style (the Android app).
+    VibrationStyle,
 }
 
 impl SettingsList {
@@ -129,14 +131,22 @@ impl SettingsList {
         match self {
             SettingsList::Language => app.language_choice.as_deref(),
             SettingsList::Region => app.region_choice.as_deref(),
+            SettingsList::VibrationStyle => Some(vibration::style().key()),
         }
     }
 }
 
 /// A Settings drop-down's entries: the Windows setting (`None`) first, then the languages or
-/// regional formats by their own names (`Deutsch (Deutschland)`), sorted.
+/// regional formats by their own names (`Deutsch (Deutschland)`), sorted. The key vibration's
+/// styles are in the card's order, by their stored keys.
 fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static str)> {
     static LANGUAGES: OnceLock<Vec<(&'static str, String)>> = OnceLock::new();
+    if list == SettingsList::VibrationStyle {
+        return vibration::Style::ALL
+            .into_iter()
+            .map(|style| (Some(style.key()), tr(style.label_key())))
+            .collect();
+    }
     let mut entries = vec![(None, tr("SystemThemeRadioButton.Content"))];
     match list {
         SettingsList::Language => {
@@ -158,6 +168,7 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
                 .iter()
                 .map(|region| (Some(region.tag.as_str()), region.name.as_str())),
         ),
+        SettingsList::VibrationStyle => {}
     }
     entries
 }
@@ -270,37 +281,51 @@ fn settings_cards(key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
     cards
 }
 
-/// The Key vibration card's layout (the Android app): like a `ComboCard`, with a slider and
-/// its value (`Off` or a percentage) in place of the box, and a hint under them while touch
-/// feedback is off in Android's settings.
+/// The Key vibration card's layout (the Android app): like a `ComboCard`, with the strength
+/// slider and its value (`Off` or a percentage) in place of the box, then the rows of
+/// `vibration::card_rows`: the Style drop-down, the Duration slider for an explicit Pulse, and
+/// the hints. Each row has its label left of its control, or above it in narrow cards.
 struct VibrationCard {
     title: Arc<Galley>,
     description: Arc<Galley>,
-    hint: Option<Arc<Galley>>,
+    /// The rows with their galleys (a label or a hint), tops and heights, from the card's top.
+    rows: Vec<(vibration::Row, Arc<Galley>, f32, f32)>,
     wide: bool,
-    /// The slider and its value, right of the text or under it.
+    /// A slider and its value, or the Style box, right of the text or under it.
     control_width: f32,
-    /// Room for the value, right of the slider: as wide as the widest one.
+    /// Room for a slider's value, right of it: as wide as the widest one.
     value_width: f32,
+    /// The Style box's width and its value.
+    style_width: f32,
+    style_value: Arc<Galley>,
     height: f32,
 }
 
 impl VibrationCard {
+    /// The gap above a hint, and above a row.
     const HINT_GAP: f32 = 8.0;
+    const ROW_GAP: f32 = 12.0;
 
-    fn new(painter: &Painter, p: &Palette, width: f32, touch_feedback: bool) -> Self {
+    fn new(
+        painter: &Painter,
+        p: &Palette,
+        width: f32,
+        rows: &[vibration::Row],
+        style: vibration::Style,
+    ) -> Self {
+        use vibration::Row;
         let wide = width >= 476.0;
         let room = width - ComboCard::TEXT_X - ComboCard::PADDING;
         let font = FontId::proportional(14.0);
-        let value_width = [0, vibration::MAX]
-            .into_iter()
-            .map(|strength| {
-                painter
-                    .layout_no_wrap(vibration_value(strength), font.clone(), p.text)
-                    .size()
-                    .x
-            })
-            .fold(0.0, f32::max)
+        let text_size = |text: String| painter.layout_no_wrap(text, font.clone(), p.text).size().x;
+        let value_width = [
+            vibration_value(0),
+            vibration_value(vibration::MAX),
+            vibration_ms(vibration::MAX_MS),
+        ]
+        .into_iter()
+        .map(text_size)
+        .fold(0.0, f32::max)
             + 12.0;
         let control_width = if wide { (room / 2.0).min(280.0) } else { room };
         let text_width = if wide {
@@ -308,9 +333,18 @@ impl VibrationCard {
         } else {
             room
         };
+        let style_width = (vibration::Style::ALL
+            .into_iter()
+            .map(|style| text_size(tr(style.label_key()).to_string()))
+            .fold(0.0, f32::max)
+            + 12.0
+            + ComboCard::CHEVRON_ROOM)
+            .clamp(120.0_f32.min(control_width), control_width);
+        let style_value =
+            painter.layout_no_wrap(tr(style.label_key()).to_string(), font.clone(), p.text);
         let title = painter.layout(
             tr("CalcCraft.KeyVibration").to_string(),
-            font,
+            font.clone(),
             p.text,
             text_width,
         );
@@ -320,35 +354,70 @@ impl VibrationCard {
             p.text_secondary,
             text_width,
         );
-        let hint = (!touch_feedback).then(|| {
+        let hint = |key: &str| {
             painter.layout(
-                tr("CalcCraft.KeyVibrationSystemOff").to_string(),
+                tr(key).to_string(),
                 FontId::proportional(12.0),
                 p.text_secondary,
                 room,
             )
-        });
+        };
+        let label =
+            |key: &str| painter.layout(tr(key).to_string(), font.clone(), p.text, text_width);
         let text_height = title.size().y + description.size().y;
-        let top_block = if wide {
+        let strength_height = if wide {
             text_height.max(ComboCard::BOX_HEIGHT)
         } else {
             text_height + 12.0 + ComboCard::BOX_HEIGHT
         };
-        let hint_height = hint
-            .as_ref()
-            .map_or(0.0, |hint| Self::HINT_GAP + hint.size().y);
-        let mut height = ComboCard::PADDING + top_block + hint_height + ComboCard::PADDING;
-        if wide && hint.is_none() {
-            height = height.max(68.0);
+        // A labeled row: the label beside its control, or above it.
+        let row_height = |label: &Galley| {
+            if wide {
+                label.size().y.max(ComboCard::BOX_HEIGHT)
+            } else {
+                label.size().y + Self::HINT_GAP + ComboCard::BOX_HEIGHT
+            }
+        };
+        let mut laid_out = Vec::with_capacity(rows.len());
+        let mut y = ComboCard::PADDING;
+        for &row in rows {
+            let (galley, gap, height) = match row {
+                Row::Strength => (title.clone(), 0.0, strength_height),
+                Row::FixedStrength => {
+                    let galley = hint("CalcCraft.KeyVibrationFixedStrength");
+                    let height = galley.size().y;
+                    (galley, Self::HINT_GAP, height)
+                }
+                Row::SystemOff => {
+                    let galley = hint("CalcCraft.KeyVibrationSystemOff");
+                    let height = galley.size().y;
+                    (galley, Self::ROW_GAP, height)
+                }
+                Row::Style => {
+                    let galley = label("CalcCraft.KeyVibrationStyle");
+                    let height = row_height(&galley);
+                    (galley, Self::ROW_GAP, height)
+                }
+                Row::Duration => {
+                    let galley = label("CalcCraft.KeyVibrationDuration");
+                    let height = row_height(&galley);
+                    (galley, Self::ROW_GAP, height)
+                }
+            };
+            y += gap;
+            laid_out.push((row, galley, y, height));
+            y += height;
         }
         Self {
             title,
             description,
-            hint,
+            rows: laid_out,
             wide,
             control_width,
             value_width,
-            height,
+            style_width,
+            style_value,
+            height: y + ComboCard::PADDING,
         }
     }
 }
@@ -360,6 +429,11 @@ fn vibration_value(strength: u8) -> String {
     } else {
         strings::tr_format("CalcCraft.KeyVibrationPercent", &[&strength.to_string()])
     }
+}
+
+/// The Duration slider's value as shown: `8 ms`.
+fn vibration_ms(ms: u8) -> String {
+    strings::tr_format("CalcCraft.KeyVibrationMilliseconds", &[&ms.to_string()])
 }
 
 /// The vibration icon of the Key vibration card: a phone between two pairs of short lines.
@@ -623,7 +697,7 @@ impl WindowSizes {
 fn key_feedback(ui: &Ui, response: &Response) {
     #[cfg(target_os = "android")]
     if response.is_pointer_button_down_on() && ui.input(|i| i.pointer.primary_pressed()) {
-        android::key_tap(vibration::strength());
+        android::key_tap();
     }
 }
 
@@ -753,10 +827,17 @@ impl CalculatorApp {
         let language_choice = choice(LANGUAGE_KEY);
         let region_choice = choice(REGION_KEY);
         if vibration::AVAILABLE {
-            let stored = cc
-                .storage
-                .and_then(|storage| storage.get_string(vibration::STORAGE_KEY));
-            vibration::set_strength(vibration::parse(stored.as_deref()));
+            let stored = |key| cc.storage.and_then(|storage| storage.get_string(key));
+            vibration::set_strength(vibration::parse(stored(vibration::STORAGE_KEY).as_deref()));
+            vibration::set_style(vibration::Style::parse(
+                stored(vibration::STYLE_KEY).as_deref(),
+            ));
+            vibration::set_duration(vibration::parse_duration(
+                stored(vibration::DURATION_KEY).as_deref(),
+            ));
+            // Reads the vibrator once, which logs the style Auto picks on this phone.
+            #[cfg(target_os = "android")]
+            android::vibrator_capabilities();
         }
         // Before anything looks up a string or formats a number.
         let language = strings::set_language(language_choice.as_deref());
@@ -2333,9 +2414,11 @@ impl CalculatorApp {
                 });
                 self.type_ahead.0.clear();
                 self.opened_from(&ctx, list.box_id());
-                // The entries are in their own scripts.
-                self.all_scripts = true;
-                self.update_fonts(&ctx);
+                if list != SettingsList::VibrationStyle {
+                    // The entries are in their own scripts.
+                    self.all_scripts = true;
+                    self.update_fonts(&ctx);
+                }
             }
             #[cfg_attr(not(target_os = "android"), allow(unused_variables))]
             Some(SettingsAction::SetVibration(strength, tap)) => {
@@ -2343,7 +2426,15 @@ impl CalculatorApp {
                 // One tap at the new strength, to tune it by feel.
                 #[cfg(target_os = "android")]
                 if tap {
-                    android::key_tap(strength);
+                    android::key_tap();
+                }
+            }
+            #[cfg_attr(not(target_os = "android"), allow(unused_variables))]
+            Some(SettingsAction::SetVibrationDuration(ms, tap)) => {
+                vibration::set_duration(ms);
+                #[cfg(target_os = "android")]
+                if tap {
+                    android::key_tap();
                 }
             }
             None => {}
@@ -2356,6 +2447,12 @@ impl CalculatorApp {
             match popup.list {
                 SettingsList::Language => self.set_language(&ctx, choice),
                 SettingsList::Region => self.set_region(&ctx, choice),
+                SettingsList::VibrationStyle => {
+                    vibration::set_style(vibration::Style::parse(choice.as_deref()));
+                    // One tap in the new style, to compare them by feel.
+                    #[cfg(target_os = "android")]
+                    android::key_tap();
+                }
             }
         }
     }
@@ -2439,9 +2536,17 @@ impl CalculatorApp {
         let touch_feedback = android::touch_feedback_enabled();
         #[cfg(not(target_os = "android"))]
         let touch_feedback = true;
-        let vibration_card = cards
-            .contains(&SettingsCard::KeyVibration)
-            .then(|| VibrationCard::new(&painter, p, width - 2.0 * SIDE, touch_feedback));
+        let vibration_card = cards.contains(&SettingsCard::KeyVibration).then(|| {
+            // Without a vibrator (or off Android) the card shows as for one that does it all.
+            #[cfg(target_os = "android")]
+            let capabilities =
+                android::vibrator_capabilities().unwrap_or(vibration::Capabilities::FULL);
+            #[cfg(not(target_os = "android"))]
+            let capabilities = vibration::Capabilities::FULL;
+            let style = vibration::style();
+            let rows = vibration::card_rows(style, &capabilities, touch_feedback);
+            VibrationCard::new(&painter, p, width - 2.0 * SIDE, &rows, style)
+        });
         let link_text = "GitHub";
         // Windows' own sentence (`AboutControlContribute`) names the Windows Calculator, so
         // CalcCraft has its own, with the link at `%1`.
@@ -2606,8 +2711,8 @@ impl CalculatorApp {
                     pos2(left, top + card_top),
                     vec2(right - left, card.height),
                 );
-                if let Some(set) = self.draw_vibration_card(ui, &painter, rect, card) {
-                    action = Some(set);
+                if let Some(changed) = self.draw_vibration_card(ui, &painter, rect, card) {
+                    action = Some(changed);
                 }
             }
         }
@@ -2765,7 +2870,23 @@ impl CalculatorApp {
         };
         let field = Rect::from_min_size(min, size);
         let info = access::combo_box(card.title_text, &card.value_text);
-        let response = access::control(ui, p, field, card.list.box_id(), true, RADIUS, info);
+        self.draw_combo_box(ui, painter, field, card.list, info, card.value.clone())
+            .then_some(field)
+    }
+
+    /// Draws a Settings drop-down's box in `field`, with `value` in it. Returns whether it was
+    /// clicked.
+    fn draw_combo_box(
+        &self,
+        ui: &Ui,
+        painter: &Painter,
+        field: Rect,
+        list: SettingsList,
+        info: impl Fn() -> WidgetInfo,
+        value: Arc<Galley>,
+    ) -> bool {
+        let p = self.palette;
+        let response = access::control(ui, p, field, list.box_id(), true, RADIUS, info);
         let fill = if response.is_pointer_button_down_on() {
             p.control_pressed
         } else if response.hovered() {
@@ -2780,11 +2901,8 @@ impl CalculatorApp {
             Stroke::new(1.0, p.control_border),
             StrokeKind::Inside,
         );
-        let value_pos = pos2(
-            field.left() + 12.0,
-            field.center().y - card.value.size().y / 2.0,
-        );
-        painter.galley(value_pos, card.value.clone(), p.text);
+        let value_pos = pos2(field.left() + 12.0, field.center().y - value.size().y / 2.0);
+        painter.galley(value_pos, value, p.text);
         let chevron = painter.layout_job(icon_label(ICON_CHEVRON_DOWN, 12.0));
         let chevron_center = pos2(field.right() - 18.0, field.center().y);
         painter.galley(
@@ -2792,12 +2910,13 @@ impl CalculatorApp {
             chevron,
             p.text_secondary,
         );
-        response.clicked().then_some(field)
+        response.clicked()
     }
 
-    /// Draws the Key vibration card in `rect` (the Android app): its slider runs from Off at
-    /// the far left to 100 %. Returns the new strength while it is dragged, with a tap to play
-    /// when it is released, tapped or moved with the arrow keys.
+    /// Draws the Key vibration card in `rect` (the Android app): the strength slider runs from
+    /// Off at the far left to 100 %, then come the rows of `card.rows`. Returns a new strength
+    /// or duration while a slider is dragged, with a tap to play when it is released, tapped or
+    /// moved with the arrow keys, or the Style box to open its list from.
     fn draw_vibration_card(
         &self,
         ui: &Ui,
@@ -2805,6 +2924,7 @@ impl CalculatorApp {
         rect: Rect,
         card: &VibrationCard,
     ) -> Option<SettingsAction> {
+        use vibration::Row;
         let p = self.palette;
         painter.rect_filled(rect, RADIUS, p.card);
         painter.rect_stroke(
@@ -2813,61 +2933,137 @@ impl CalculatorApp {
             Stroke::new(1.0, p.card_border),
             StrokeKind::Inside,
         );
-        let title_height = card.title.size().y;
-        let text_height = title_height + card.description.size().y;
-        let top_block = if card.wide {
-            text_height.max(ComboCard::BOX_HEIGHT)
-        } else {
-            text_height + 12.0 + ComboCard::BOX_HEIGHT
-        };
-        let block_top = rect.top() + ComboCard::PADDING;
-        let text_top = if card.wide {
-            block_top + (top_block - text_height) / 2.0
-        } else {
-            block_top
-        };
-        paint_vibration_icon(
-            painter,
-            pos2(
-                rect.left() + ComboCard::ICON_X,
-                text_top + text_height / 2.0,
-            ),
-            p.text,
-        );
         let text_left = rect.left() + ComboCard::TEXT_X;
-        painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
-        painter.galley(
-            pos2(text_left, text_top + title_height),
-            card.description.clone(),
-            p.text_secondary,
-        );
-        if let Some(hint) = &card.hint {
-            let hint_top = block_top + top_block + VibrationCard::HINT_GAP;
-            painter.galley(pos2(text_left, hint_top), hint.clone(), p.text_secondary);
-        }
-
-        // The slider, then its value.
-        let control = if card.wide {
-            Rect::from_min_size(
-                pos2(
-                    rect.right() - ComboCard::PADDING - card.control_width,
-                    block_top + (top_block - ComboCard::BOX_HEIGHT) / 2.0,
-                ),
-                vec2(card.control_width, ComboCard::BOX_HEIGHT),
-            )
-        } else {
-            Rect::from_min_size(
-                pos2(text_left, text_top + text_height + 12.0),
-                vec2(card.control_width, ComboCard::BOX_HEIGHT),
-            )
+        // A row's control: right of its text, or under it.
+        let control = |top: f32, height: f32, text_bottom: f32| {
+            let size = vec2(card.control_width, ComboCard::BOX_HEIGHT);
+            if card.wide {
+                let min = pos2(
+                    rect.right() - ComboCard::PADDING - size.x,
+                    top + (height - size.y) / 2.0,
+                );
+                Rect::from_min_size(min, size)
+            } else {
+                Rect::from_min_size(pos2(text_left, text_bottom), size)
+            }
         };
-        let slider = control.with_max_x(control.right() - card.value_width);
-        let strength = vibration::strength();
-        let id = Id::new("key-vibration-slider");
-        let name = tr("CalcCraft.KeyVibration");
+        let mut action = None;
+        for (row, galley, top, height) in &card.rows {
+            let top = rect.top() + top;
+            match row {
+                Row::Strength => {
+                    let title_height = card.title.size().y;
+                    let text_height = title_height + card.description.size().y;
+                    let text_top = if card.wide {
+                        top + (height - text_height) / 2.0
+                    } else {
+                        top
+                    };
+                    paint_vibration_icon(
+                        painter,
+                        pos2(
+                            rect.left() + ComboCard::ICON_X,
+                            text_top + text_height / 2.0,
+                        ),
+                        p.text,
+                    );
+                    painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
+                    painter.galley(
+                        pos2(text_left, text_top + title_height),
+                        card.description.clone(),
+                        p.text_secondary,
+                    );
+                    let control = control(top, *height, text_top + text_height + 12.0);
+                    let strength = vibration::strength();
+                    let (new, tap) = self.draw_vibration_slider(
+                        ui,
+                        painter,
+                        control,
+                        card.value_width,
+                        Id::new("key-vibration-slider"),
+                        tr("CalcCraft.KeyVibration"),
+                        (strength, 0, vibration::MAX),
+                        vibration_value,
+                    );
+                    if new != strength || tap {
+                        action = Some(SettingsAction::SetVibration(new, tap));
+                    }
+                }
+                Row::FixedStrength | Row::SystemOff => {
+                    painter.galley(pos2(text_left, top), galley.clone(), p.text_secondary);
+                }
+                Row::Style | Row::Duration => {
+                    let label_top = if card.wide {
+                        top + (height - galley.size().y) / 2.0
+                    } else {
+                        top
+                    };
+                    painter.galley(pos2(text_left, label_top), galley.clone(), p.text);
+                    let control = control(
+                        top,
+                        *height,
+                        top + galley.size().y + VibrationCard::HINT_GAP,
+                    );
+                    if *row == Row::Style {
+                        // At the right end of the row, or under the label in narrow cards.
+                        let left = if card.wide {
+                            control.right() - card.style_width
+                        } else {
+                            control.left()
+                        };
+                        let field = Rect::from_min_size(
+                            pos2(left, control.top()),
+                            vec2(card.style_width, ComboCard::BOX_HEIGHT),
+                        );
+                        let name = tr("CalcCraft.KeyVibrationStyle");
+                        let info = access::combo_box(name, tr(vibration::style().label_key()));
+                        let list = SettingsList::VibrationStyle;
+                        let value = card.style_value.clone();
+                        if self.draw_combo_box(ui, painter, field, list, info, value) {
+                            action = Some(SettingsAction::OpenList(list, field));
+                        }
+                    } else {
+                        let ms = vibration::duration();
+                        let (new, tap) = self.draw_vibration_slider(
+                            ui,
+                            painter,
+                            control,
+                            card.value_width,
+                            Id::new("key-vibration-duration"),
+                            tr("CalcCraft.KeyVibrationDuration"),
+                            (ms, vibration::MIN_MS, vibration::MAX_MS),
+                            vibration_ms,
+                        );
+                        if new != ms || tap {
+                            action = Some(SettingsAction::SetVibrationDuration(new, tap));
+                        }
+                    }
+                }
+            }
+        }
+        action
+    }
+
+    /// A Key vibration slider in `control`, with its value right of it in `value_width`.
+    /// `(value, min, max)` are its value and ends. Returns the new value, and whether to play a
+    /// tap (the slider was released, tapped or moved with an arrow key).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_vibration_slider(
+        &self,
+        ui: &Ui,
+        painter: &Painter,
+        control: Rect,
+        value_width: f32,
+        id: Id,
+        name: &'static str,
+        (value, min, max): (u8, u8, u8),
+        text: fn(u8) -> String,
+    ) -> (u8, bool) {
+        let p = self.palette;
+        let slider = control.with_max_x(control.right() - value_width);
         let info = move || {
             let mut info = WidgetInfo::labeled(WidgetType::Slider, true, name);
-            info.value = Some(f64::from(strength));
+            info.value = Some(f64::from(value));
             info
         };
         let response = access::interact(ui, p, slider, id, Sense::click_and_drag(), RADIUS, info);
@@ -2875,12 +3071,13 @@ impl CalculatorApp {
             pos2(slider.left() + 10.0, slider.center().y - 2.0),
             pos2(slider.right() - 10.0, slider.center().y + 2.0),
         );
-        let mut new = strength;
+        let span = f32::from(max - min);
+        let mut new = value;
         if let Some(pos) = response.interact_pointer_pos()
             && (response.dragged() || response.clicked() || response.is_pointer_button_down_on())
         {
             let t = ((pos.x - track.left()) / track.width()).clamp(0.0, 1.0);
-            new = (t * f32::from(vibration::MAX)).round() as u8;
+            new = min + (t * span).round() as u8;
         }
         let mut tap = response.drag_stopped() || response.clicked();
         if response.has_focus() {
@@ -2901,17 +3098,17 @@ impl CalculatorApp {
                     i.key_pressed(Key::ArrowRight) || i.key_pressed(Key::ArrowUp),
                 )
             });
-            if down && new > 0 {
+            if down && new > min {
                 new -= 1;
                 tap = true;
             }
-            if up && new < vibration::MAX {
+            if up && new < max {
                 new += 1;
                 tap = true;
             }
         }
 
-        let t = f32::from(new) / f32::from(vibration::MAX);
+        let t = f32::from(new - min) / span;
         let thumb_x = track.left() + t * track.width();
         painter.rect_filled(track, 2.0, p.slider_rail);
         painter.rect_filled(track.with_max_x(thumb_x), 2.0, p.accent);
@@ -2933,11 +3130,11 @@ impl CalculatorApp {
         painter.text(
             pos2(control.right(), control.center().y),
             Align2::RIGHT_CENTER,
-            vibration_value(new),
+            text(new),
             FontId::proportional(14.0),
             p.text,
         );
-        (new != strength || tap).then_some(SettingsAction::SetVibration(new, tap))
+        (new, tap)
     }
 
     /// The open Settings drop-down: the entries, with the selected one over the box where it
@@ -3044,6 +3241,8 @@ enum SettingsAction {
     /// A new key vibration strength, and whether to play a tap at it (the slider was
     /// released, or moved with a key).
     SetVibration(u8, bool),
+    /// A new Pulse duration in milliseconds, and whether to play a tap with it.
+    SetVibrationDuration(u8, bool),
 }
 
 #[derive(Clone, Copy)]
@@ -3105,6 +3304,8 @@ impl eframe::App for CalculatorApp {
         }
         if vibration::AVAILABLE {
             storage.set_string(vibration::STORAGE_KEY, vibration::strength().to_string());
+            storage.set_string(vibration::STYLE_KEY, vibration::style().key().to_owned());
+            storage.set_string(vibration::DURATION_KEY, vibration::duration().to_string());
         }
         storage.set_string(
             graphing_view::THEME_KEY,
@@ -4221,6 +4422,20 @@ mod tests {
                 "{text}"
             );
         }
+        assert!(vibration_ms(8).contains('8'));
+        // The Style list: the four styles in the card's order, by their stored keys.
+        let styles = settings_entries(SettingsList::VibrationStyle);
+        let keys: Vec<_> = styles.iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            keys,
+            [
+                Some("Auto"),
+                Some("Click"),
+                Some("Pulse"),
+                Some("HeavyClick")
+            ]
+        );
+        assert_eq!(styles[3].1, tr("CalcCraft.KeyVibrationStyleHeavyClick"));
     }
 
     fn key(key: Key, modifiers: Modifiers) -> Event {

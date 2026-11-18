@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use eframe::egui::{Context, Event, Key, RawInput, SafeAreaInsets, epaint::MarginF32};
 use jni::JNIEnv;
-use jni::objects::{JObject, JString, JValue};
+use jni::objects::{JIntArray, JObject, JString, JValue};
 use winit::platform::android::activity::AndroidApp;
 
 use super::vibration;
@@ -68,21 +68,13 @@ fn decor_view<'local>(
         .l()
 }
 
-/// `VibrationEffect.Composition.PRIMITIVE_CLICK`: the phone maker's crisp click waveform.
+/// `VibrationEffect.Composition.PRIMITIVE_CLICK` and `PRIMITIVE_TICK`.
 const PRIMITIVE_CLICK: i32 = 1;
+const PRIMITIVE_TICK: i32 = 7;
+/// `VibrationEffect.EFFECT_HEAVY_CLICK`.
+const EFFECT_HEAVY_CLICK: i32 = 5;
 /// `VibrationEffect.DEFAULT_AMPLITUDE`, for vibrators without amplitude control.
 const DEFAULT_AMPLITUDE: i32 = -1;
-
-/// How this phone's vibrator can tap, best first (see `vibration`'s mappings).
-#[derive(Clone, Copy, Debug)]
-enum TapKind {
-    /// A `PRIMITIVE_CLICK` composition with a scale (Android 11+, where the vibrator has it).
-    Click,
-    /// A short one-shot with an amplitude (`hasAmplitudeControl`, Android 8+).
-    Amplitude,
-    /// A one-shot whose duration is all there is (an on/off motor, or before Android 8).
-    Duration,
-}
 
 /// The phone's default vibrator (`VibratorManager.getDefaultVibrator` from Android 12, the
 /// `vibrator` service before), or `None` when it has no vibrator.
@@ -122,38 +114,87 @@ fn vibrator<'local>(
     Ok(Some(vibrator))
 }
 
-/// What `vibrator` can play, asked once: it doesn't change while the app runs.
-fn tap_kind(env: &mut JNIEnv, vibrator: &JObject, sdk: i32) -> jni::errors::Result<TapKind> {
-    static KIND: OnceLock<TapKind> = OnceLock::new();
-    if let Some(kind) = KIND.get() {
-        return Ok(*kind);
+/// What `vibrator` can do, asked once: it doesn't change while the app runs. The first time,
+/// the log (tag `CalcCraft`) gets the capabilities and the style Auto picks from them.
+fn read_capabilities(
+    env: &mut JNIEnv,
+    vibrator: &JObject,
+    sdk: i32,
+) -> jni::errors::Result<vibration::Capabilities> {
+    static CAPABILITIES: OnceLock<vibration::Capabilities> = OnceLock::new();
+    if let Some(capabilities) = CAPABILITIES.get() {
+        return Ok(*capabilities);
     }
-    let mut kind = TapKind::Duration;
+    let mut capabilities = vibration::Capabilities {
+        sdk,
+        amplitude_control: false,
+        click_primitive: false,
+        resonant_frequency: f32::NAN,
+        click_ms: 0,
+        tick_ms: 0,
+    };
+    if sdk >= 26 {
+        capabilities.amplitude_control = env
+            .call_method(vibrator, "hasAmplitudeControl", "()Z", &[])?
+            .z()?;
+    }
     if sdk >= 30 {
         let primitives = env.new_int_array(1)?;
         env.set_int_array_region(&primitives, 0, &[PRIMITIVE_CLICK])?;
-        if env
+        capabilities.click_primitive = env
             .call_method(
                 vibrator,
                 "areAllPrimitivesSupported",
                 "([I)Z",
                 &[JValue::Object(&primitives)],
             )?
-            .z()?
-        {
-            kind = TapKind::Click;
+            .z()?;
+    }
+    if sdk >= 31 {
+        capabilities.resonant_frequency = env
+            .call_method(vibrator, "getResonantFrequency", "()F", &[])?
+            .f()?;
+        let primitives = env.new_int_array(2)?;
+        env.set_int_array_region(&primitives, 0, &[PRIMITIVE_CLICK, PRIMITIVE_TICK])?;
+        let durations = env
+            .call_method(
+                vibrator,
+                "getPrimitiveDurations",
+                "([I)[I",
+                &[JValue::Object(&primitives)],
+            )?
+            .l()?;
+        if !durations.is_null() {
+            let durations = JIntArray::from(durations);
+            let mut ms = [0; 2];
+            env.get_int_array_region(&durations, 0, &mut ms)?;
+            [capabilities.click_ms, capabilities.tick_ms] = ms;
         }
     }
-    if matches!(kind, TapKind::Duration)
-        && sdk >= 26
-        && env
-            .call_method(vibrator, "hasAmplitudeControl", "()Z", &[])?
-            .z()?
-    {
-        kind = TapKind::Amplitude;
-    }
-    log::info!("Key vibration: {kind:?} (Android API {sdk})");
-    Ok(*KIND.get_or_init(|| kind))
+    log::info!(
+        "Key vibration: Auto plays {:?} (API {sdk}, amplitude control {}, click primitive {}, \
+         resonant frequency {} Hz, CLICK {} ms, TICK {} ms, calibrated {})",
+        vibration::auto(&capabilities),
+        capabilities.amplitude_control,
+        capabilities.click_primitive,
+        capabilities.resonant_frequency,
+        capabilities.click_ms,
+        capabilities.tick_ms,
+        capabilities.calibrated(),
+    );
+    Ok(*CAPABILITIES.get_or_init(|| capabilities))
+}
+
+/// What the phone's vibrator can do, or `None` without one. Logs Auto's pick the first time.
+pub(super) fn vibrator_capabilities() -> Option<vibration::Capabilities> {
+    with_activity(|env, activity| {
+        let sdk = sdk_version(env)?;
+        match vibrator(env, activity, sdk)? {
+            Some(vibrator) => read_capabilities(env, &vibrator, sdk).map(Some),
+            None => Ok(None),
+        }
+    })
+    .flatten()
 }
 
 /// A `VibrationEffect.createOneShot(ms, amplitude)`.
@@ -199,11 +240,13 @@ pub(super) fn touch_feedback_enabled() -> bool {
     .is_none_or(|enabled| enabled != 0)
 }
 
-/// A key tap of the vibration motor at `strength` (Settings → Key vibration, 0 is Off), the
-/// best way this phone's vibrator can (`TapKind`). It goes through `Vibrator`, not
-/// `performHapticFeedback(KEYBOARD_TAP)`, whose strength the phone maker sets (barely felt on
-/// a Samsung S26 Ultra), and stays off while touch feedback is off in Android's settings.
-pub(super) fn key_tap(strength: u8) {
+/// A key tap of the vibration motor with the settings in effect (Settings → Key vibration:
+/// strength, 0 is Off, style and Pulse duration), as `vibration::tap` says it plays on this
+/// phone. It goes through `Vibrator`, not `performHapticFeedback(KEYBOARD_TAP)`, whose
+/// strength the phone maker sets (barely felt on a Samsung S26 Ultra), and stays off while
+/// touch feedback is off in Android's settings.
+pub(super) fn key_tap() {
+    let strength = vibration::strength();
     if strength == 0 || !touch_feedback_enabled() {
         return;
     }
@@ -212,8 +255,10 @@ pub(super) fn key_tap(strength: u8) {
         let Some(vibrator) = vibrator(env, activity, sdk)? else {
             return Ok(());
         };
-        let effect = match tap_kind(env, &vibrator, sdk)? {
-            TapKind::Click => {
+        let capabilities = read_capabilities(env, &vibrator, sdk)?;
+        let tap = vibration::tap(vibration::style(), vibration::duration(), &capabilities);
+        let effect = match tap {
+            vibration::Tap::Click => {
                 let scale = vibration::click_scale(strength).unwrap_or_default();
                 let composition = env
                     .call_static_method(
@@ -239,12 +284,20 @@ pub(super) fn key_tap(strength: u8) {
                 )?
                 .l()?
             }
-            TapKind::Amplitude => {
-                let amplitude = vibration::amplitude(strength).unwrap_or(1);
-                one_shot(env, vibration::AMPLITUDE_MS, amplitude)?
+            vibration::Tap::Pulse { ms } => {
+                let amplitude = vibration::amplitude(strength).unwrap_or(vibration::MIN_AMPLITUDE);
+                one_shot(env, i64::from(ms), amplitude)?
             }
-            TapKind::Duration => {
-                let ms = vibration::duration_ms(strength).unwrap_or(vibration::MIN_MS);
+            vibration::Tap::HeavyClick => env
+                .call_static_method(
+                    "android/os/VibrationEffect",
+                    "createPredefined",
+                    "(I)Landroid/os/VibrationEffect;",
+                    &[JValue::Int(EFFECT_HEAVY_CLICK)],
+                )?
+                .l()?,
+            vibration::Tap::Duration => {
+                let ms = vibration::duration_ms(strength).unwrap_or(i64::from(vibration::MIN_MS));
                 if sdk < 26 {
                     // No `VibrationEffect` before Android 8.
                     env.call_method(&vibrator, "vibrate", "(J)V", &[JValue::Long(ms)])?;
