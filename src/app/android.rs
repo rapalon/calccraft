@@ -171,7 +171,8 @@ fn read_capabilities(
             [capabilities.click_ms, capabilities.tick_ms] = ms;
         }
     }
-    log::info!(
+    // A warning, the lowest level `android_main`'s logger keeps (info would let egui's in).
+    log::warn!(
         "Key vibration: Auto plays {:?} (API {sdk}, amplitude control {}, click primitive {}, \
          resonant frequency {} Hz, CLICK {} ms, TICK {} ms, calibrated {})",
         vibration::auto(&capabilities),
