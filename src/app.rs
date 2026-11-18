@@ -6132,6 +6132,8 @@ mod tests {
         // The 16, the result carried over, takes the caret.
         click_at(&ctx, &mut app, line.left() + 3.0);
         assert_eq!(app.engine().number_edit().unwrap().text, "16");
+        // Where the click puts the caret depends on the font (Segoe UI or Inter).
+        app.engine_mut().move_entry_caret(CaretMove::Start);
         app.engine_mut().execute(Command::Digit(8));
         assert_eq!(app.engine().expression(), "816 ÷ 4 =");
         assert_eq!(app.engine().display(), "204");
@@ -6147,10 +6149,18 @@ mod tests {
         assert_eq!(app.engine().expression(), "16 ÷ 4 =");
         run(&ctx, &mut app, MIN_SIZE, vec![]);
 
-        // The ÷ (the 4th of 8 characters) is selected; a typed + replaces it.
+        // A click on the ÷ selects it (found by clicking along the line: the font decides
+        // where it is); a typed + replaces it.
         let line = ctx.read_response(Id::new("expression")).unwrap().rect;
-        click_at(&ctx, &mut app, line.left() + line.width() * 3.5 / 8.0);
+        for step in 0..=40 {
+            let x = line.left() + line.width() * step as f32 / 40.0;
+            click_at(&ctx, &mut app, x);
+            if app.engine().selected_operator().is_some() {
+                break;
+            }
+        }
         assert!(app.engine().selected_operator().is_some());
+        assert_eq!(app.engine().expression(), "16 ÷ 4 =");
         run(&ctx, &mut app, MIN_SIZE, vec![Event::Text("+".into())]);
         assert_eq!(app.engine().expression(), "16 + 4 =");
         assert_eq!(app.engine().display(), "20");
