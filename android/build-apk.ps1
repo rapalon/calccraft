@@ -4,7 +4,8 @@ Builds the Android app as an APK for 64-bit ARM phones and tablets.
 
 .DESCRIPTION
 Builds the Rust library for Android with cargo-ndk, then packages it with the Android SDK's
-own tools, without Gradle: aapt2 (manifest and resources), zipalign (16 KB pages for the
+own tools, without Gradle: javac and d8 (the share provider in java/), aapt2 (manifest and
+resources), zipalign (16 KB pages for the
 uncompressed library, as Google Play requires) and apksigner. Runs on Windows, Linux (as in
 GitHub Actions) and macOS. See android/README.md.
 
@@ -57,6 +58,13 @@ param(
     [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
+    # With -Bundle, also the universal APK bundletool makes from the bundle (build-apks
+    # --mode=universal), target/android/CalcCraft-<version>-arm64-universal.apk, signed with the
+    # same key: the code Play installs, for trying a release before uploading it.
+    [switch]$UniversalApk,
+    # Mark the app debuggable (android:debuggable), so `adb shell run-as` can look into its
+    # files, as when checking that the graph share keeps one file in cache/share/. Test builds only.
+    [switch]$Debuggable,
     # A bundletool jar to use instead of the pinned release in .tools/.
     [string]$Bundletool = '',
     [string]$Sdk = $(if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
@@ -74,6 +82,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+if ($UniversalApk -and -not $Bundle) {
+    throw '-UniversalApk needs -Bundle: the universal APK is made from the App Bundle.'
+}
 
 # The SDK's and NDK's tools are named and placed differently on each system.
 $exe = if ($IsWindows) { '.exe' } else { '' }
@@ -88,8 +99,10 @@ $env:ANDROID_NDK_HOME = Join-Path $Sdk "ndk/$Ndk"
 $keytool = 'keytool'
 $jarsigner = 'jarsigner'
 $java = 'java'
+$javac = 'javac'
 if ($Jdk) {
     $env:JAVA_HOME = $Jdk
+    $javac = Join-Path $Jdk "bin/javac$exe"
     $keytool = Join-Path $Jdk "bin/keytool$exe"
     $jarsigner = Join-Path $Jdk "bin/jarsigner$exe"
     $java = Join-Path $Jdk "bin/java$exe"
@@ -167,6 +180,24 @@ if ($Channel -ne 'default') {
     "Checked: no donate or Stripe address in the $Channel library"
 }
 
+# The Java code (java/: the graph share's ContentProvider) as classes.dex: javac against the
+# platform's android.jar, Java 8 bytecode, then d8 from the pinned build-tools. Both come with
+# the JDK and the SDK the build already uses: no library, no download. The file lists are
+# arrays (@(…)): splatting a lone string would pass it character by character.
+$androidJar = Join-Path $Sdk "platforms/$Platform/android.jar"
+$classes = Join-Path $out 'classes'
+$dexDir = Join-Path $staging 'dex'
+Remove-Item -Recurse -Force $classes -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $classes, $dexDir | Out-Null
+$sources = @((Get-ChildItem (Join-Path $PSScriptRoot 'java') -Recurse -Filter *.java).FullName)
+& $javac -source 8 -target 8 -bootclasspath $androidJar '-Xlint:-options' -encoding UTF-8 -d $classes @sources
+$classFiles = @((Get-ChildItem $classes -Recurse -Filter *.class).FullName)
+& (Join-Path $tools "d8$script") --release --min-api $minSdk --lib $androidJar --output $dexDir @classFiles
+$dex = Join-Path $dexDir 'classes.dex'
+if (-not (Test-Path $dex)) {
+    throw "d8 wrote no $dex."
+}
+
 # Manifest and resources (the launcher icon and the themes).
 $resources = Join-Path $out 'resources.zip'
 & (Join-Path $tools "aapt2$exe") compile --dir (Join-Path $PSScriptRoot 'res') -o $resources
@@ -174,11 +205,16 @@ $resources = Join-Path $out 'resources.zip'
 $manifestPath = Join-Path $staging 'AndroidManifest.xml'
 $manifestContent = Get-Content (Join-Path $PSScriptRoot 'AndroidManifest.xml') -Raw
 $manifestContent = $manifestContent -replace 'package="[^"]+"', "package=`"$ApplicationId`""
+# The share provider's authority, as Gradle's manifest placeholder would fill it in.
+$manifestContent = $manifestContent.Replace('${applicationId}', $ApplicationId)
 [System.IO.File]::WriteAllText($manifestPath, $manifestContent, (New-Object System.Text.UTF8Encoding $false))
 
 $link = @('-I', (Join-Path $Sdk "platforms/$Platform/android.jar"), '--manifest', $manifestPath,
     '--min-sdk-version', $minSdk, '--target-sdk-version', $targetSdk,
     '--version-code', $versionCode, '--version-name', $version, $resources)
+if ($Debuggable) {
+    $link += '--debug-mode'
+}
 $unaligned = Join-Path $out 'unaligned.apk'
 & (Join-Path $tools "aapt2$exe") link -o $unaligned @link
 
@@ -191,6 +227,8 @@ try {
     [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,
         (Join-Path $libDir 'libcalculator.so'), 'lib/arm64-v8a/libcalculator.so',
         [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $dex, 'classes.dex',
+        [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
 } finally {
     $zip.Dispose()
 }
@@ -252,6 +290,7 @@ if ($Bundle) {
     New-Item -ItemType Directory -Force (Join-Path $module 'manifest') | Out-Null
     Move-Item (Join-Path $module 'AndroidManifest.xml') (Join-Path $module 'manifest/AndroidManifest.xml')
     Copy-Item (Join-Path $staging 'lib') (Join-Path $module 'lib') -Recurse
+    Copy-Item $dexDir (Join-Path $module 'dex') -Recurse
     $moduleZip = Join-Path $out 'base.zip'
     [System.IO.Compression.ZipFile]::CreateFromDirectory($module, $moduleZip)
 
@@ -267,5 +306,40 @@ if ($Bundle) {
     & $java -jar $Bundletool validate "--bundle=$aab"
     Remove-Item $linked, $module, $moduleZip, $unsignedAab -Recurse -Force
     "{0} ({1:N1} MB)" -f $aab, ((Get-Item $aab).Length / 1MB)
+
+    if ($UniversalApk) {
+        # bundletool takes passwords only on the command line or from a file, so they go to
+        # files that only this build reads and that are deleted right after.
+        $passwords = Join-Path $out 'passwords'
+        New-Item -ItemType Directory -Force $passwords | Out-Null
+        try {
+            if ($env:ANDROID_KEYSTORE) {
+                $storePass = Join-Path $passwords 'store'
+                $keyPass = Join-Path $passwords 'key'
+                $storeValue = $env:ANDROID_KEYSTORE_PASSWORD
+                $keyValue = if ($env:ANDROID_KEY_PASSWORD) { $env:ANDROID_KEY_PASSWORD } else { $storeValue }
+                Set-Content -NoNewline -Path $storePass -Value $storeValue
+                Set-Content -NoNewline -Path $keyPass -Value $keyValue
+                $apksSigning = @("--ks=$env:ANDROID_KEYSTORE", "--ks-key-alias=$alias",
+                    "--ks-pass=file:$storePass", "--key-pass=file:$keyPass")
+            } else {
+                $apksSigning = @("--ks=$DebugKeystore", "--ks-key-alias=$alias",
+                    '--ks-pass=pass:android', '--key-pass=pass:android')
+            }
+            $apks = Join-Path $out 'universal.apks'
+            & $java -jar $Bundletool build-apks "--bundle=$aab" "--output=$apks" --overwrite `
+                --mode=universal @apksSigning
+        } finally {
+            Remove-Item $passwords -Recurse -Force
+        }
+        $extracted = Join-Path $out 'universal'
+        if (Test-Path $extracted) { Remove-Item $extracted -Recurse -Force }
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($apks, $extracted)
+        $universal = Join-Path $out "$name-$version-arm64-universal.apk"
+        Move-Item -Force (Join-Path $extracted 'universal.apk') $universal
+        & (Join-Path $tools "apksigner$script") verify $universal
+        Remove-Item $apks, $extracted -Recurse -Force
+        "{0} ({1:N1} MB)" -f $universal, ((Get-Item $universal).Length / 1MB)
+    }
 }
-Remove-Item $resources, $staging -Recurse -Force
+Remove-Item $resources, $staging, $classes -Recurse -Force

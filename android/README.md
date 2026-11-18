@@ -2,7 +2,8 @@
 
 CalcCraft as a native Android app: Android's `NativeActivity` loads the Rust library
 (`libcalculator.so`, see `src/lib.rs`), and eframe draws the same egui interface as on the
-desktop with OpenGL ES. There is no Java or Kotlin code. `docs/mobile-apps-research.md` (on
+desktop with OpenGL ES. The only Java code is the graph share's small `ContentProvider` (see
+"How it works"). `docs/mobile-apps-research.md` (on
 the `research/mobile-apps` branch) explains the choices and what a store release still needs.
 
 **Status:** builds for 64-bit ARM (`arm64-v8a`), Android 7.0 (API 24) and later, targeting
@@ -42,6 +43,18 @@ The application ID (package name) defaults to `com.rapalon.calccraft`. `-Applica
 app to become paid and the package name is permanent after first upload, so the ID must be
 chosen before publishing.
 
+To try a build on a phone that has the Play-signed app, give it another ID: it installs next to
+that app, which then stays (the debug key can't update it). `-Debuggable` lets
+`adb shell run-as <id>` look into the app's files, such as the graph share's single
+`cache/share/graph.png`:
+
+```powershell
+pwsh -File android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.sharetest -Debuggable
+adb install -r target/android/CalcCraft-<version>-arm64.apk
+adb shell run-as com.rapalon.calccraft.sharetest ls -la cache/share
+adb uninstall com.rapalon.calccraft.sharetest
+```
+
 ### Channels: GitHub, Google Play free, Google Play paid
 
 Google Play's Payments policy forbids leading users to payment methods other than Play's, so
@@ -76,8 +89,9 @@ Both Play apps can use the same upload key: Play App Signing keeps a separate ap
 for each.
 
 The script doesn't use Gradle. cargo-ndk builds the library (a `cdylib` only for Android: the
-desktop and web builds use the binary), `llvm-strip` drops its symbol table, `aapt2` links the
-manifest and resources, the library goes in uncompressed, `zipalign -P 16` aligns it to 16 KB
+desktop and web builds use the binary), `llvm-strip` drops its symbol table, `javac` and `d8`
+compile `java/` into `classes.dex`, `aapt2` links the manifest and resources, the library goes
+in uncompressed, `zipalign -P 16` aligns it to 16 KB
 pages (as Google Play requires), and `apksigner` signs the APK (v2 and v3).
 
 ### The App Bundle for Google Play
@@ -221,7 +235,7 @@ a debug key: uninstall the debug build first.
 ### 5. Version codes, and the release
 
 The bundle's `versionName` is `version` in `Cargo.toml`, and its `versionCode` is
-`major × 10000 + minor × 100 + patch` (1.4.0 is 10400), computed by `build-apk.ps1`. Play
+`major × 10000 + minor × 100 + patch` (1.4.1 is 10401), computed by `build-apk.ps1`. Play
 refuses a bundle whose version code isn't higher than every one uploaded before, to any track,
 so every Play upload needs a new version in `Cargo.toml` first: a patch bump is enough (the
 code may skip numbers but never repeat). The code must stay below 2100000000; the scheme
@@ -232,6 +246,21 @@ download `calculator-v<version>-android-arm64.aab` from the GitHub release (chec
 `.sha256`), and upload it in the Play Console (Test and release → Testing → Internal testing
 first, then promote). The release workflow warns and attaches no bundle when the secrets are
 missing: a debug-signed bundle is of no use to Play.
+
+To try a release on a phone before the tag, run the release workflow by hand on the branch:
+`gh workflow run release.yml --ref <branch>` (or Actions → Release → Run workflow; the `ref`
+input builds another branch, tag or commit). Run that way, only its Android job runs: no draft,
+no release, nothing published. It needs the upload key and leaves one artifact,
+`CalcCraft-google-play-test-<version>-<commit>`, with a `SHA256SUMS` file and:
+
+- `CalcCraft-Play-<version>-arm64.aab`: the play-free bundle for the Play Console, signed with
+  the upload key.
+- `CalcCraft-Play-<version>-arm64-universal.apk`: the universal APK `bundletool build-apks
+  --mode=universal` makes from that bundle (`build-apk.ps1 -Bundle -UniversalApk`), signed with
+  the upload key: the code Play installs. It has the Play app's ID but not Play's signature, so
+  installing it needs the Play-installed CalcCraft uninstalled first.
+- `CalcCraft-Play-<version>-arm64-test.apk`: the play-free app with the ID
+  `com.rapalon.calccraft.test`, which installs next to the Play app.
 
 ### 6. If the upload key is lost or leaked
 
@@ -247,10 +276,22 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
 - `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`) and
   glow, as in egui's `hello_android` example, without wgpu and `arboard`.
 - `AndroidManifest.xml`: the app handles every configuration change itself, since winit allows
-  one event loop per process; phones stay upright, because the layouts need some 500 points of
-  height; the keyboard pans the screen instead of shrinking it; and the app opts out of
+  one event loop per process (so a rotation only resizes the window, and the input, history and
+  mode stay); it fixes no screen orientation (Settings → Screen orientation picks it, see
+  below); the keyboard pans the screen instead of shrinking it; and the app opts out of
   predictive back (`enableOnBackInvokedCallback="false"`), without which Android 16 and later
   handle the back button themselves and the app never sees it.
+- Screen orientation (1.4.1): Settings → Screen orientation offers Auto (the default:
+  `SCREEN_ORIENTATION_USER`, which follows the system's auto-rotate, or stays in the
+  orientation it's locked in), Portrait and Landscape (`SENSOR_PORTRAIT` and
+  `SENSOR_LANDSCAPE`: that orientation whatever the system's setting, on whichever side the
+  device is held). `android.rs` `set_orientation` calls `Activity.setRequestedOrientation` at
+  start-up, before the first frame, and when the choice changes; it works on the activity
+  pointer, so it needs no change for GameActivity. Android 16 and later ignore an app's
+  orientation on large screens (smallest width 600 dp or more), so the card is left out there.
+  A phone on its side gets a landscape layout (the keys in a column of their own, see
+  `FEATURES.md`, `FEAT-SHELL-002`); `cargo test layout_tests` checks every mode at phone and
+  tablet sizes in both orientations.
 - `res/`: the launcher icon (adaptive from Android 8; `cargo test write_android_icons --
   --ignored` writes the PNGs from `src/icon.rs`) and a light and a dark theme for the system
   bars and the start-up background.
@@ -276,11 +317,32 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   noticeable on a Samsung S26 Ultra), and needs the `VIBRATE` permission, a normal permission
   that Android grants without asking. It stays off when touch feedback is turned off in
   Android's settings (`Settings.System.HAPTIC_FEEDBACK_ENABLED`).
+- The Graphing mode's Share sends the graph as a PNG through Android's share sheet. The
+  picture is the one Windows and the desktop share: the graph drawn alone, at the screen's
+  resolution, with its current view, colors, grid and axes (a `ViewportCommand::Screenshot`
+  cropped to the graph, `graph_canvas.rs`). `share::write_single_file` writes it as
+  `cache/share/graph.png` in the app's private cache, the only file kept there: each share first
+  deletes everything else in `cache/share/`, then overwrites the picture, so shares never pile
+  up. `android.rs` (`share_image`) then starts `Intent.createChooser` around an `ACTION_SEND`
+  intent (`image/png`, `EXTRA_STREAM` and `ClipData` with the URI,
+  `FLAG_GRANT_READ_URI_PERMISSION`). The URI is `content://<application id>.share/graph.png`,
+  served by the app's one Java class, `java/com/rapalon/calccraft/ShareProvider.java`: a
+  `ContentProvider` without androidx that serves only that file, read-only (`openFile`,
+  `getType` `image/png`, and `query` for `OpenableColumns`' name and size). It isn't exported
+  (`android:exported="false"`); `android:grantUriPermissions="true"` lets the app the user picks
+  read that one URI. The authority follows the application ID (the manifest says
+  `${applicationId}.share`, which `build-apk.ps1` fills in), so the free and paid apps don't
+  clash. No permission is needed, and nothing goes to the gallery or shared storage. If the
+  file or the chooser fails, the mode shows the "unable to share" dialog, as on Windows.
+- `java/`: that class. `build-apk.ps1` compiles it with the JDK's `javac` against the
+  platform's `android.jar` (Java 8 bytecode), turns it into `classes.dex` with `d8` from the
+  pinned build-tools, and puts the dex into the APK and the bundle (`dex/`), so the manifest
+  says `android:hasCode="true"`. No library, no download: both tools come with the JDK and
+  the SDK the build already needs.
 
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
-- Share (an `ACTION_SEND` intent).
 - Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
   no Regional format card (its list would be empty).
 - TalkBack: eframe's screen reader support needs GameActivity on Android.

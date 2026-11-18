@@ -494,6 +494,10 @@ each with its SHA-256 checksum:
 The draft is published only when all four are there, and then the web version is deployed. Tags
 with a suffix, such as `v1.0.0-beta.1`, are published as pre-releases.
 
+Run by hand on a branch (`gh workflow run release.yml --ref <branch>`), the workflow builds only
+the Google Play test files, signed with the upload key, as an artifact of the run, and creates
+no release ([`android/README.md`](android/README.md), "Version codes, and the release").
+
 ### Project layout
 
 <details>

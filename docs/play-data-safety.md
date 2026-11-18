@@ -26,6 +26,13 @@ Notes for the form's fine print:
 - **Android backup** (`allowBackup="true"`): the settings file may go to the user's own Google
   backup, which Google handles under the user's account. It isn't collection by the developer,
   and `PRIVACY.md` mentions it.
+- **Sharing a graph** (1.4.1): the user taps Share and picks an app in Android's share sheet;
+  only then does that app read the picture, from one file in the app's private cache that
+  every share replaces (a non-exported `ContentProvider` of the app's own, audit: "Android
+  manifest"). A transfer the user starts in the system's share sheet isn't collection or
+  sharing by the developer, and nothing goes to the developer: the answers stay **No**.
+- **Settings added since the audit** (1.4.1: Screen orientation, `CalcCraftScreenOrientation`)
+  stay in that settings file on the device, need no permission and change none of the answers.
 
 ### Link parameters in the Play builds
 

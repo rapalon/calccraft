@@ -1,6 +1,6 @@
 # CalcCraft Privacy Policy
 
-**Effective date:** November 17, 2026
+**Effective date:** November 18, 2026
 
 This Privacy Policy explains how the CalcCraft app handles your information. It covers
 CalcCraft on every platform we publish it for: Android (Google Play, GitHub Releases and other
@@ -47,7 +47,8 @@ This information is used on your device only and is never sent anywhere:
 
 CalcCraft saves a small settings file on your device:
 
-- your choices: app theme, language, regional format, the key vibration strength (Android),
+- your choices: app theme, language, regional format, the screen orientation and the key
+  vibration strength (Android),
   the last calculator mode, the last converter category and units, the graph theme, the size of the keep-on-top window, and the
   app's own interface state (such as scroll positions);
 - the counters behind the occasional "Please support us" reminder (kept by every version,
@@ -112,9 +113,13 @@ to send it to. Nothing is sent until you do so, and then it goes through the app
 The Google Play versions share the plain link `https://rapalon.com/calccraft`, without
 parameters.
 
-**Sharing a graph.** In the Graphing mode, Share opens your system's share sheet (on Windows)
-or downloads a picture (in the browser), and Copy puts the graph on your clipboard. The picture
-and your equations go only to the app or the place you choose.
+**Sharing a graph.** In the Graphing mode, Share opens your system's share sheet (on Windows
+and Android) or downloads a picture (in the browser), and Copy puts the graph on your
+clipboard. The picture and your equations go only to the app or the place you choose. On
+Android the picture is first saved as one file in the app's private cache, where only the app
+you choose may read it; each share replaces it, so there is never more than one. It isn't put
+in your gallery or shared storage. Android may delete it at any time, and Clear storage or
+Clear cache in the app's settings deletes it.
 
 ## Google Play versions
 

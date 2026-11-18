@@ -9,10 +9,22 @@ name: Release
 # and, if the key has its own, ANDROID_KEY_PASSWORD; see android/README.md). Without them the
 # APK gets a new debug key, and installing it over an earlier release needs an uninstall first;
 # the bundle is skipped, since Play takes only one signed with the upload key.
+#
+# Run by hand (`gh workflow run release.yml --ref <branch>`), it builds only the Google Play
+# test files of that branch, as an artifact of the run: the play-free App Bundle signed with
+# the upload key, the universal APK bundletool makes from it (the same code Play installs), and
+# a test APK with the application ID com.rapalon.calccraft.test, which installs next to the
+# Play app. No tag, no release, nothing published.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build (default: the branch the run is for)
+        required: false
+        default: ""
 
 permissions:
   contents: write # create the release and upload its files
@@ -24,6 +36,7 @@ env:
 jobs:
   draft:
     name: Create the draft release
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -54,6 +67,7 @@ jobs:
   build:
     name: Build (${{ matrix.name }})
     needs: draft
+    if: github.event_name == 'push'
     strategy:
       matrix:
         include:
@@ -126,9 +140,10 @@ jobs:
   macos:
     name: Build (macos-universal)
     needs: draft
-    # GitHub's macOS runners (macos-14 or newer) are Apple silicon M1 machines,
-    # free for public repositories.
-    runs-on: macos-14
+    if: github.event_name == 'push'
+    # Apple silicon, free for public repositories, and the image CI tests on. GitHub retired
+    # macos-14 on 2026-11-02, which stopped the v1.4.0 run before "Publish the release".
+    runs-on: macos-latest
     defaults:
       run:
         shell: bash
@@ -230,6 +245,8 @@ jobs:
   android:
     name: Build (android-arm64)
     needs: draft
+    # Run by hand, there is no draft: this job alone runs.
+    if: ${{ !cancelled() && (needs.draft.result == 'success' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865
@@ -237,6 +254,8 @@ jobs:
       HAS_UPLOAD_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -257,6 +276,7 @@ jobs:
           "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK" > /dev/null
 
       - name: Build the APK and the App Bundle
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
@@ -279,6 +299,7 @@ jobs:
           android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID @bundle
 
       - name: Package
+        if: github.event_name == 'push'
         run: |
           asset="calculator-$GITHUB_REF_NAME-android-arm64"
           mkdir dist
@@ -293,6 +314,7 @@ jobs:
           done
 
       - name: Upload to the draft release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
@@ -303,7 +325,7 @@ jobs:
       # the paid app (play-paid). They go to the run's artifacts for the Play Console, not to
       # the GitHub release, whose APK and bundle above keep the default channel.
       - name: Build the Google Play App Bundles
-        if: env.HAS_UPLOAD_KEY == 'true'
+        if: github.event_name == 'push' && env.HAS_UPLOAD_KEY == 'true'
         shell: pwsh
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -327,16 +349,61 @@ jobs:
           }
 
       - name: Keep the Google Play App Bundles
-        if: env.HAS_UPLOAD_KEY == 'true'
+        if: github.event_name == 'push' && env.HAS_UPLOAD_KEY == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: CalcCraft-google-play-${{ github.ref_name }}
           path: play/*.aab
           if-no-files-found: error
 
+      # Run by hand: the files to try before a Play upload. Only with the upload key, since
+      # the point is the exact code Play would get.
+      - name: Build the Google Play test files
+        id: test-files
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
+          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID }}
+        run: |
+          if (-not $env:ANDROID_KEYSTORE_BASE64) {
+              '::error::No ANDROID_KEYSTORE_BASE64 secret: the Google Play test files need the upload key.'
+              exit 1
+          }
+          $env:ANDROID_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.keystore'
+          [IO.File]::WriteAllBytes($env:ANDROID_KEYSTORE,
+              [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          New-Item -ItemType Directory -Force play | Out-Null
+          # The App Bundle for the Play Console and the universal APK made from it.
+          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID -Channel play-free -PaidApplicationId "$env:PAID_ID" -Bundle -UniversalApk
+          Copy-Item target/android/CalcCraft-Play-*-arm64.aab, target/android/CalcCraft-Play-*-arm64-universal.apk play/
+          # The side-by-side test app: its own application ID (and so its own share authority).
+          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId com.rapalon.calccraft.test -Channel play-free -PaidApplicationId "$env:PAID_ID"
+          $apk = Get-Item target/android/CalcCraft-Play-*-arm64.apk
+          Copy-Item $apk (Join-Path play ($apk.BaseName + '-test.apk'))
+          Push-Location play
+          $files = @(Get-ChildItem -File)
+          $files | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name } | Tee-Object SHA256SUMS
+          Pop-Location
+          $version = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json | ForEach-Object { $_.packages[0].version }
+          "name=CalcCraft-google-play-test-$version-$(git rev-parse --short=7 HEAD)" >> $env:GITHUB_OUTPUT
+
+      - name: Keep the Google Play test files
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.test-files.outputs.name }}
+          path: play/*
+          if-no-files-found: error
+
   publish:
     name: Publish the release
     needs: [build, macos, android]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Publish the draft

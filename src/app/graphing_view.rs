@@ -24,8 +24,12 @@ use super::icons::{
     ICON_WARNING, icon_label,
 };
 use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH};
+use super::scientific_view::Sizes;
 use super::strings::{tr, tr_format};
-use super::{CalculatorApp, HEADER_HEIGHT, Kind, RADIUS, access, numbers, radio_button, semibold};
+use super::{
+    CalculatorApp, HEADER_HEIGHT, Kind, Landscape, MARGIN, RADIUS, access, numbers, radio_button,
+    semibold,
+};
 use crate::engine::Angle;
 use crate::graphing::analysis::{self, AnalysisError, Features, Period};
 use crate::graphing::plot::{LineStyle, View};
@@ -44,7 +48,12 @@ const MAX_EQUATION_LENGTH: usize = 2048;
 const COLOR_ORDER: [usize; 14] = [0, 3, 7, 10, 1, 4, 8, 11, 2, 5, 9, 12, 6, 13];
 /// An equation box's height (`MinHeight="44"`), and its buttons' width.
 const ROW_HEIGHT: f32 = 44.0;
-const ROW_BUTTON: f32 = 38.0;
+/// The boxes' buttons are 38 px wide; on a phone, where they always show, 40 dp to be
+/// tapped (as tall as the box's 40 px slot).
+const ROW_BUTTON: f32 = if TOUCH { 40.0 } else { 38.0 };
+/// The Android app: no hover, so the boxes always show their buttons, and the system
+/// keyboard opens only from a box's keyboard toggle (`SoftKeyboard`).
+const TOUCH: bool = cfg!(target_os = "android");
 
 /// The stored "Graph theme" choice (`IsGraphThemeMatchApp`, Windows' own setting name).
 pub(super) const THEME_KEY: &str = "IsGraphThemeMatchApp";
@@ -305,7 +314,7 @@ pub(super) struct GraphingState {
     pub(super) match_app_theme: bool,
     /// In a narrow window, whether the equations show instead of the graph
     /// (`SwitchModeToggleButton.IsOn`).
-    show_equations: bool,
+    pub(super) show_equations: bool,
     pub(super) analysis: Option<Analysis>,
     pub(super) popup: Option<Popup>,
     /// An Esc that closed a drop-down of the popup is still held (`swallow_held_escape`).
@@ -333,6 +342,59 @@ pub(super) struct GraphingState {
     pub(super) zoom_held: Option<(bool, f64)>,
     /// Where the keypad was last frame: a click there doesn't submit the equation.
     pub(super) keypad_rect: Rect,
+    /// On Android, the box whose keyboard toggle is on.
+    keyboard: SoftKeyboard,
+}
+
+/// The Android app's system keyboard for the equation boxes. A tap on a box only focuses it
+/// (the app's keypad types into it); the system keyboard opens from the box's keyboard
+/// toggle. egui-winit shows the system keyboard while a focused `TextEdit` reports IME
+/// output, and hides it when none does, so the app drops that output unless `allows` it.
+#[derive(Default)]
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+struct SoftKeyboard {
+    /// The box whose toggle is on.
+    row: Option<u64>,
+    /// Whether the system keyboard was seen open since the toggle went on: when it then
+    /// closes (Back), the toggle goes off.
+    shown: bool,
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+impl SoftKeyboard {
+    fn is_on(&self, row: u64) -> bool {
+        self.row == Some(row)
+    }
+
+    /// The toggle of `row` is tapped: on, or off if it was on.
+    fn toggle(&mut self, row: u64) {
+        self.row = if self.is_on(row) { None } else { Some(row) };
+        self.shown = false;
+    }
+
+    /// After the boxes are drawn: whether the focused equation box (`focused`, if one has
+    /// the focus) may keep its IME output, which shows the system keyboard. Another box or
+    /// control taking the focus turns the toggle off, but not while a finger is still down
+    /// (`pointer_down`: a tap on the toggle itself may take the focus until it's released),
+    /// and so does the keyboard closing (`visible`, `None` where Android can't tell).
+    fn allows(
+        &mut self,
+        focused: Option<u64>,
+        pointer_down: bool,
+        visible: impl FnOnce() -> Option<bool>,
+    ) -> bool {
+        if self.row.is_some() && self.row != focused && !pointer_down {
+            *self = SoftKeyboard::default();
+        }
+        if self.row.is_some() && self.row == focused {
+            match visible() {
+                Some(true) => self.shown = true,
+                Some(false) if self.shown => *self = SoftKeyboard::default(),
+                _ => {}
+            }
+        }
+        focused.is_none() || self.row == focused
+    }
 }
 
 impl GraphingState {
@@ -366,6 +428,7 @@ impl GraphingState {
             cache: None,
             zoom_held: None,
             keypad_rect: Rect::NOTHING,
+            keyboard: SoftKeyboard::default(),
         };
         state.add_row();
         state
@@ -890,14 +953,46 @@ impl CalculatorApp {
 
     // ---------------------------------------------------------------- layout
 
+    /// On a phone on its side (`Landscape`), the equations view's two columns: the header, the
+    /// equations and the keypad's menu row on the left, and the keys alone on the right, from
+    /// the top, which keeps their seven rows at least 40 px high. `None` elsewhere, and for the
+    /// graph or the function analysis, which take the whole width.
+    pub(super) fn graphing_split(&self, ui: &Ui, full: Rect) -> Option<(Rect, Rect)> {
+        let (left, _) = Landscape::columns(full)?;
+        if !self.graphing.show_equations || self.graphing.analysis.is_some() {
+            return None;
+        }
+        // The left column is wide enough for the three menu buttons.
+        let keys_for = |left: f32| Rect::from_x_y_ranges(left..=full.right(), full.y_range());
+        let menus = Self::graphing_menus_width(ui, keys_for(left.right())) + 2.0 * MARGIN;
+        let split = left
+            .right()
+            .max(full.left() + menus)
+            .min(full.right() - 5.0 * 48.0);
+        Some((full.with_max_x(split), full.with_min_x(split)))
+    }
+
+    /// The equation panel's width in the two-column layout: a third of `full` within
+    /// `PANEL_MIN` and `PANEL_MAX`, but wide enough for the keypad's three menu buttons, which
+    /// would stick out of a 300 px panel (an 800 px window, a tablet held upright), up to half
+    /// the width.
+    fn panel_width(ui: &Ui, full: Rect) -> f32 {
+        let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+        let keypad = vec2(panel, (full.height() * 2.2 / 3.2).min(400.0));
+        let menus = Self::graphing_menus_width(ui, Rect::from_min_size(full.min, keypad));
+        panel.max(menus + 4.0).min(full.width() / 2.0)
+    }
+
     /// Draws the mode below the header (which ends at `top`).
     pub(super) fn draw_graphing_mode(&mut self, ui: &mut Ui, full: Rect, top: f32) {
-        let columns = full.width() >= COLUMNS_WIDTH;
+        // A phone on its side has the narrow window's switch between graph and equations.
+        let columns = full.width() >= COLUMNS_WIDTH && Landscape::columns(full).is_none();
+        let split = self.graphing_split(ui, full);
         let body = full.with_min_y(top);
         if self.graphing.capture != Capture::None {
             // A copy of the graph: draw it alone, as large as it is.
             let graph = if columns {
-                let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+                let panel = Self::panel_width(ui, full);
                 body.with_max_x(full.right() - panel)
             } else {
                 body
@@ -906,18 +1001,31 @@ impl CalculatorApp {
             return;
         }
         if columns {
-            let panel = (full.width() / 3.0).clamp(PANEL_MIN, PANEL_MAX);
+            let panel = Self::panel_width(ui, full);
             let graph = body.with_max_x(full.right() - panel).with_min_y(top + 4.0);
             let right = body.with_min_x(full.right() - panel);
             self.draw_graph(ui, graph, true);
             self.draw_equation_panel(ui, right);
         } else {
-            let header = Rect::from_min_max(
-                pos2(full.left(), top - HEADER_HEIGHT),
-                pos2(full.right(), top),
-            );
+            let right = split.map_or(full.right(), |(left, _)| left.right());
+            let header =
+                Rect::from_min_max(pos2(full.left(), top - HEADER_HEIGHT), pos2(right, top));
             self.draw_mode_switch(ui, header);
-            if self.graphing.show_equations {
+            if let Some((left, keys)) = split {
+                let keys = Rect::from_min_max(
+                    keys.min + vec2(0.0, MARGIN),
+                    keys.max - vec2(MARGIN, MARGIN),
+                );
+                let menu_height = Sizes::for_keypad(keys).menu[0];
+                let menu_row = Rect::from_min_max(
+                    pos2(left.left() + MARGIN, left.bottom() - MARGIN - menu_height),
+                    pos2(left.right() - MARGIN, left.bottom() - MARGIN),
+                );
+                let list = Rect::from_min_max(pos2(left.left(), top + 4.0), menu_row.left_top());
+                self.draw_equation_list(ui, list.with_max_x(left.right()));
+                self.graphing.keypad_rect = keys.union(menu_row);
+                self.draw_graphing_keypad_split(ui, menu_row, keys);
+            } else if self.graphing.show_equations {
                 self.draw_equation_panel(ui, body);
             } else {
                 self.draw_graph(ui, body.with_min_y(top + 4.0), true);
@@ -1052,6 +1160,8 @@ impl CalculatorApp {
                         Rect::from_min_max(rect.min + vec2(5.0, 0.0), rect.max - vec2(5.0, 2.0));
                     self.draw_equation_row(ui, id, rect);
                 }
+                #[cfg(target_os = "android")]
+                self.limit_soft_keyboard(ui.ctx());
                 if !self.graphing.variables.is_empty() {
                     let width = ui.available_width();
                     let (rect, _) = ui.allocate_exact_size(vec2(width, 25.0), Sense::hover());
@@ -1068,9 +1178,31 @@ impl CalculatorApp {
         });
     }
 
+    /// On Android, keeps the system keyboard closed for a focused equation box unless its
+    /// keyboard toggle is on (see `SoftKeyboard`). The other boxes (variables, ranges)
+    /// have no keypad, so they keep it.
+    #[cfg(target_os = "android")]
+    fn limit_soft_keyboard(&mut self, ctx: &Context) {
+        let focused = self
+            .graphing
+            .rows
+            .iter()
+            .map(|row| row.id)
+            .find(|&id| ctx.memory(|m| m.has_focus(edit_id(id))));
+        let pointer_down = ctx.input(|i| i.pointer.any_down());
+        if !self
+            .graphing
+            .keyboard
+            .allows(focused, pointer_down, super::android::ime_visible)
+        {
+            ctx.output_mut(|o| o.ime = None);
+        }
+    }
+
     /// One equation box (`EquationTextBox`): the colored fₙ button that shows and hides
     /// the line, the text, and the buttons that appear on hover (function analysis, line
-    /// options, remove) or with the focus (clear).
+    /// options, remove) or with the focus (clear). On Android they always show, with the
+    /// keyboard toggle and without the clear button.
     fn draw_equation_row(&mut self, ui: &mut Ui, id: u64, rect: Rect) {
         let p = self.palette;
         let ctx = ui.ctx().clone();
@@ -1184,7 +1316,7 @@ impl CalculatorApp {
             r
         };
         let mut actions = RowActions::default();
-        if focused && !empty {
+        if focused && !empty && !TOUCH {
             let r = slot(ROW_BUTTON);
             let label = icon_label(ICON_MULTIPLY, 12.0);
             if self.button(
@@ -1198,7 +1330,7 @@ impl CalculatorApp {
             ) {
                 actions.clear = true;
             }
-        } else if hovered && !focused {
+        } else if TOUCH || hovered && !focused {
             if !last {
                 let r = slot(ROW_BUTTON);
                 let label = icon_label(ICON_DELETE, 14.0);
@@ -1264,6 +1396,26 @@ impl CalculatorApp {
                     Id::new("graph-eq-analyze").with(id),
                     tr("functionAnalysisButton.ToolTip"),
                 );
+            }
+            if TOUCH {
+                // CalcCraft's own: opens the system keyboard for this box.
+                let r = slot(ROW_BUTTON);
+                let on = self.graphing.keyboard.is_on(id);
+                let name = tr("CalcCraft.Keyboard");
+                let response = access::control(
+                    ui,
+                    p,
+                    r,
+                    Id::new("graph-eq-keyboard").with(id),
+                    true,
+                    RADIUS,
+                    access::item(WidgetType::Checkbox, name, on),
+                );
+                let icon = LayoutJob::default();
+                self.paint_key(ui, r, Kind::Subtle, true, &response, false, icon);
+                let color = if on { p.accent } else { p.text };
+                paint_keyboard_icon(&painter, r.center(), 16.0, color);
+                actions.keyboard = response.clicked();
             }
         }
         if let Some(error) = error
@@ -1341,6 +1493,12 @@ impl CalculatorApp {
         if actions.clear {
             self.graphing.rows[index].text.clear();
             self.graphing.submit(index, syntax);
+            ctx.memory_mut(|m| m.request_focus(edit_id(id)));
+        }
+        if actions.keyboard {
+            // The box takes the focus, so the keypad types into it as well.
+            self.graphing.keyboard.toggle(id);
+            self.graphing.active = Some(id);
             ctx.memory_mut(|m| m.request_focus(edit_id(id)));
         }
         if actions.submit_enter {
@@ -2793,6 +2951,8 @@ struct RowActions {
     remove: bool,
     style: Option<Rect>,
     analyze: bool,
+    /// The keyboard toggle (Android).
+    keyboard: bool,
     submit_enter: bool,
     submit_left: bool,
 }
@@ -2990,6 +3150,26 @@ pub(super) fn paint_graph_icon(painter: &Painter, center: Pos2, size: f32, color
     ));
 }
 
+/// The keyboard toggle's icon (Android): a keyboard with two rows of keys and a space bar,
+/// drawn in code like the other icons the icon font doesn't have.
+fn paint_keyboard_icon(painter: &Painter, center: Pos2, size: f32, color: Color32) {
+    let s = size / 16.0;
+    let at = |x: f32, y: f32| center + vec2(x * s, y * s);
+    let stroke = Stroke::new(1.0 * s.max(1.0), color);
+    painter.rect_stroke(
+        Rect::from_min_max(at(-8.0, -5.5), at(8.0, 5.5)),
+        1.5 * s,
+        stroke,
+        StrokeKind::Inside,
+    );
+    for y in [-2.5, 0.0] {
+        for k in 0..5 {
+            painter.circle_filled(at(-5.0 + k as f32 * 2.5, y), 0.8 * s, color);
+        }
+    }
+    painter.line_segment([at(-3.5, 2.75), at(3.5, 2.75)], stroke);
+}
+
 /// What the analysis panel lists: a title and its lines (or a lone message).
 struct Item {
     title: Option<String>,
@@ -3090,6 +3270,47 @@ fn analysis_items(result: &Result<Features, AnalysisError>) -> Vec<Item> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn soft_keyboard_opens_only_from_the_toggle() {
+        let mut k = SoftKeyboard::default();
+        let unknown = || None;
+        // A tapped box gets no system keyboard; no box focused leaves the output alone
+        // (the variable and range boxes keep theirs).
+        assert!(!k.allows(Some(1), false, unknown));
+        assert!(k.allows(None, false, unknown));
+        // The toggle opens it for its box only.
+        k.toggle(1);
+        assert!(k.is_on(1) && !k.is_on(2));
+        assert!(k.allows(Some(1), false, unknown));
+        // Tapped again: off.
+        k.toggle(1);
+        assert!(!k.allows(Some(1), false, unknown));
+        // Another box taking the focus turns it off, once the finger is up.
+        k.toggle(1);
+        assert!(!k.allows(Some(2), true, unknown));
+        assert!(k.is_on(1));
+        assert!(!k.allows(Some(2), false, unknown));
+        assert!(!k.is_on(1));
+        assert!(!k.allows(Some(1), false, unknown));
+    }
+
+    #[test]
+    fn soft_keyboard_closed_with_back_turns_the_toggle_off() {
+        let mut k = SoftKeyboard::default();
+        k.toggle(3);
+        // Not open yet (it takes a few frames): the toggle stays on.
+        assert!(k.allows(Some(3), false, || Some(false)));
+        assert!(k.allows(Some(3), false, || Some(true)));
+        assert!(k.allows(Some(3), false, || Some(true)));
+        // Back closed it: off, and the box doesn't open it again.
+        assert!(!k.allows(Some(3), false, || Some(false)));
+        assert!(!k.is_on(3));
+        assert!(!k.allows(Some(3), false, || Some(false)));
+        // On again from the toggle.
+        k.toggle(3);
+        assert!(k.allows(Some(3), false, || Some(false)));
+    }
 
     #[test]
     fn colors_and_numbers() {

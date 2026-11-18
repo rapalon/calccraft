@@ -38,16 +38,30 @@ enum GraphKey {
 
 impl CalculatorApp {
     pub(super) fn draw_graphing_keypad(&mut self, ui: &Ui, rect: Rect) {
-        let p = self.palette;
         let sizes = Sizes::for_keypad(rect);
-        let [menu_height, menu_font, glyph_size, chevron_size] = sizes.menu;
-        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), menu_height));
-        let mut left = menu_row.left();
-        for menu in [
+        let menu_row = Rect::from_min_size(rect.min, vec2(rect.width(), sizes.menu[0]));
+        self.draw_graphing_menus(ui, menu_row, sizes);
+        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
+        self.draw_graphing_keys(ui, keys, sizes);
+    }
+
+    /// The landscape layout's keypad (see `Landscape`): the menu row in `menu_row`, under the
+    /// equations, and the keys alone in `keys`, the other column.
+    pub(super) fn draw_graphing_keypad_split(&mut self, ui: &Ui, menu_row: Rect, keys: Rect) {
+        let sizes = Sizes::for_keypad(keys);
+        self.draw_graphing_menus(ui, menu_row, sizes);
+        self.draw_graphing_keys(ui, keys, sizes);
+    }
+
+    /// The menu buttons' labels, names and widths, for `sizes`.
+    fn graphing_menus(ui: &Ui, sizes: Sizes) -> [(KeypadMenu, &'static str, &'static str, f32); 3] {
+        let [_, menu_font, glyph_size, chevron_size] = sizes.menu;
+        [
             KeypadMenu::Trigonometry,
             KeypadMenu::Inequalities,
             KeypadMenu::Function,
-        ] {
+        ]
+        .map(|menu| {
             let (label, name) = match menu {
                 KeypadMenu::Trigonometry => {
                     (tr("trigButton.Text"), tr("trigButton.AutomationName"))
@@ -59,13 +73,46 @@ impl CalculatorApp {
                 KeypadMenu::Function => (tr("funcButton.Text"), tr("funcButton.AutomationName")),
             };
             let painter = ui.painter();
+            let text = painter
+                .layout_no_wrap(
+                    label.to_string(),
+                    FontId::proportional(menu_font),
+                    Color32::PLACEHOLDER,
+                )
+                .size()
+                .x;
+            let chevron = painter
+                .layout_job(icon_label(ICON_CHEVRON_DOWN, chevron_size))
+                .size()
+                .x;
+            // Padding 8, the icon, the text and the chevron 8 px apart, padding 8.
+            let width = 8.0 + glyph_size + 8.0 + text + 8.0 + chevron + 8.0;
+            (menu, label, name, width)
+        })
+    }
+
+    /// How wide the menu row's three buttons are for `keys`, with their 1 px gaps.
+    pub(super) fn graphing_menus_width(ui: &Ui, keys: Rect) -> f32 {
+        Self::graphing_menus(ui, Sizes::for_keypad(keys))
+            .iter()
+            .map(|(_, _, _, width)| width + 1.0)
+            .sum::<f32>()
+            + 1.0
+    }
+
+    /// The Trigonometry, Inequalities and Function menu buttons in `menu_row`.
+    fn draw_graphing_menus(&mut self, ui: &Ui, menu_row: Rect, sizes: Sizes) {
+        let p = self.palette;
+        let [_, menu_font, glyph_size, chevron_size] = sizes.menu;
+        let mut left = menu_row.left();
+        for (menu, label, name, width) in Self::graphing_menus(ui, sizes) {
+            let painter = ui.painter();
             let galley = painter.layout_no_wrap(
                 label.to_string(),
                 FontId::proportional(menu_font),
                 Color32::PLACEHOLDER,
             );
             let chevron = painter.layout_job(icon_label(ICON_CHEVRON_DOWN, chevron_size));
-            let width = 8.0 + glyph_size + 8.0 + galley.size().x + 8.0 + chevron.size().x + 8.0;
             let button = Rect::from_min_size(
                 pos2(left + 1.0, menu_row.top() + 1.0),
                 vec2(width, menu_row.height() - 2.0),
@@ -125,9 +172,6 @@ impl CalculatorApp {
                 };
             }
         }
-
-        let keys = Rect::from_min_max(pos2(rect.left(), menu_row.bottom()), rect.max);
-        self.draw_graphing_keys(ui, keys, sizes);
     }
 
     fn draw_graphing_keys(&mut self, ui: &Ui, rect: Rect, sizes: Sizes) {

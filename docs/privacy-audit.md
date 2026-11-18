@@ -17,6 +17,12 @@ together.
   the device only. The chosen strength is stored as `CalcCraftKeyVibration` in `app.ron`.
 - `android:hasCode="false"` (`AndroidManifest.xml:15`): no Java/Kotlin code, so no Google Play
   services, Firebase or other SDKs. The activity is Android's `NativeActivity`.
+  Since 2026-11-18 (version 1.4.1) `hasCode` is `true`, for one class of the app's own,
+  `android/java/com/rapalon/calccraft/ShareProvider.java` (no library, no SDK): a
+  `ContentProvider` (`android:exported="false"`, `android:grantUriPermissions="true"`, authority
+  `<application id>.share`) that serves one file read-only, `cache/share/graph.png`, to the app
+  the user picks in the graph's share sheet. Nothing else can read it: the provider isn't
+  exported, and Android grants the chosen app read access to that one URI only.
 - `android:allowBackup="true"` (`AndroidManifest.xml:12`): Android Auto Backup may copy the
   app's internal files (the settings file below) to the user's Google account backup and use
   them in a device-to-device transfer. That is Google's backup under the user's account; the
@@ -40,6 +46,9 @@ What goes in it (`CalculatorApp::save`, `src/app.rs:2770-2789`; keys at `src/app
 - `SelectedAppTheme`, `Mode`, `UnitConverterPreferences` (category and units),
   `CalcCraftLanguage`, `CalcCraftRegionalFormat`, the graph theme (`graphing_view::THEME_KEY`),
   the keep-on-top window size (`calculatorAlwaysOnTopLastWidth`/`Height`, `src/app.rs:454-457`);
+- on Android, the Screen orientation choice `CalcCraftScreenOrientation` (`Auto`, `Portrait` or
+  `Landscape`, `src/app/orientation.rs`, added 2026-11-18) and the key vibration's
+  `CalcCraftKeyVibration`, `CalcCraftKeyVibrationStyle` and `CalcCraftKeyVibrationDuration`;
 - egui's memory (UI state such as scroll positions), which eframe saves with it;
 - with the `support-prompt` feature (on by default), `SupportStatsV2` (`src/support/stats.rs:6`,
   fields at `stats.rs:17-47`, written by `SupportState::save`, `src/support/view.rs:199`):
@@ -63,6 +72,10 @@ when the app closes.
   (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`).
 - The system theme (egui/winit), the Android SDK version and the system bars' insets
   (`src/app/android.rs:52`, `:90`), the page address's `?lang=`/`?region=` (`src/app/web.rs:17`).
+- The screen's smallest width in dp (Android, `Configuration.smallestScreenWidthDp`,
+  `android::orientation_honored`), only to leave out the Screen orientation setting where
+  Android 16 ignores an app's orientation (large screens). It sets the activity's requested
+  orientation (`setRequestedOrientation`), which needs no permission.
 
 ## Network
 
@@ -114,6 +127,12 @@ Stripe's and the website's statistics.
   (`android.rs:307-333`). The recipient is picked by the user in the system's sheet.
 - The graph's Share (Windows): Windows' share sheet with the PNG, the equations and variables as
   HTML (`src/app/share.rs:85`, `:150-194`); in the browser a PNG download (`src/app/web.rs:291`).
+  On Android (since 1.4.1) the PNG alone goes to Android's `ACTION_SEND` chooser as a
+  `content://<application id>.share/graph.png` URI with a read grant (`src/app/android.rs`,
+  `share_image`). Before that it's written to the app's private cache, `cache/share/graph.png`,
+  the only file kept there: every share deletes whatever else is in `cache/share/` and
+  overwrites the picture (`src/app/share.rs`, `write_single_file`). It never goes to the gallery
+  or shared storage, and Android may delete the cache at any time.
 - Copy writes the clipboard on the user's command: results (`src/app.rs:923-924`, `:1684`),
   converter values (`src/app/converter_view.rs:396`), dates (`src/app/date_view.rs:256`),
   Programmer values (`src/app/programmer_view.rs:330`), the graph and equation text

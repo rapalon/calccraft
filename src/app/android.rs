@@ -1,6 +1,7 @@
 //! The Android app's ties to the system, through JNI where only Java can tell: the parts of
 //! the screen under the status bar, the navigation bar and a camera cutout (NativeActivity
-//! draws under them), the user's languages, the back button, and the keys' vibration.
+//! draws under them), the user's languages, the back button, the keys' vibration, whether
+//! the system keyboard is open, the screen orientation, and the share sheet.
 
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,7 +11,7 @@ use jni::JNIEnv;
 use jni::objects::{JIntArray, JObject, JString, JValue};
 use winit::platform::android::activity::AndroidApp;
 
-use super::vibration;
+use super::{orientation, vibration};
 
 /// The app's activity, which `android_main` gets from Android.
 static APP: OnceLock<AndroidApp> = OnceLock::new();
@@ -366,6 +367,38 @@ fn covered_edges() -> Option<[i32; 4]> {
     .flatten()
 }
 
+/// Whether the system keyboard is open (`WindowInsets.isVisible(Type.ime())`), or `None`
+/// before Android 11, which can't tell. The Graphing mode's keyboard toggle goes off when
+/// the keyboard closes (Back), which the app isn't told otherwise: the keyboard takes that
+/// Back itself. egui-winit opens and closes the keyboard (`showSoftInput`).
+pub(super) fn ime_visible() -> Option<bool> {
+    with_activity(|env, activity| {
+        if sdk_version(env)? < 30 {
+            return Ok(None);
+        }
+        let decor = decor_view(env, activity)?;
+        let insets = env
+            .call_method(
+                &decor,
+                "getRootWindowInsets",
+                "()Landroid/view/WindowInsets;",
+                &[],
+            )?
+            .l()?;
+        if insets.is_null() {
+            return Ok(None);
+        }
+        let ime = env
+            .call_static_method("android/view/WindowInsets$Type", "ime", "()I", &[])?
+            .i()?;
+        let visible = env
+            .call_method(&insets, "isVisible", "(I)Z", &[JValue::Int(ime)])?
+            .z()?;
+        Ok(Some(visible))
+    })
+    .flatten()
+}
+
 /// Called with every frame's input: tells egui which parts of the screen the system bars
 /// cover (egui's safe area, which the layout keeps clear), and handles the back button.
 /// While the app has something to close (`back_closes`: a menu, popup, flyout or the
@@ -398,6 +431,56 @@ pub(super) fn input_hook(ctx: &Context, raw_input: &mut RawInput, back_closes: b
     if leave {
         move_task_to_back();
     }
+}
+
+/// Asks Android for the screen orientation of Settings → Screen orientation
+/// (`Activity.setRequestedOrientation`, `orientation::Orientation::requested`). The manifest
+/// asks for none, and lets the app handle the rotation itself (`configChanges`), so the
+/// activity isn't restarted: the next frames just get the new size. It goes through the
+/// activity itself, so it works for NativeActivity and GameActivity alike.
+pub(super) fn set_orientation(orientation: orientation::Orientation) {
+    with_activity(|env, activity| {
+        env.call_method(
+            activity,
+            "setRequestedOrientation",
+            "(I)V",
+            &[JValue::Int(orientation.requested())],
+        )?;
+        Ok(())
+    });
+}
+
+/// Whether Android honors the orientation the app asks for (`orientation::honored`): not on
+/// large screens from Android 16. Asked once: neither changes while the app runs (a foldable's
+/// two screens aside, where the setting simply stays).
+pub(super) fn orientation_honored() -> bool {
+    static HONORED: OnceLock<bool> = OnceLock::new();
+    *HONORED.get_or_init(|| {
+        with_activity(|env, activity| {
+            let sdk = sdk_version(env)?;
+            let resources = env
+                .call_method(
+                    activity,
+                    "getResources",
+                    "()Landroid/content/res/Resources;",
+                    &[],
+                )?
+                .l()?;
+            let configuration = env
+                .call_method(
+                    &resources,
+                    "getConfiguration",
+                    "()Landroid/content/res/Configuration;",
+                    &[],
+                )?
+                .l()?;
+            let smallest = env
+                .get_field(&configuration, "smallestScreenWidthDp", "I")?
+                .i()?;
+            Ok(orientation::honored(sdk, smallest))
+        })
+        .unwrap_or(true)
+    })
 }
 
 /// Sends the app to the background, as the back button does on an app's first screen.
@@ -522,6 +605,93 @@ pub(crate) fn share_sheet(text: &str) -> bool {
             "putExtra",
             "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;",
             &[JValue::Object(&key), JValue::Object(&body)],
+        )?;
+        let chooser = env
+            .call_static_method(
+                "android/content/Intent",
+                "createChooser",
+                "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
+                &[JValue::Object(&send), JValue::Object(&JObject::null())],
+            )?
+            .l()?;
+        start_activity(env, activity, &chooser)
+    })
+    .is_some()
+}
+
+/// The app's private cache folder (`Context.getCacheDir()`), where the shared graph goes.
+pub(super) fn cache_dir() -> Option<std::path::PathBuf> {
+    with_activity(|env, activity| {
+        let dir = env
+            .call_method(activity, "getCacheDir", "()Ljava/io/File;", &[])?
+            .l()?;
+        let path = env
+            .call_method(&dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
+            .l()?;
+        let path: String = env.get_string(&JString::from(path))?.into();
+        Ok(std::path::PathBuf::from(path))
+    })
+}
+
+/// `Intent.FLAG_GRANT_READ_URI_PERMISSION`.
+const FLAG_GRANT_READ_URI_PERMISSION: i32 = 0x0000_0001;
+
+/// Opens the system share sheet with the PNG `name` of the app's `ShareProvider`
+/// (`content://<package>.share/<name>`, android/AndroidManifest.xml): `ACTION_SEND` with
+/// `image/png`, the URI as `EXTRA_STREAM` and as `ClipData`, and a read grant, in a chooser,
+/// which passes the grant on to the app the user picks. Returns whether it started.
+pub(super) fn share_image(name: &str) -> bool {
+    with_activity(|env, activity| {
+        let package = env
+            .call_method(activity, "getPackageName", "()Ljava/lang/String;", &[])?
+            .l()?;
+        let package: String = env.get_string(&JString::from(package))?.into();
+        let text = env.new_string(format!("content://{package}.share/{name}"))?;
+        let uri = env
+            .call_static_method(
+                "android/net/Uri",
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[JValue::Object(&text)],
+            )?
+            .l()?;
+        let send = new_intent(env, "android.intent.action.SEND")?;
+        let mime = env.new_string("image/png")?;
+        env.call_method(
+            &send,
+            "setType",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&mime)],
+        )?;
+        let key = env.new_string("android.intent.extra.STREAM")?;
+        env.call_method(
+            &send,
+            "putExtra",
+            "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Object(&uri)],
+        )?;
+        // The grant covers the intent's data and ClipData, not its extras: the ClipData
+        // carries the URI to the picked app (and gives the share sheet its preview).
+        let label = env.new_string(name)?;
+        let clip = env
+            .call_static_method(
+                "android/content/ClipData",
+                "newRawUri",
+                "(Ljava/lang/CharSequence;Landroid/net/Uri;)Landroid/content/ClipData;",
+                &[JValue::Object(&label), JValue::Object(&uri)],
+            )?
+            .l()?;
+        env.call_method(
+            &send,
+            "setClipData",
+            "(Landroid/content/ClipData;)V",
+            &[JValue::Object(&clip)],
+        )?;
+        env.call_method(
+            &send,
+            "addFlags",
+            "(I)Landroid/content/Intent;",
+            &[JValue::Int(FLAG_GRANT_READ_URI_PERMISSION)],
         )?;
         let chooser = env
             .call_static_method(

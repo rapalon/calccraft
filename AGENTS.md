@@ -68,12 +68,18 @@ src/app/web.rs           the web version's ties to the browser: URL parameters, 
                          clipboard, downloads, browser shortcuts (wasm32 only)
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
                          egui's safe area, the back button, languages, the keys' vibration
-                         (Vibrator, the touch feedback setting) (Android only)
+                         (Vibrator, the touch feedback setting), whether the system
+                         keyboard is showing (`ime_visible`) (Android only)
 src/app/vibration.rs     the Android key vibration: mappings, the Auto style rule, the card rows (pure)
+src/app/orientation.rs   the Android screen orientation setting: choices, stored keys, the
+                         `setRequestedOrientation` values, where Android honors them (pure)
+src/app/layout_tests.rs  the layouts at the Android screen sizes, and a software rasterizer that
+                         paints them into target/shots/ (`write_layout_shots`, ignored)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
-                         or a PNG download in the browser
+                         Android's (one cached PNG for android/java's ShareProvider), or a
+                         PNG download in the browser
 src/app/date_view.rs     the date calculation mode's UI (a child module of app.rs)
 src/app/converter_view.rs  the converters' UI (a child module of app.rs)
 src/app/scientific_view.rs  the Scientific mode's UI (a child module of app.rs)
@@ -204,6 +210,28 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   vibrator's `Capabilities` (`auto`, `tap`), and the card's rows (`card_rows`). The JNI calls
   (capabilities, playing a `Tap`) are in `android.rs`. The rule comes from the vibration lab's
   results by feel (`docs/vibration-lab-results.md`): don't change it without measuring again.
+- The Android app alone has a Screen orientation card right after Language (`SettingsList::
+  Orientation`, `app/orientation.rs`): Auto, Portrait, Landscape, saved as
+  `CalcCraftScreenOrientation` and handed to `Activity.setRequestedOrientation`
+  (`android::set_orientation`) in `new`, before the first frame, and at once when chosen. Auto
+  is `SCREEN_ORIENTATION_USER` (the system's auto-rotate and rotation lock); Portrait and
+  Landscape are `SENSOR_PORTRAIT` and `SENSOR_LANDSCAPE`, which ignore the system's setting but
+  use both sides. The manifest fixes no orientation, and its `configChanges` keep a rotation
+  from restarting the activity. The card is left out where Android 16 ignores an app's
+  orientation (large screens, `orientation::honored`). Its icon is drawn in code
+  (`paint_orientation_icon`; `CardIcon`).
+- A phone on its side (lower than `LANDSCAPE_HEIGHT`, 500, and `LANDSCAPE_RATIO` times as wide;
+  desktop and web windows are never that low) gets the landscape layout (`Landscape`,
+  `draw_landscape`): the Standard, Scientific and Programmer modes put the header, the display
+  and their rows above the keys (`draw_scientific_controls`, `draw_programmer_controls_column`)
+  in a left column, with the docked history and memory under them where there is room, and
+  their keys alone in the right column (`*_keypad_only`); a flyout covers the right column. The
+  Graphing mode keeps its narrow layout there, and its equations view splits the same way
+  (`graphing_split`, `draw_graphing_keypad_split`). `layout_tests` checks every mode at the
+  Android sizes (keys at least 40 px, inside the safe area); `cargo test write_layout_shots --
+  --ignored` paints them into `target/shots/` (`CALCCRAFT_SHOTS=<name part>` picks some). On the
+  desktop, `CALCCRAFT_WINDOW_SIZE=780x320` opens a window that low (it lowers the minimum size)
+  and `CALCCRAFT_MODE=<Mode::serialization_id>` opens a mode.
 - Icons come from the icon font compiled into the app (`assets/fonts/CalcCraftIcons.ttf`), a
   subset of Microsoft's Fluent System Icons that `tools/icon-font.py` puts at the code points of
   the Segoe Fluent Icons glyphs Windows uses. The code points are `ICON_*` and `category_icon`
@@ -408,6 +436,15 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   become `·` and `−` as they're typed (`normalize`). The keypad types into the box that had the
   focus last (`active`) through its stored `TextEditState` (`insert_text`, Windows'
   `InsertText(text, cursor, selection)`), then gives it the focus back.
+- On Android (touch, no hover) the equation boxes differ, and only there: a tap focuses a
+  box and places the cursor but doesn't raise the system keyboard, which would cover the
+  keypad (egui-winit raises it whenever a focused `TextEdit` reports IME output, so
+  `SoftKeyboard::allows` drops that output for the equation boxes). Every box always shows its
+  buttons, 40 dp wide: function analysis, line options and remove as on Windows, plus a
+  keyboard toggle (`CalcCraft.Keyboard`, a painted icon) that focuses the box and opens the
+  system keyboard for it; tapping it again, focusing another box, or closing the keyboard
+  (Back; `android::ime_visible`) turns it off. The × is left out there (the keypad's `C` clears
+  the box). Windows, macOS, Linux and the web keep the hover buttons and have no toggle.
 - `graph_canvas` draws the graph in the graph theme's colors (`GraphPalette`, always light unless
   "Match app theme"), caches the plots (`PlotCache`) until the view, the size, the equations or
   the variables change, and takes a picture of the graph by drawing it alone (`Capture`) and
@@ -418,7 +455,11 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   equations and the variables as HTML (`html`, tested), and the bitmap. The sheet asks for the
   data after it opens, so `PENDING` keeps the last share. When it can't open, the mode shows
   `ShowShareError`'s dialog (`Popup::ShareError`). The share's title is "CalcCraft": Windows'
-  `ShareActionTitle` names the Windows Calculator.
+  `ShareActionTitle` names the Windows Calculator. On Android it sends the PNG alone:
+  `write_single_file` (tested) makes it the one file of `cache/share/` (everything else there
+  is deleted, the picture overwritten: shares never pile up), and `android::share_image` starts
+  an `ACTION_SEND` chooser with `content://<application id>.share/graph.png`, which the app's
+  only Java class, `android/java/.../ShareProvider.java`, serves read-only (android/README.md).
 - The keypad reuses the Scientific mode's labels and `Sizes`; `KeypadMenu` popups are drawn last
   with the other popups (`draw_graphing_popups`), over a backdrop.
 
@@ -859,4 +900,6 @@ Unit tests don't cover the UI. After visual or interaction changes:
   checks). Include before/after screenshots for UI changes.
 - Pushing a `v*` tag publishes a GitHub release for Windows and Linux (x64), macOS (Universal 2
   for Apple silicon and Intel) and Android (arm64) (`.github/workflows/release.yml`, see "Releasing" in the README). The tag must match `version` in `Cargo.toml`. Don't create or push tags unless
-  a maintainer asks.
+  a maintainer asks. Run by hand (`workflow_dispatch`), the release workflow builds only the
+  signed Google Play test files of a branch as a run artifact, without a tag or a release
+  (`android/README.md`, "Version codes, and the release"); starting it is a maintainer's call too.
