@@ -900,4 +900,6 @@ Unit tests don't cover the UI. After visual or interaction changes:
   checks). Include before/after screenshots for UI changes.
 - Pushing a `v*` tag publishes a GitHub release for Windows and Linux (x64), macOS (Universal 2
   for Apple silicon and Intel) and Android (arm64) (`.github/workflows/release.yml`, see "Releasing" in the README). The tag must match `version` in `Cargo.toml`. Don't create or push tags unless
-  a maintainer asks.
+  a maintainer asks. Run by hand (`workflow_dispatch`), the release workflow builds only the
+  signed Google Play test files of a branch as a run artifact, without a tag or a release
+  (`android/README.md`, "Version codes, and the release"); starting it is a maintainer's call too.

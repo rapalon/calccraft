@@ -235,7 +235,7 @@ a debug key: uninstall the debug build first.
 ### 5. Version codes, and the release
 
 The bundle's `versionName` is `version` in `Cargo.toml`, and its `versionCode` is
-`major × 10000 + minor × 100 + patch` (1.4.0 is 10400), computed by `build-apk.ps1`. Play
+`major × 10000 + minor × 100 + patch` (1.4.1 is 10401), computed by `build-apk.ps1`. Play
 refuses a bundle whose version code isn't higher than every one uploaded before, to any track,
 so every Play upload needs a new version in `Cargo.toml` first: a patch bump is enough (the
 code may skip numbers but never repeat). The code must stay below 2100000000; the scheme
@@ -246,6 +246,21 @@ download `calculator-v<version>-android-arm64.aab` from the GitHub release (chec
 `.sha256`), and upload it in the Play Console (Test and release → Testing → Internal testing
 first, then promote). The release workflow warns and attaches no bundle when the secrets are
 missing: a debug-signed bundle is of no use to Play.
+
+To try a release on a phone before the tag, run the release workflow by hand on the branch:
+`gh workflow run release.yml --ref <branch>` (or Actions → Release → Run workflow; the `ref`
+input builds another branch, tag or commit). Run that way, only its Android job runs: no draft,
+no release, nothing published. It needs the upload key and leaves one artifact,
+`CalcCraft-google-play-test-<version>-<commit>`, with a `SHA256SUMS` file and:
+
+- `CalcCraft-Play-<version>-arm64.aab`: the play-free bundle for the Play Console, signed with
+  the upload key.
+- `CalcCraft-Play-<version>-arm64-universal.apk`: the universal APK `bundletool build-apks
+  --mode=universal` makes from that bundle (`build-apk.ps1 -Bundle -UniversalApk`), signed with
+  the upload key: the code Play installs. It has the Play app's ID but not Play's signature, so
+  installing it needs the Play-installed CalcCraft uninstalled first.
+- `CalcCraft-Play-<version>-arm64-test.apk`: the play-free app with the ID
+  `com.rapalon.calccraft.test`, which installs next to the Play app.
 
 ### 6. If the upload key is lost or leaked
 
