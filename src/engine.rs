@@ -16,6 +16,7 @@
 //! engine with precedence, a radix and a word size (see `integer.rs`). The Scientific
 //! mode's functions are in `math.rs`.
 
+mod caret;
 mod integer;
 mod math;
 #[cfg(test)]
@@ -27,6 +28,7 @@ use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{Signed, ToPrimitive, Zero};
 
+pub use caret::{Caret, CaretMove};
 use integer::IntegerMode;
 pub use integer::{Radix, WordSize};
 pub use math::Angle;
@@ -511,6 +513,9 @@ struct Input {
     digits: String,
     /// The exponent, once `exp` was pressed (`m_hasExponent`).
     exponent: Option<Exponent>,
+    /// The caret, once the display was tapped (CalcCraft's own, `caret.rs`); keys edit
+    /// there. Hidden, they add at the end, as in Windows.
+    caret: Option<Caret>,
 }
 
 impl Input {
@@ -1204,7 +1209,8 @@ impl Calculator {
             Command::ClearEntry => self.clear_entry(),
             Command::Backspace => {
                 if self.record {
-                    self.input.backspace();
+                    let max = self.digits as usize;
+                    self.input.backspace_at_caret(self.integer.as_ref(), max);
                 }
             }
             Command::OpenParen => self.open_paren(),
@@ -1219,7 +1225,11 @@ impl Calculator {
             // so there is no command to forget).
             Command::Exponent => {
                 if self.record && self.integer.is_none() {
+                    let shown = self.input.caret.is_some();
                     self.input.try_begin_exponent();
+                    if shown {
+                        self.input.caret = Some(self.input.end_caret());
+                    }
                 }
             }
             Command::ToggleNotation => self.notation = !self.notation,
@@ -1307,7 +1317,7 @@ impl Calculator {
 
     fn digit(&mut self, digit: u8) {
         let max = self.digits as usize;
-        if !self.input.try_add_digit(digit, self.integer.as_ref(), max) {
+        if !self.input.insert_digit(digit, self.integer.as_ref(), max) {
             return self.forget_command();
         }
         if self.last_key == Key::CloseParen {
@@ -1319,7 +1329,8 @@ impl Calculator {
         if self.last_key == Key::CloseParen {
             self.implicit_multiplication();
         }
-        if !(self.record && self.input.try_add_point()) {
+        let max = self.digits as usize;
+        if !(self.record && self.input.insert_point(self.integer.as_ref(), max)) {
             self.forget_command();
         }
     }
