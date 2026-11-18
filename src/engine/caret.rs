@@ -11,7 +11,7 @@
 //! one that would make the number too large for the word) is refused, and zeros before the
 //! first digit disappear as they do when typed first.
 
-use super::{Calculator, Command, Func, Input, IntegerMode};
+use super::{Calculator, Command, Func, Input, IntegerMode, tape};
 
 /// Where the caret is: before the `index`th character of the number's digits (with its
 /// decimal point), or of the exponent's digits.
@@ -337,11 +337,12 @@ impl Input {
         Some(input)
     }
 
-    /// The keys that type this input fresh, as `retype` does it. In the Programmer mode the
-    /// sign comes after the first digit, where a number like −128 in a BYTE still fits;
-    /// elsewhere after the digits, as people type it.
-    #[allow(dead_code)] // The tape (option B) types edited numbers with these.
-    pub(super) fn keys(&self, integer: Option<&IntegerMode>) -> Vec<Command> {
+    /// The keys that type this input fresh, as `retype` does it: the digits with the sign
+    /// after the first one (where a number like −128 in a BYTE still fits), then `exp` and the
+    /// exponent's digits with its sign after the first one. (How the number ended, its last
+    /// key and whether the expression line was hidden, the tape keeps apart: `tape.rs`.)
+    pub(super) fn keys(&self) -> Vec<Command> {
+        let negate = Command::Function(Func::Negate);
         let mut keys = Vec::new();
         let mut signed = false;
         let mut stored = false;
@@ -352,24 +353,24 @@ impl Input {
             });
             // A leading 0 isn't stored, so the sign waits for the next key.
             stored |= c != '0' || keys.len() > 1;
-            if integer.is_some() && self.negative && !signed && stored {
-                keys.push(Command::Function(Func::Negate));
+            if self.negative && !signed && stored {
+                keys.push(negate);
                 signed = true;
             }
         }
         if keys.is_empty() {
             keys.push(Command::Digit(0));
         }
-        if self.negative && !signed {
-            keys.push(Command::Function(Func::Negate));
-        }
         if let Some(exponent) = &self.exponent {
             keys.push(Command::Exponent);
-            for c in exponent.digits.chars() {
+            for (i, c) in exponent.digits.chars().enumerate() {
                 keys.push(Command::Digit(c.to_digit(10).unwrap_or_default() as u8));
+                if i == 0 && exponent.negative {
+                    keys.push(negate);
+                }
             }
-            if exponent.negative {
-                keys.push(Command::Function(Func::Negate));
+            if exponent.negative && exponent.digits.is_empty() {
+                keys.push(negate);
             }
         }
         keys
@@ -377,7 +378,6 @@ impl Input {
 
     /// The typed copy of a number the display shows (`-1,234.5`, `1.e+16`, `FF 00`), to edit
     /// it as if it had been typed. `None` if typing couldn't give it.
-    #[allow(dead_code)] // The tape (option B) edits computed values through these.
     pub(super) fn from_display(
         text: &str,
         integer: Option<&IntegerMode>,
@@ -424,21 +424,30 @@ impl Input {
 }
 
 impl Calculator {
-    /// The caret in the number being typed, if it is shown.
+    /// The caret in the display's number, if it is shown: in the number being typed, or in
+    /// the copy of a computed value that a tap made editable (`tape.rs`).
     pub fn entry_caret(&self) -> Option<Caret> {
-        if self.record && self.error.is_none() {
+        if let Some((caret, _)) = self.display_copy_caret() {
+            return Some(caret);
+        }
+        if self.record && self.error.is_none() && self.edit.is_none() {
             self.input.caret()
         } else {
             None
         }
     }
 
-    /// The characters the entry's caret moves through: the number's digits with its decimal
-    /// point, and the exponent's digits once `exp` was pressed. Empty while 0 is shown.
+    /// The characters the display's caret moves through: the number's digits with its
+    /// decimal point, and the exponent's digits once `exp` was pressed. Empty while 0 is
+    /// shown.
     pub fn entry_characters(&self) -> (String, Option<String>) {
+        let input = match self.display_copy_caret() {
+            Some((_, copy)) => copy,
+            None => &self.input,
+        };
         (
-            self.input.digits.clone(),
-            self.input
+            input.digits.clone(),
+            input
                 .exponent
                 .as_ref()
                 .map(|exponent| exponent.digits.clone()),
@@ -447,36 +456,57 @@ impl Calculator {
 
     /// Whether a number is being typed that the caret can be shown in.
     pub fn can_show_entry_caret(&self) -> bool {
-        self.record && self.error.is_none() && !self.input.is_empty()
+        self.record && self.error.is_none() && !self.input.is_empty() && self.edit.is_none()
     }
 
-    /// Shows the caret in the number being typed. Returns whether there is one to edit.
+    /// Shows the caret in the display's number: in the number being typed, or else in a copy
+    /// of the computed value shown, where typing would replace it. An edit of the expression
+    /// line ends first. Returns whether the number can be edited.
     pub fn show_entry_caret(&mut self, caret: Caret) -> bool {
-        if !self.record || self.error.is_some() {
+        if matches!(self.edit.as_deref(), Some(tape::Edit::Line(_))) {
+            self.commit_edit();
+        }
+        if self.error.is_some() {
             return false;
+        }
+        if !self.record {
+            return self.edit_display_copy(caret);
         }
         self.input.show_caret(caret);
         true
     }
 
-    /// Moves the entry's caret.
+    /// Moves the caret: of the number of the line being edited, or of the display's number.
     pub fn move_entry_caret(&mut self, movement: CaretMove) {
+        if self.edit_caret(|input| input.move_caret(movement)) {
+            return;
+        }
         if self.entry_caret().is_some() {
             self.input.move_caret(movement);
         }
     }
 
-    /// Delete: removes the character after the entry's caret.
+    /// Delete: removes the character after the caret.
     pub fn delete_after_caret(&mut self) {
+        if self.edit_delete() {
+            return;
+        }
         if self.entry_caret().is_some() {
             let max = self.digits as usize;
             self.input.delete_at_caret(self.integer.as_ref(), max);
+            self.sync_operand();
         }
     }
 
-    /// Hides the entry's caret; typing adds at the end again. Returns whether it was shown.
+    /// Esc: hides the caret and cancels an edit of the line; typing adds at the end again.
+    /// Returns whether there was a caret.
     pub fn hide_entry_caret(&mut self) -> bool {
-        self.input.caret.take().is_some() && self.record
+        self.cancel_edit() || (self.input.caret.take().is_some() && self.record)
+    }
+
+    /// Whether a caret is shown anywhere: in the display or in the expression line.
+    pub fn caret_shown(&self) -> bool {
+        self.edit.is_some() || self.entry_caret().is_some()
     }
 }
 
@@ -741,11 +771,20 @@ mod tests {
     }
 
     #[test]
-    fn no_caret_outside_typing() {
+    fn a_computed_value_is_edited_as_typed_there() {
+        // After an operator the display's 5 is a copy typed as the next number.
         let mut calc = Calculator::default();
         typed(&mut calc, "5");
         calc.execute(Command::Operator(Op::Add));
-        assert!(!calc.show_entry_caret(at(0)));
+        assert!(calc.show_entry_caret(at(0)));
+        typed(&mut calc, "7");
+        assert_eq!(calc.display(), "75");
+        assert_eq!(calc.expression(), "5 +");
+        assert_eq!(calc.entry_caret(), Some(at(1)));
+        calc.execute(Command::Equals);
+        assert_eq!(calc.display(), "80");
+        // No caret in an error.
+        let mut calc = Calculator::default();
         typed(&mut calc, "1");
         calc.execute(Command::Operator(Op::Divide));
         typed(&mut calc, "0");
@@ -775,7 +814,7 @@ mod tests {
                 }
                 None => Calculator::with_precedence(),
             };
-            for key in input.keys(mode.as_ref()) {
+            for key in input.keys() {
                 calc.execute(key);
             }
             assert_eq!(calc.input.text(), input.text(), "{text}");
