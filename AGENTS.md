@@ -70,6 +70,8 @@ src/app/android.rs       the Android app's ties to the system (JNI): the system 
                          egui's safe area, the back button, languages, the keys' vibration
                          (Vibrator, the touch feedback setting) (Android only)
 src/app/vibration.rs     the Android key vibration's strength mappings (pure, tested everywhere)
+src/app/vibration_lab.rs the vibration lab (feature `vibration-lab`, test builds only, never in a
+                         release: docs/vibration-lab.md); built with build-apk.ps1 -Features
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),

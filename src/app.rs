@@ -17,6 +17,8 @@ mod scientific_view;
 mod share;
 pub(crate) mod strings;
 mod vibration;
+#[cfg(feature = "vibration-lab")]
+mod vibration_lab;
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod web;
 
@@ -501,6 +503,9 @@ impl Mode {
 enum Page {
     Calculator,
     Settings,
+    /// The vibration lab, opened from Settings (test builds only, docs/vibration-lab.md).
+    #[cfg(feature = "vibration-lab")]
+    VibrationLab,
 }
 
 /// The "App theme" choice on the Settings page.
@@ -982,6 +987,14 @@ impl CalculatorApp {
     }
 
     fn handle_keyboard(&mut self, ctx: &Context) {
+        #[cfg(feature = "vibration-lab")]
+        if self.page == Page::VibrationLab {
+            // Esc (Android's back) goes back to Settings, where the lab was opened.
+            if ctx.input(|i| i.key_pressed(Key::Escape)) {
+                self.page = Page::Settings;
+            }
+            return;
+        }
         if self.page == Page::Settings {
             // The calculator is hidden, so its keys and shortcuts do nothing here. Esc
             // closes an open drop-down first, and typing in one jumps to an item that
@@ -2346,6 +2359,11 @@ impl CalculatorApp {
                     android::key_tap(strength);
                 }
             }
+            #[cfg(feature = "vibration-lab")]
+            Some(SettingsAction::OpenVibrationLab) => {
+                self.page = Page::VibrationLab;
+                vibration_lab::opened();
+            }
             None => {}
         }
 
@@ -2484,6 +2502,11 @@ impl CalculatorApp {
         let privacy_y = feedback_y + 32.0;
         let contribute_top = privacy_y + 40.0 - row_height / 2.0;
         let height = contribute_top + contribute.size().y + SIDE;
+        // The vibration lab's link closes the page in test builds.
+        #[cfg(feature = "vibration-lab")]
+        let lab_y = height + 4.0;
+        #[cfg(feature = "vibration-lab")]
+        let height = lab_y + 16.0 + SIDE;
 
         let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
         let (left, right, top) = (rect.left() + SIDE, rect.right() - SIDE, rect.top());
@@ -2712,6 +2735,17 @@ impl CalculatorApp {
         painter.galley(origin, contribute, p.text);
         if response.clicked() {
             action = Some(SettingsAction::OpenUrl(REPOSITORY_URL));
+        }
+        // English: the lab is a test build's measuring tool, never shown to users.
+        #[cfg(feature = "vibration-lab")]
+        if link_button(
+            p,
+            ui,
+            pos2(left, top + lab_y),
+            "Vibration lab (test build)",
+            Id::new("vibration-lab-link"),
+        ) {
+            action = Some(SettingsAction::OpenVibrationLab);
         }
         action
     }
@@ -3044,6 +3078,9 @@ enum SettingsAction {
     /// A new key vibration strength, and whether to play a tap at it (the slider was
     /// released, or moved with a key).
     SetVibration(u8, bool),
+    /// Open the vibration lab (test builds only).
+    #[cfg(feature = "vibration-lab")]
+    OpenVibrationLab,
 }
 
 #[derive(Clone, Copy)]
@@ -3120,7 +3157,7 @@ impl eframe::App for CalculatorApp {
     #[cfg(target_os = "android")]
     fn raw_input_hook(&mut self, ctx: &Context, raw_input: &mut egui::RawInput) {
         let back_closes =
-            self.popup_covers() || self.flyout != Flyout::None || self.page == Page::Settings;
+            self.popup_covers() || self.flyout != Flyout::None || self.page != Page::Calculator;
         android::input_hook(ctx, raw_input, back_closes);
     }
 
@@ -3194,13 +3231,13 @@ impl CalculatorApp {
         #[cfg(feature = "support-prompt")]
         self.support.begin_frame(
             &ctx,
-            self.page != Page::Settings && self.mode.is_calculator(),
+            self.page == Page::Calculator && self.mode.is_calculator(),
             self.popup_covers() || self.flyout != Flyout::None,
             self.flyout == Flyout::Navigation,
         );
         self.handle_mode_keys(&ctx);
         match self.mode {
-            _ if self.page == Page::Settings => self.handle_keyboard(&ctx),
+            _ if self.page != Page::Calculator => self.handle_keyboard(&ctx),
             Mode::DateCalculation => self.handle_date_keyboard(&ctx),
             Mode::Converter(_) => self.handle_converter_keyboard(&ctx),
             Mode::Graphing => self.handle_graphing_keyboard(&ctx),
@@ -3214,6 +3251,11 @@ impl CalculatorApp {
         let full = app_rect(ui);
         if self.page == Page::Settings {
             self.draw_settings(ui, full);
+            return;
+        }
+        #[cfg(feature = "vibration-lab")]
+        if self.page == Page::VibrationLab {
+            self.draw_vibration_lab(ui, full);
             return;
         }
 

@@ -128,4 +128,46 @@ mod tests {
         assert!((1..=100).all(|s| (MIN_MS..=MAX_MS).contains(&duration(s))));
         assert_eq!(duration_ms(200), Some(40));
     }
+
+    /// The vibration lab (feature `vibration-lab`, docs/vibration-lab.md) is for test builds
+    /// only: no release or Play build may enable it. This runs in every build, with or
+    /// without the feature.
+    #[test]
+    fn vibration_lab_stays_out_of_releases() {
+        let root = env!("CARGO_MANIFEST_DIR");
+        let read = |path: &str| std::fs::read_to_string(format!("{root}/{path}")).unwrap();
+        let release = read(".github/workflows/release.yml");
+        assert!(
+            !release.contains("vibration-lab") && !release.contains("-Features"),
+            "release.yml must not build the vibration lab"
+        );
+        // CI's APK and Play bundle builds don't pass -Features, and nothing in CI names it.
+        let ci = read(".github/workflows/ci.yml");
+        assert!(
+            !ci.contains("vibration-lab") && !ci.contains("-Features"),
+            "ci.yml must not build the vibration lab"
+        );
+        // The script adds the feature only for -Features, never on its own: the one line
+        // naming it outside comments is -Features' list of allowed values.
+        let script = read("android/build-apk.ps1").replace("\r\n", "\n");
+        // The code, after the help block (`<# … #>`), whose examples may name it.
+        let code = script.split_once("\n#>").map_or(&*script, |(_, code)| code);
+        let naming: Vec<&str> = code
+            .lines()
+            .filter(|line| line.contains("vibration-lab") && !line.trim_start().starts_with('#'))
+            .collect();
+        assert!(
+            naming.iter().all(|line| line.contains("ValidateSet")),
+            "build-apk.ps1 names vibration-lab outside -Features' allowed values: {naming:?}"
+        );
+        // No default or Play feature pulls it in.
+        let cargo = read("Cargo.toml");
+        for line in cargo.lines().filter(|line| {
+            ["default", "play-free", "play-paid", "support-prompt"]
+                .iter()
+                .any(|feature| line.starts_with(&format!("{feature} =")))
+        }) {
+            assert!(!line.contains("vibration-lab"), "Cargo.toml: {line}");
+        }
+    }
 }

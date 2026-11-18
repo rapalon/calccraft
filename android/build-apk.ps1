@@ -48,6 +48,10 @@ pwsh android/build-apk.ps1 -Channel play-free -Bundle
 
 .EXAMPLE
 pwsh android/build-apk.ps1 -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro -Bundle
+
+.EXAMPLE
+pwsh android/build-apk.ps1 -Channel play-free -Features vibration-lab
+# A test APK (CalcCraft-Play-Lab-...) with the vibration lab page (docs/vibration-lab.md).
 #>
 param(
     [string]$ApplicationId = $(if ($env:APPLICATION_ID) { $env:APPLICATION_ID } else { 'com.rapalon.calccraft' }),
@@ -57,6 +61,10 @@ param(
     [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
+    # Extra Cargo features for a test build: only the vibration lab (docs/vibration-lab.md).
+    # No release or Play build passes it; such an APK is named ...-lab-... and has no bundle.
+    [ValidateSet('vibration-lab')]
+    [string[]]$Features = @(),
     # A bundletool jar to use instead of the pinned release in .tools/.
     [string]$Bundletool = '',
     [string]$Sdk = $(if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
@@ -131,6 +139,15 @@ switch ($Channel) {
         $name = 'CalcCraft-Pro'
         "Google Play, paid: $ApplicationId, no support prompt"
     }
+}
+# A test build's extra features: an APK for adb only, never a bundle for Play.
+if ($Features) {
+    if ($Bundle) {
+        throw '-Features makes a test APK: it takes no -Bundle.'
+    }
+    $features += @('--features', ($Features -join ','))
+    $name += '-Lab'
+    "Test build with $($Features -join ', '): for adb install only, never publish it"
 }
 
 # The version from Cargo.toml: 1.2.0 is version code 10200.

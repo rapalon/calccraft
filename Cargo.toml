@@ -15,6 +15,9 @@ support-prompt = []
 # prompt); `play-paid` shows no prompt. At most one of them.
 play-free = ["support-prompt"]
 play-paid = ["support-prompt"]
+# The vibration lab (docs/vibration-lab.md): a test-only Settings page that plays every haptic
+# effect and dumps the vibrator's capabilities. Never in a release or Play build (a test checks).
+vibration-lab = []
 
 # The app is a library that `main.rs` starts on desktops and in the browser, and that Android
 # loads as `libcalculator.so` (see android/README.md).

@@ -23,7 +23,9 @@ pub(crate) fn init(app: &AndroidApp) {
 /// Runs `f` with this thread's JNI environment and the app's activity, in a local reference
 /// frame: the app's thread stays attached to Java, so its local references would pile up.
 /// The first failure goes to the log, with the Java exception if there is one.
-fn with_activity<T>(f: impl FnOnce(&mut JNIEnv, &JObject) -> jni::errors::Result<T>) -> Option<T> {
+pub(super) fn with_activity<T>(
+    f: impl FnOnce(&mut JNIEnv, &JObject) -> jni::errors::Result<T>,
+) -> Option<T> {
     static FAILED: AtomicBool = AtomicBool::new(false);
     let app = APP.get()?;
     // SAFETY: android-activity's JavaVM and activity live as long as the app. The activity
@@ -51,13 +53,13 @@ fn with_activity<T>(f: impl FnOnce(&mut JNIEnv, &JObject) -> jni::errors::Result
 }
 
 /// Android's version (`Build.VERSION.SDK_INT`).
-fn sdk_version(env: &mut JNIEnv) -> jni::errors::Result<i32> {
+pub(super) fn sdk_version(env: &mut JNIEnv) -> jni::errors::Result<i32> {
     env.get_static_field("android/os/Build$VERSION", "SDK_INT", "I")?
         .i()
 }
 
 /// The activity window's top view (`getWindow().getDecorView()`).
-fn decor_view<'local>(
+pub(super) fn decor_view<'local>(
     env: &mut JNIEnv<'local>,
     activity: &JObject,
 ) -> jni::errors::Result<JObject<'local>> {
@@ -86,7 +88,7 @@ enum TapKind {
 
 /// The phone's default vibrator (`VibratorManager.getDefaultVibrator` from Android 12, the
 /// `vibrator` service before), or `None` when it has no vibrator.
-fn vibrator<'local>(
+pub(super) fn vibrator<'local>(
     env: &mut JNIEnv<'local>,
     activity: &JObject,
     sdk: i32,
@@ -157,7 +159,7 @@ fn tap_kind(env: &mut JNIEnv, vibrator: &JObject, sdk: i32) -> jni::errors::Resu
 }
 
 /// A `VibrationEffect.createOneShot(ms, amplitude)`.
-fn one_shot<'local>(
+pub(super) fn one_shot<'local>(
     env: &mut JNIEnv<'local>,
     ms: i64,
     amplitude: i32,

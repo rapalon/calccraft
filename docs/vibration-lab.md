@@ -11,7 +11,8 @@ and dumps what the phone's vibrator reports.
 - The lab is behind the Cargo feature `vibration-lab`. It is not in `default`, and no Play or
   release build enables it: `build-apk.ps1` takes it only through `-Features vibration-lab`,
   which `release.yml` and the Play bundle commands in `ci.yml` never pass.
-- A test (`vibration_lab_stays_out_of_releases` in `src/app/vibration_lab.rs`) reads
+- A test that runs in every build (`vibration_lab_stays_out_of_releases` in
+  `src/app/vibration.rs`) reads
   `release.yml`, `ci.yml` and `build-apk.ps1` and fails if a release or Play command names the
   feature, or if `Cargo.toml`'s `default`, `play-free` or `play-paid` features include it.
 - Its texts are English literals, not `locales/` strings: it is a measuring tool for the team,
@@ -25,8 +26,8 @@ pwsh -File android/build-apk.ps1 -Channel play-free -Features vibration-lab
 
 ## The page
 
-With the feature on, the Settings page ends with a "Vibration lab" link (the Android app only;
-desktops have no vibrator). The lab page has a back button (and Android's back and Esc go back
+With the feature on, the Settings page ends with a "Vibration lab (test build)" link (on
+desktops too, where every entry is greyed: no vibrator). The lab page has a back button (and Android's back and Esc go back
 to Settings), a "Capabilities" block, and one big button per entry. A tap plays the entry once.
 
 The entries, always all of them in this order, so the list is the same on every phone. An
