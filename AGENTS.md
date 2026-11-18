@@ -73,7 +73,8 @@ src/app/vibration.rs     the Android key vibration: mappings, the Auto style rul
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
-                         or a PNG download in the browser
+                         Android's (one cached PNG for android/java's ShareProvider), or a
+                         PNG download in the browser
 src/app/date_view.rs     the date calculation mode's UI (a child module of app.rs)
 src/app/converter_view.rs  the converters' UI (a child module of app.rs)
 src/app/scientific_view.rs  the Scientific mode's UI (a child module of app.rs)
@@ -418,7 +419,11 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   equations and the variables as HTML (`html`, tested), and the bitmap. The sheet asks for the
   data after it opens, so `PENDING` keeps the last share. When it can't open, the mode shows
   `ShowShareError`'s dialog (`Popup::ShareError`). The share's title is "CalcCraft": Windows'
-  `ShareActionTitle` names the Windows Calculator.
+  `ShareActionTitle` names the Windows Calculator. On Android it sends the PNG alone:
+  `write_single_file` (tested) makes it the one file of `cache/share/` (everything else there
+  is deleted, the picture overwritten: shares never pile up), and `android::share_image` starts
+  an `ACTION_SEND` chooser with `content://<application id>.share/graph.png`, which the app's
+  only Java class, `android/java/.../ShareProvider.java`, serves read-only (android/README.md).
 - The keypad reuses the Scientific mode's labels and `Sizes`; `KeypadMenu` popups are drawn last
   with the other popups (`draw_graphing_popups`), over a backdrop.
 

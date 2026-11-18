@@ -4,7 +4,8 @@ Builds the Android app as an APK for 64-bit ARM phones and tablets.
 
 .DESCRIPTION
 Builds the Rust library for Android with cargo-ndk, then packages it with the Android SDK's
-own tools, without Gradle: aapt2 (manifest and resources), zipalign (16 KB pages for the
+own tools, without Gradle: javac and d8 (the share provider in java/), aapt2 (manifest and
+resources), zipalign (16 KB pages for the
 uncompressed library, as Google Play requires) and apksigner. Runs on Windows, Linux (as in
 GitHub Actions) and macOS. See android/README.md.
 
@@ -57,6 +58,9 @@ param(
     [string]$PaidApplicationId = $(if ($env:CALCCRAFT_PAID_ID) { $env:CALCCRAFT_PAID_ID } else { '' }),
     # Also build the App Bundle, target/android/CalcCraft-<version>-arm64.aab.
     [switch]$Bundle,
+    # Mark the app debuggable (android:debuggable), so `adb shell run-as` can look into its
+    # files, as when checking that the graph share keeps one file in cache/share/. Test builds only.
+    [switch]$Debuggable,
     # A bundletool jar to use instead of the pinned release in .tools/.
     [string]$Bundletool = '',
     [string]$Sdk = $(if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
@@ -88,8 +92,10 @@ $env:ANDROID_NDK_HOME = Join-Path $Sdk "ndk/$Ndk"
 $keytool = 'keytool'
 $jarsigner = 'jarsigner'
 $java = 'java'
+$javac = 'javac'
 if ($Jdk) {
     $env:JAVA_HOME = $Jdk
+    $javac = Join-Path $Jdk "bin/javac$exe"
     $keytool = Join-Path $Jdk "bin/keytool$exe"
     $jarsigner = Join-Path $Jdk "bin/jarsigner$exe"
     $java = Join-Path $Jdk "bin/java$exe"
@@ -167,6 +173,24 @@ if ($Channel -ne 'default') {
     "Checked: no donate or Stripe address in the $Channel library"
 }
 
+# The Java code (java/: the graph share's ContentProvider) as classes.dex: javac against the
+# platform's android.jar, Java 8 bytecode, then d8 from the pinned build-tools. Both come with
+# the JDK and the SDK the build already uses: no library, no download. The file lists are
+# arrays (@(…)): splatting a lone string would pass it character by character.
+$androidJar = Join-Path $Sdk "platforms/$Platform/android.jar"
+$classes = Join-Path $out 'classes'
+$dexDir = Join-Path $staging 'dex'
+Remove-Item -Recurse -Force $classes -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $classes, $dexDir | Out-Null
+$sources = @((Get-ChildItem (Join-Path $PSScriptRoot 'java') -Recurse -Filter *.java).FullName)
+& $javac -source 8 -target 8 -bootclasspath $androidJar '-Xlint:-options' -encoding UTF-8 -d $classes @sources
+$classFiles = @((Get-ChildItem $classes -Recurse -Filter *.class).FullName)
+& (Join-Path $tools "d8$script") --release --min-api $minSdk --lib $androidJar --output $dexDir @classFiles
+$dex = Join-Path $dexDir 'classes.dex'
+if (-not (Test-Path $dex)) {
+    throw "d8 wrote no $dex."
+}
+
 # Manifest and resources (the launcher icon and the themes).
 $resources = Join-Path $out 'resources.zip'
 & (Join-Path $tools "aapt2$exe") compile --dir (Join-Path $PSScriptRoot 'res') -o $resources
@@ -174,11 +198,16 @@ $resources = Join-Path $out 'resources.zip'
 $manifestPath = Join-Path $staging 'AndroidManifest.xml'
 $manifestContent = Get-Content (Join-Path $PSScriptRoot 'AndroidManifest.xml') -Raw
 $manifestContent = $manifestContent -replace 'package="[^"]+"', "package=`"$ApplicationId`""
+# The share provider's authority, as Gradle's manifest placeholder would fill it in.
+$manifestContent = $manifestContent.Replace('${applicationId}', $ApplicationId)
 [System.IO.File]::WriteAllText($manifestPath, $manifestContent, (New-Object System.Text.UTF8Encoding $false))
 
 $link = @('-I', (Join-Path $Sdk "platforms/$Platform/android.jar"), '--manifest', $manifestPath,
     '--min-sdk-version', $minSdk, '--target-sdk-version', $targetSdk,
     '--version-code', $versionCode, '--version-name', $version, $resources)
+if ($Debuggable) {
+    $link += '--debug-mode'
+}
 $unaligned = Join-Path $out 'unaligned.apk'
 & (Join-Path $tools "aapt2$exe") link -o $unaligned @link
 
@@ -191,6 +220,8 @@ try {
     [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,
         (Join-Path $libDir 'libcalculator.so'), 'lib/arm64-v8a/libcalculator.so',
         [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $dex, 'classes.dex',
+        [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
 } finally {
     $zip.Dispose()
 }
@@ -252,6 +283,7 @@ if ($Bundle) {
     New-Item -ItemType Directory -Force (Join-Path $module 'manifest') | Out-Null
     Move-Item (Join-Path $module 'AndroidManifest.xml') (Join-Path $module 'manifest/AndroidManifest.xml')
     Copy-Item (Join-Path $staging 'lib') (Join-Path $module 'lib') -Recurse
+    Copy-Item $dexDir (Join-Path $module 'dex') -Recurse
     $moduleZip = Join-Path $out 'base.zip'
     [System.IO.Compression.ZipFile]::CreateFromDirectory($module, $moduleZip)
 
@@ -268,4 +300,4 @@ if ($Bundle) {
     Remove-Item $linked, $module, $moduleZip, $unsignedAab -Recurse -Force
     "{0} ({1:N1} MB)" -f $aab, ((Get-Item $aab).Length / 1MB)
 }
-Remove-Item $resources, $staging -Recurse -Force
+Remove-Item $resources, $staging, $classes -Recurse -Force

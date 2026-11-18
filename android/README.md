@@ -2,7 +2,8 @@
 
 CalcCraft as a native Android app: Android's `NativeActivity` loads the Rust library
 (`libcalculator.so`, see `src/lib.rs`), and eframe draws the same egui interface as on the
-desktop with OpenGL ES. There is no Java or Kotlin code. `docs/mobile-apps-research.md` (on
+desktop with OpenGL ES. The only Java code is the graph share's small `ContentProvider` (see
+"How it works"). `docs/mobile-apps-research.md` (on
 the `research/mobile-apps` branch) explains the choices and what a store release still needs.
 
 **Status:** builds for 64-bit ARM (`arm64-v8a`), Android 7.0 (API 24) and later, targeting
@@ -42,6 +43,18 @@ The application ID (package name) defaults to `com.rapalon.calccraft`. `-Applica
 app to become paid and the package name is permanent after first upload, so the ID must be
 chosen before publishing.
 
+To try a build on a phone that has the Play-signed app, give it another ID: it installs next to
+that app, which then stays (the debug key can't update it). `-Debuggable` lets
+`adb shell run-as <id>` look into the app's files, such as the graph share's single
+`cache/share/graph.png`:
+
+```powershell
+pwsh -File android/build-apk.ps1 -ApplicationId com.rapalon.calccraft.sharetest -Debuggable
+adb install -r target/android/CalcCraft-<version>-arm64.apk
+adb shell run-as com.rapalon.calccraft.sharetest ls -la cache/share
+adb uninstall com.rapalon.calccraft.sharetest
+```
+
 ### Channels: GitHub, Google Play free, Google Play paid
 
 Google Play's Payments policy forbids leading users to payment methods other than Play's, so
@@ -76,8 +89,9 @@ Both Play apps can use the same upload key: Play App Signing keeps a separate ap
 for each.
 
 The script doesn't use Gradle. cargo-ndk builds the library (a `cdylib` only for Android: the
-desktop and web builds use the binary), `llvm-strip` drops its symbol table, `aapt2` links the
-manifest and resources, the library goes in uncompressed, `zipalign -P 16` aligns it to 16 KB
+desktop and web builds use the binary), `llvm-strip` drops its symbol table, `javac` and `d8`
+compile `java/` into `classes.dex`, `aapt2` links the manifest and resources, the library goes
+in uncompressed, `zipalign -P 16` aligns it to 16 KB
 pages (as Google Play requires), and `apksigner` signs the APK (v2 and v3).
 
 ### The App Bundle for Google Play
@@ -276,11 +290,32 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   noticeable on a Samsung S26 Ultra), and needs the `VIBRATE` permission, a normal permission
   that Android grants without asking. It stays off when touch feedback is turned off in
   Android's settings (`Settings.System.HAPTIC_FEEDBACK_ENABLED`).
+- The Graphing mode's Share sends the graph as a PNG through Android's share sheet. The
+  picture is the one Windows and the desktop share: the graph drawn alone, at the screen's
+  resolution, with its current view, colors, grid and axes (a `ViewportCommand::Screenshot`
+  cropped to the graph, `graph_canvas.rs`). `share::write_single_file` writes it as
+  `cache/share/graph.png` in the app's private cache, the only file kept there: each share first
+  deletes everything else in `cache/share/`, then overwrites the picture, so shares never pile
+  up. `android.rs` (`share_image`) then starts `Intent.createChooser` around an `ACTION_SEND`
+  intent (`image/png`, `EXTRA_STREAM` and `ClipData` with the URI,
+  `FLAG_GRANT_READ_URI_PERMISSION`). The URI is `content://<application id>.share/graph.png`,
+  served by the app's one Java class, `java/com/rapalon/calccraft/ShareProvider.java`: a
+  `ContentProvider` without androidx that serves only that file, read-only (`openFile`,
+  `getType` `image/png`, and `query` for `OpenableColumns`' name and size). It isn't exported
+  (`android:exported="false"`); `android:grantUriPermissions="true"` lets the app the user picks
+  read that one URI. The authority follows the application ID (the manifest says
+  `${applicationId}.share`, which `build-apk.ps1` fills in), so the free and paid apps don't
+  clash. No permission is needed, and nothing goes to the gallery or shared storage. If the
+  file or the chooser fails, the mode shows the "unable to share" dialog, as on Windows.
+- `java/`: that class. `build-apk.ps1` compiles it with the JDK's `javac` against the
+  platform's `android.jar` (Java 8 bytecode), turns it into `classes.dex` with `d8` from the
+  pinned build-tools, and puts the dex into the APK and the bundle (`dex/`), so the manifest
+  says `android:hasCode="true"`. No library, no download: both tools come with the JDK and
+  the SDK the build already needs.
 
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
-- Share (an `ACTION_SEND` intent).
 - Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
   no Regional format card (its list would be empty).
 - TalkBack: eframe's screen reader support needs GameActivity on Android.

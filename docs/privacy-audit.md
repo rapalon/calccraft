@@ -17,6 +17,12 @@ together.
   the device only. The chosen strength is stored as `CalcCraftKeyVibration` in `app.ron`.
 - `android:hasCode="false"` (`AndroidManifest.xml:15`): no Java/Kotlin code, so no Google Play
   services, Firebase or other SDKs. The activity is Android's `NativeActivity`.
+  Since 2026-11-18 (version 1.4.1) `hasCode` is `true`, for one class of the app's own,
+  `android/java/com/rapalon/calccraft/ShareProvider.java` (no library, no SDK): a
+  `ContentProvider` (`android:exported="false"`, `android:grantUriPermissions="true"`, authority
+  `<application id>.share`) that serves one file read-only, `cache/share/graph.png`, to the app
+  the user picks in the graph's share sheet. Nothing else can read it: the provider isn't
+  exported, and Android grants the chosen app read access to that one URI only.
 - `android:allowBackup="true"` (`AndroidManifest.xml:12`): Android Auto Backup may copy the
   app's internal files (the settings file below) to the user's Google account backup and use
   them in a device-to-device transfer. That is Google's backup under the user's account; the
@@ -114,6 +120,12 @@ Stripe's and the website's statistics.
   (`android.rs:307-333`). The recipient is picked by the user in the system's sheet.
 - The graph's Share (Windows): Windows' share sheet with the PNG, the equations and variables as
   HTML (`src/app/share.rs:85`, `:150-194`); in the browser a PNG download (`src/app/web.rs:291`).
+  On Android (since 1.4.1) the PNG alone goes to Android's `ACTION_SEND` chooser as a
+  `content://<application id>.share/graph.png` URI with a read grant (`src/app/android.rs`,
+  `share_image`). Before that it's written to the app's private cache, `cache/share/graph.png`,
+  the only file kept there: every share deletes whatever else is in `cache/share/` and
+  overwrites the picture (`src/app/share.rs`, `write_single_file`). It never goes to the gallery
+  or shared storage, and Android may delete the cache at any time.
 - Copy writes the clipboard on the user's command: results (`src/app.rs:923-924`, `:1684`),
   converter values (`src/app/converter_view.rs:396`), dates (`src/app/date_view.rs:256`),
   Programmer values (`src/app/programmer_view.rs:330`), the graph and equation text

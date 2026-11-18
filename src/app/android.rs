@@ -536,6 +536,93 @@ pub(crate) fn share_sheet(text: &str) -> bool {
     .is_some()
 }
 
+/// The app's private cache folder (`Context.getCacheDir()`), where the shared graph goes.
+pub(super) fn cache_dir() -> Option<std::path::PathBuf> {
+    with_activity(|env, activity| {
+        let dir = env
+            .call_method(activity, "getCacheDir", "()Ljava/io/File;", &[])?
+            .l()?;
+        let path = env
+            .call_method(&dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
+            .l()?;
+        let path: String = env.get_string(&JString::from(path))?.into();
+        Ok(std::path::PathBuf::from(path))
+    })
+}
+
+/// `Intent.FLAG_GRANT_READ_URI_PERMISSION`.
+const FLAG_GRANT_READ_URI_PERMISSION: i32 = 0x0000_0001;
+
+/// Opens the system share sheet with the PNG `name` of the app's `ShareProvider`
+/// (`content://<package>.share/<name>`, android/AndroidManifest.xml): `ACTION_SEND` with
+/// `image/png`, the URI as `EXTRA_STREAM` and as `ClipData`, and a read grant, in a chooser,
+/// which passes the grant on to the app the user picks. Returns whether it started.
+pub(super) fn share_image(name: &str) -> bool {
+    with_activity(|env, activity| {
+        let package = env
+            .call_method(activity, "getPackageName", "()Ljava/lang/String;", &[])?
+            .l()?;
+        let package: String = env.get_string(&JString::from(package))?.into();
+        let text = env.new_string(format!("content://{package}.share/{name}"))?;
+        let uri = env
+            .call_static_method(
+                "android/net/Uri",
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[JValue::Object(&text)],
+            )?
+            .l()?;
+        let send = new_intent(env, "android.intent.action.SEND")?;
+        let mime = env.new_string("image/png")?;
+        env.call_method(
+            &send,
+            "setType",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&mime)],
+        )?;
+        let key = env.new_string("android.intent.extra.STREAM")?;
+        env.call_method(
+            &send,
+            "putExtra",
+            "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Object(&uri)],
+        )?;
+        // The grant covers the intent's data and ClipData, not its extras: the ClipData
+        // carries the URI to the picked app (and gives the share sheet its preview).
+        let label = env.new_string(name)?;
+        let clip = env
+            .call_static_method(
+                "android/content/ClipData",
+                "newRawUri",
+                "(Ljava/lang/CharSequence;Landroid/net/Uri;)Landroid/content/ClipData;",
+                &[JValue::Object(&label), JValue::Object(&uri)],
+            )?
+            .l()?;
+        env.call_method(
+            &send,
+            "setClipData",
+            "(Landroid/content/ClipData;)V",
+            &[JValue::Object(&clip)],
+        )?;
+        env.call_method(
+            &send,
+            "addFlags",
+            "(I)Landroid/content/Intent;",
+            &[JValue::Int(FLAG_GRANT_READ_URI_PERMISSION)],
+        )?;
+        let chooser = env
+            .call_static_method(
+                "android/content/Intent",
+                "createChooser",
+                "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
+                &[JValue::Object(&send), JValue::Object(&JObject::null())],
+            )?
+            .l()?;
+        start_activity(env, activity, &chooser)
+    })
+    .is_some()
+}
+
 /// Puts `text` on the Android clipboard (`ClipboardManager.setPrimaryClip`). egui-winit's
 /// clipboard is compiled out for Android, so `Context::copy_text` never reaches the system.
 /// Returns whether it was set.
