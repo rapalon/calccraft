@@ -1,3 +1,5 @@
 /target
 # The web version, built by Trunk.
 /dist
+# Tools the build scripts download (bundletool, see android/build-apk.ps1).
+/.tools

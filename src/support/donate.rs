@@ -1,17 +1,21 @@
 //! The donate link with its Stripe tracking parameters, and the channel that opens it
-//! (docs/support-prompt.md, sections 7 and 8).
+//! (docs/support-prompt.md, sections 7 and 8). The donate page exists only in the default
+//! channel: the Google Play builds (`play-free`, `play-paid`) don't contain its address.
 
 use eframe::egui;
 
 /// Donation URL for supporting the project. It is CalcCraft's own page on rapalon.com, which
 /// redirects to the Stripe payment link and keeps `utm_*` and `client_reference_id`: the target
 /// can change in one place, without an app release, and campaigns stay trackable.
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 pub const DONATE_URL: &str = "https://rapalon.com/calccraft/donate";
 
 /// Stripe's limits: 150 characters for the UTM values, 200 for `client_reference_id`.
 pub(super) const UTM_MAX: usize = 150;
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 const REFERENCE_MAX: usize = 200;
 /// `c10` stands for 10 cycles or more: the count stays coarse.
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 const MAX_CYCLES: u32 = 10;
 
 /// Where Donate was clicked.
@@ -23,6 +27,7 @@ pub enum DonateSource {
     Menu,
 }
 
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 impl DonateSource {
     fn code(self) -> &'static str {
         match self {
@@ -32,8 +37,10 @@ impl DonateSource {
     }
 }
 
-/// The coarse, non-identifying context of a Donate click.
+/// The coarse, non-identifying context of a Donate click. The Play builds' channels don't use
+/// it: their links have no parameters.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(any(feature = "play-free", feature = "play-paid"), allow(dead_code))]
 pub struct DonateContext {
     /// `win`, `mac`, `linux`, `android`, `web` or `other`.
     pub platform: &'static str,
@@ -74,6 +81,7 @@ pub fn sanitize(value: &str, max: usize) -> String {
 }
 
 /// The days-since-install bucket.
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 fn age_bucket(days: Option<i64>) -> &'static str {
     match days.unwrap_or(0) {
         ..7 => "d0-7",
@@ -85,6 +93,7 @@ fn age_bucket(days: Option<i64>) -> &'static str {
 }
 
 /// `base` with the tracking parameters.
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 pub fn donate_url(base: &str, context: &DonateContext) -> String {
     let platform = sanitize(context.platform, 16);
     let version = sanitize(context.version, 32);
@@ -105,16 +114,18 @@ pub fn donate_url(base: &str, context: &DonateContext) -> String {
     )
 }
 
-/// How a donation is made. Today it opens the donate page; a store build would take its
-/// in-app purchase here instead (Google Play Billing, StoreKit), or offer the paid version.
+/// How a donation is made: the donate page ([`ExternalLink`]) in the default channel, the paid
+/// app's Play listing ([`PlayListing`]) in the free Google Play app.
 pub trait DonationChannel {
     /// Starts a donation for a Donate click.
     fn donate(&self, ctx: &egui::Context, context: &DonateContext);
 }
 
 /// Opens [`DONATE_URL`] with its tracking parameters in the system browser.
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 pub struct ExternalLink;
 
+#[cfg(not(any(feature = "play-free", feature = "play-paid")))]
 impl DonationChannel for ExternalLink {
     fn donate(&self, ctx: &egui::Context, context: &DonateContext) {
         let url = donate_url(DONATE_URL, context);
@@ -125,7 +136,52 @@ impl DonationChannel for ExternalLink {
     }
 }
 
-#[cfg(test)]
+/// Opens the paid app's Google Play listing: the Play Store app (`market://`), else its web
+/// page. No parameters: the Play builds put nothing about their use into a link.
+#[cfg(feature = "play-free")]
+pub struct PlayListing;
+
+#[cfg(feature = "play-free")]
+impl DonationChannel for PlayListing {
+    fn donate(&self, ctx: &egui::Context, _context: &DonateContext) {
+        // Without a paid app the prompt is hidden, so this isn't reached; nothing opens then.
+        let Some(id) = super::channel::paid_id() else {
+            return;
+        };
+        let [market, web] = super::channel::store_urls(id);
+        if super::clock::fast_mode() {
+            eprintln!("support: store URL {market}");
+        }
+        #[cfg(target_os = "android")]
+        if crate::app::android::open_url(&market) {
+            return;
+        }
+        #[cfg(not(target_os = "android"))]
+        let _ = market;
+        crate::app::open_link(ctx, web);
+    }
+}
+
+/// This build's donation channel.
+pub fn platform_channel() -> &'static dyn DonationChannel {
+    #[cfg(feature = "play-free")]
+    return &PlayListing;
+    #[cfg(feature = "play-paid")]
+    return &NoDonation;
+    #[cfg(not(any(feature = "play-free", feature = "play-paid")))]
+    return &ExternalLink;
+}
+
+/// The paid Play app's channel: it has nothing to donate to (no prompt shows).
+#[cfg(feature = "play-paid")]
+pub struct NoDonation;
+
+#[cfg(feature = "play-paid")]
+impl DonationChannel for NoDonation {
+    fn donate(&self, _ctx: &egui::Context, _context: &DonateContext) {}
+}
+
+#[cfg(all(test, not(any(feature = "play-free", feature = "play-paid"))))]
 mod tests {
     use super::*;
 

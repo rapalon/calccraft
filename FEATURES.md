@@ -1222,6 +1222,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Settings can pick another language and regional format for CalcCraft alone
     (`FEAT-SHELL-008`); "Use system setting" follows Windows, or `CALCCRAFT_LANGUAGE` and
     `CALCCRAFT_REGION` where they're set.
+- **Not yet:** Android, Linux and macOS use en-US formats whatever the system's region (and hide
+  the Regional format card, `FEAT-SHELL-008`), until a later task reads the region's formats
+  there (through JNI and ICU on Android).
 - **Differences:** right-to-left and complex scripts are `FEAT-SHELL-011`. Numbers always use
   Western digits, and dates the Gregorian calendar. The contribute sentence in Settings stays
   English (its translations name the Windows Calculator). Pasted text loses its group separators
@@ -1239,12 +1242,54 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Acceptance Criteria:**
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
-    right of the text, or under it in cards narrower than 476 px.
+    right of the text, or under it in cards narrower than 476 px. The Regional format card shows
+    only where there are regional formats to choose (Windows and the web version): on Android,
+    Linux and macOS its list would hold only "Use system setting", which changes nothing there.
+  - Android only: a Key vibration card right after the Language card, measured by feel on two
+    phones (`docs/vibration-lab-results.md`). In this order:
+    1. A strength slider from 1 to 100, shown as a percentage (`50%`), 50 by default. Saved as
+       `CalcCraftKeyVibration` (`1` to `100`). It has no Off position: Off is a style.
+    2. A Style drop-down, Auto by default: Off, Auto, Click, Pulse, Heavy click ("Off" is the
+       same string as the strength's old Off, `CalcCraft.KeyVibrationOff`). Saved as
+       `CalcCraftKeyVibrationStyle` (`Off`, `Auto`, `Click`, `Pulse`, `HeavyClick`).
+       - Off: keys never vibrate. The card keeps only its title, description and the Style
+         drop-down: the strength and duration sliders and the touch feedback line are hidden.
+         The strength is kept for when another style is chosen again.
+       - Settings saved by an earlier build with strength `0` (its Off) load as Style Off with
+         strength 50.
+       - Click: a `PRIMITIVE_CLICK` composition whose scale follows the strength (the square
+         root of strength / 100: 10 % of the drive at 1, 71 % at 50, full at 100).
+       - Pulse: a one-shot whose amplitude follows the strength, from 60 at 1 % (weak but felt
+         on both phones) to 255 at 100 %, linearly, for the duration of item 3. On a vibrator
+         without amplitude control the strength sets the duration instead, 5 ms at 1 % to 12 ms
+         at 100 %, and the duration slider is hidden.
+       - Heavy click: the predefined `EFFECT_HEAVY_CLICK`, whose strength the phone sets: the
+         strength slider changes nothing, and a line under the slider says "Strength is set
+         by the phone for this style".
+       - Auto: Click where the vibrator looks calibrated: it reports a resonant frequency
+         (`VibratorInfo.getResonantFrequency` isn't NaN) and `PRIMITIVE_CLICK`'s duration
+         differs from `PRIMITIVE_TICK`'s (`getPrimitiveDurations`). Otherwise Pulse where it has
+         amplitude control, otherwise the duration fallback. Pulse picked by Auto lasts the
+         default 8 ms. The choice goes to the log (tag `CalcCraft`) once per run.
+       - A style the phone can't play falls back: Click without the click primitive (before
+         Android 11, or not supported) and Heavy click before Android 10 play Pulse (or the
+         duration fallback).
+    3. A Duration slider, only while Pulse is chosen explicitly and plays as an amplitude pulse
+       (not when Auto picks Pulse): 5 to 12 ms, 8 by default, shown as `8 ms`, never longer
+       (both phones buzz from 15 ms). Saved as `CalcCraftKeyVibrationDuration`.
+
+    Releasing either slider (or moving it with the arrow keys) and choosing a style other than
+    Off play one key tap as it would now be, so it can be tuned by feel; choosing Off plays
+    nothing. With touch feedback turned off in Android's settings (`HAPTIC_FEEDBACK_ENABLED`)
+    nothing vibrates either, and a line at the bottom of the card says so (not for Off). Keys typed on a hardware keyboard don't vibrate.
+    The taps go through the Vibrator API (`android::key_tap`; the mappings and the Auto rule
+    are pure functions in `app/vibration.rs`).
   - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
     that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
     (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
     card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
-  - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat`.
+  - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat` /
+    `CalcCraftKeyVibration` / `CalcCraftKeyVibrationStyle` / `CalcCraftKeyVibrationDuration`.
   - About: icon, name and version; "Send feedback" and GitHub links.
 - **Differences:** no license or privacy statement links in About. `Esc` goes back; Windows
   ignores it on this page. Windows has no Language and Regional format settings (it follows
@@ -1331,6 +1376,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Stats persist locally (`SupportStatsV2`, v1 keys migrated) without network/telemetry/IDs.
   - `CALCCRAFT_SUPPORT_FAST=1` demo mode (a day is a minute).
   - Compiles cleanly and tests pass with `--no-default-features`.
+  - Google Play channels (docs/support-prompt.md, section 8), Cargo features with no donate link
+    in the binary: `play-free` leads "Get CalcCraft Pro" to the paid app's Play listing
+    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all); `play-paid` shows no prompt, only
+    "Supported by you". Both share the bare `SHARE_URL`.
 - **Differences:** Windows Calculator has no support prompt.
 
 ---
@@ -1372,3 +1421,6 @@ Windows source in `../win-calculator`.
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Support prompt v2: the staged policy (silent → red dot → popup at a calm moment under the display), interval ladder with quick-close penalty, Donate and "I already supported" pauses, `SupportStatsV2` with v1 migration, Stripe tracking parameters, `DonationChannel`, fast demo mode (`CALCCRAFT_SUPPORT_FAST`, `CALCCRAFT_SUPPORT_DEMO`); the app keeps only thin hooks |
 | 2026-11-07 | Claude Code | `FEAT-SHELL-012` | Supporter state: after "I already supported", 365 days of a green "Supported by you" line followed by a Fluent heart in place of the amber menu button (`policy::menu_entry`, `supporter_until_day`, `CALCCRAFT_SUPPORT_DEMO=supporter`) |
 | 2026-11-09 | Claude Code | `FEAT-SHELL-009`, `FEAT-SHELL-012` | Company credit: "CalcCraft by Rapalon Labs" as the window and page title, in the file properties and on the About card, and the Rapalon Labs logo with a link to rapalon.com in the support popup |
+| 2026-11-17 | Claude Code | `FEAT-SHELL-012` | Google Play channels `play-free` (the popup leads to CalcCraft Pro's Play listing, or is hidden without `CALCCRAFT_PAID_ID`) and `play-paid` (no prompt, always "Supported by you"), with `build-apk.ps1 -Channel` / `-PaidApplicationId` and a check that no Play library contains the donate or Stripe address |
+| 2026-11-17 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android: a Key vibration card after Language (Off, 1–100 %, 50 by default, `CalcCraftKeyVibration`) that taps through the Vibrator API (`PRIMITIVE_CLICK` scale, amplitude or duration, `app/vibration.rs`) instead of the phone maker's `KEYBOARD_TAP`, with the `VIBRATE` permission; the Regional format card is hidden where its list is empty (Android, Linux, macOS), which use en-US formats for now |
+| 2026-11-17 | Claude Code | `FEAT-SHELL-008` | Android Key vibration card: a Style drop-down (Auto, Click, Pulse, Heavy click) and a Duration slider (5–12 ms, explicit Pulse only) under the strength, with Auto picking Click on a calibrated actuator (resonant frequency, own click primitive) and Pulse otherwise, from the vibration lab's results by feel (`docs/vibration-lab-results.md`) |

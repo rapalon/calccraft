@@ -4,8 +4,8 @@
 //! and `CalculatorScientificOperators.xaml`.
 
 use eframe::egui::{
-    Align, Color32, FontFamily, FontId, Id, Key, Modifiers, Painter, Pos2, Rect, Sense, Shape,
-    Stroke, TextFormat, Ui, WidgetType, pos2, text::LayoutJob, vec2,
+    Color32, FontFamily, FontId, Id, Key, Modifiers, Painter, Pos2, Rect, Sense, Shape, Stroke,
+    TextFormat, Ui, WidgetType, pos2, text::LayoutJob, vec2,
 };
 
 use super::converter_view::star_rows;
@@ -14,10 +14,11 @@ use super::icons::{
     ICON_BACKSPACE, ICON_CHEVRON_DOWN, ICON_DIVIDE, ICON_EQUALS, ICON_MINUS, ICON_MULTIPLY,
     ICON_PLUS, icon_label,
 };
+use super::math_label::{Formula, Label, symbol, up, var};
 use super::strings::{tr, tr_format};
 use super::{
     CalculatorApp, Flyout, GAP, Kind, MARGIN, MEMORY_BUTTON_MAX_WIDTH, Panel, RADIUS, access,
-    command_name, format, negate_label, semibold, symbols, text,
+    command_name, format, negate_label, semibold, text,
 };
 use crate::engine::{Angle, Calculator, Command, Func, Op, Trig, TrigFunction};
 
@@ -481,7 +482,7 @@ impl CalculatorApp {
             match menu {
                 Menu::Trigonometry => paint_triangle_icon(painter, icon_center, glyph_size, color),
                 Menu::Function => {
-                    let f = painter.layout_job(italic("ƒ", glyph_size));
+                    let f = painter.layout_job(function_icon(glyph_size));
                     painter.galley(icon_center - f.size() / 2.0, f, color);
                 }
             }
@@ -621,7 +622,7 @@ impl CalculatorApp {
         id: Id,
         enabled: bool,
         on: bool,
-        label: LayoutJob,
+        label: impl Into<Label>,
         name: &str,
     ) -> bool {
         // Off, it looks like any operator key, but tells Narrator it's a toggle.
@@ -634,37 +635,25 @@ impl CalculatorApp {
 
     /// A key's label for the Scientific keypad. Windows draws most of them from the
     /// Calculator's own icon font, which may only be used inside Windows; these are the
-    /// same formulas in Segoe UI, with an italic x.
-    fn scientific_label(&self, command: Command, sizes: Sizes) -> LayoutJob {
+    /// same formulas (`math_label`), with real italic variables.
+    fn scientific_label(&self, command: Command, sizes: Sizes) -> Label {
         let size = sizes.operator;
-        let plain = |s: &str| text(s, size, FontFamily::Proportional);
+        let plain = |s: &str| text(s, size, FontFamily::Proportional).into();
         match command {
-            Command::Digit(d) => text(&d.to_string(), sizes.digit, FontFamily::Proportional),
-            Command::Decimal => text(".", sizes.digit, FontFamily::Proportional),
-            Command::Function(Func::Negate) => negate_label(sizes.negate),
+            Command::Digit(d) => text(&d.to_string(), sizes.digit, FontFamily::Proportional).into(),
+            Command::Decimal => text(".", sizes.digit, FontFamily::Proportional).into(),
+            Command::Function(Func::Negate) => negate_label(sizes.negate).into(),
             Command::Function(func) => function_label(func, size),
-            Command::Operator(Op::Divide) => icon_label(ICON_DIVIDE, size),
-            Command::Operator(Op::Multiply) => icon_label(ICON_MULTIPLY, size),
-            Command::Operator(Op::Subtract) => icon_label(ICON_MINUS, size),
-            Command::Operator(Op::Add) => icon_label(ICON_PLUS, size),
+            Command::Operator(Op::Divide) => icon_label(ICON_DIVIDE, size).into(),
+            Command::Operator(Op::Multiply) => icon_label(ICON_MULTIPLY, size).into(),
+            Command::Operator(Op::Subtract) => icon_label(ICON_MINUS, size).into(),
+            Command::Operator(Op::Add) => icon_label(ICON_PLUS, size).into(),
             Command::Operator(Op::Mod) => plain("mod"),
-            Command::Operator(Op::Power) => superscript(italic("x", size), "y", size),
-            Command::Operator(Op::Root) => {
-                let mut job = superscript(LayoutJob::default(), "y", size);
-                job.append("√", 0.0, format(size, FontFamily::Proportional));
-                job.append(
-                    "x",
-                    0.0,
-                    TextFormat {
-                        italics: true,
-                        ..format(size, FontFamily::Proportional)
-                    },
-                );
-                job
-            }
+            Command::Operator(Op::Power) => power_label(size),
+            Command::Operator(Op::Root) => root_label(size),
             Command::Operator(Op::LogBase) => log_base_label(size),
-            Command::Equals => icon_label(ICON_EQUALS, size),
-            Command::Backspace => icon_label(ICON_BACKSPACE, size),
+            Command::Equals => icon_label(ICON_EQUALS, size).into(),
+            Command::Backspace => icon_label(ICON_BACKSPACE, size).into(),
             Command::Pi => plain("π"),
             Command::Euler => plain("e"),
             Command::Exponent => plain("exp"),
@@ -672,7 +661,7 @@ impl CalculatorApp {
             Command::CloseParen => plain(")"),
             Command::ClearEntry => plain("CE"),
             Command::Clear => plain("C"),
-            _ => LayoutJob::default(),
+            _ => LayoutJob::default().into(),
         }
     }
 
@@ -770,9 +759,11 @@ impl CalculatorApp {
                 ];
                 for (i, command) in functions.into_iter().enumerate() {
                     let label = match command {
-                        Command::Random => text("rand", sizes.trig, FontFamily::Proportional),
+                        Command::Random => {
+                            text("rand", sizes.trig, FontFamily::Proportional).into()
+                        }
                         Command::Function(func) => function_label(func, sizes.text_icon),
-                        _ => LayoutJob::default(),
+                        _ => LayoutJob::default().into(),
                     };
                     let id = Id::new("scientific-function").with(i);
                     if self.take_popup_focus(i == 0) {
@@ -808,39 +799,34 @@ impl CalculatorApp {
 
 // ------------------------------------------------------------------ labels
 
-/// A label of pieces, each upright or in italics (the variables).
-pub(super) fn formula(pieces: &[(&str, bool)], size: f32) -> LayoutJob {
+/// The Function menu's icon: a slanted `ƒ`, which is already a hooked letter, so egui's
+/// synthetic italics are enough.
+pub(super) fn function_icon(size: f32) -> LayoutJob {
     let mut job = LayoutJob::default();
-    for &(piece, italics) in pieces {
-        job.append(
-            piece,
-            0.0,
-            TextFormat {
-                italics,
-                ..format(size, FontFamily::Proportional)
-            },
-        );
-    }
-    job
-}
-
-pub(super) fn italic(s: &str, size: f32) -> LayoutJob {
-    formula(&[(s, true)], size)
-}
-
-/// `job` followed by a raised, smaller italic `letter`: the exponent of `xʸ` and `10ˣ`,
-/// or the index of `ʸ√x`. Unicode's modifier letters (ʸ, ˣ) are too small in Segoe UI.
-pub(super) fn superscript(mut job: LayoutJob, letter: &str, size: f32) -> LayoutJob {
     job.append(
-        letter,
+        "ƒ",
         0.0,
         TextFormat {
             italics: true,
-            valign: Align::TOP,
-            ..format(size * 0.7, FontFamily::Proportional)
+            ..format(size, FontFamily::Proportional)
         },
     );
     job
+}
+
+/// A variable alone (`x`, `y`): a real italic letter.
+pub(super) fn italic(letter: char, size: f32) -> Label {
+    Formula::new(size).base(var(letter)).into()
+}
+
+/// `xʸ`.
+pub(super) fn power_label(size: f32) -> Label {
+    Formula::new(size).base(var('x')).sup(var('y')).into()
+}
+
+/// `ʸ√x`.
+pub(super) fn root_label(size: f32) -> Label {
+    Formula::new(size).root(Some(var('y')), var('x')).into()
 }
 
 /// `2ⁿᵈ`.
@@ -849,67 +835,45 @@ pub(super) fn second_label(size: f32) -> LayoutJob {
 }
 
 /// `logᵧx`, with a lowered small y (Unicode has no subscript y).
-pub(super) fn log_base_label(size: f32) -> LayoutJob {
-    let mut job = text("log", size, FontFamily::Proportional);
-    job.append(
-        "y",
-        0.0,
-        TextFormat {
-            italics: true,
-            valign: Align::BOTTOM,
-            ..format(size * 0.7, FontFamily::Proportional)
-        },
-    );
-    job.append(
-        "x",
-        0.0,
-        TextFormat {
-            italics: true,
-            ..format(size, FontFamily::Proportional)
-        },
-    );
-    job
+pub(super) fn log_base_label(size: f32) -> Label {
+    Formula::new(size)
+        .base(up("log"))
+        .sub(var('y'))
+        .base(var('x'))
+        .into()
 }
 
-/// A label with brackets from Segoe UI Symbol, which Segoe UI lacks: `⌊x⌋`, `⌈x⌉`, `∛x`.
-pub(super) fn symbol_formula(before: &str, after: &str, size: f32) -> LayoutJob {
-    let mut job = LayoutJob::default();
-    job.append(before, 0.0, format(size, symbols()));
-    job.append(
-        "x",
-        0.0,
-        TextFormat {
-            italics: true,
-            ..format(size, FontFamily::Proportional)
-        },
-    );
-    job.append(after, 0.0, format(size, symbols()));
-    job
-}
-
-/// A function key's label.
-pub(super) fn function_label(func: Func, size: f32) -> LayoutJob {
-    let x = ("x", true);
-    match func {
-        Func::Square => formula(&[x, ("²", false)], size),
-        Func::Cube => formula(&[x, ("³", false)], size),
-        Func::Reciprocal => formula(&[("¹⁄", false), x], size),
-        Func::Abs => formula(&[("|", false), x, ("|", false)], size),
-        Func::SquareRoot => formula(&[("²√", false), x], size),
-        Func::CubeRoot => symbol_formula("∛", "", size),
-        Func::TenToX => superscript(formula(&[("10", false)], size), "x", size),
-        Func::TwoToX => superscript(formula(&[("2", false)], size), "x", size),
-        Func::EToX => superscript(formula(&[("e", false)], size), "x", size),
-        Func::Log => text("log", size, FontFamily::Proportional),
-        Func::Ln => text("ln", size, FontFamily::Proportional),
-        Func::Factorial => formula(&[("n", true), ("!", false)], size),
-        Func::Floor => symbol_formula("⌊", "⌋", size),
-        Func::Ceil => symbol_formula("⌈", "⌉", size),
-        Func::Dms => text("→dms", size, FontFamily::Proportional),
-        Func::Degrees => text("→deg", size, FontFamily::Proportional),
-        Func::Trig(trig) => text(&trig_label(trig), size, FontFamily::Proportional),
-        _ => LayoutJob::default(),
-    }
+/// A function key's label: the formulas are `math_label::Formula`s, the names text.
+pub(super) fn function_label(func: Func, size: f32) -> Label {
+    let f = Formula::new(size);
+    let x = || var('x');
+    let formula = match func {
+        Func::Square => f.base(x()).sup(up("2")),
+        Func::Cube => f.base(x()).sup(up("3")),
+        Func::Reciprocal => f.sup(up("1")).base(up("/")).base(x()),
+        Func::Abs => f.base(up("|")).base(x()).base(up("|")),
+        Func::SquareRoot => f.root(Some(up("2")), x()),
+        Func::CubeRoot => f.root(Some(up("3")), x()),
+        Func::TenToX => f.base(up("10")).sup(x()),
+        Func::TwoToX => f.base(up("2")).sup(x()),
+        Func::EToX => f.base(up("e")).sup(x()),
+        Func::Factorial => f.base(var('n')).base(up("!")),
+        // Segoe UI Symbol's brackets, which Segoe UI lacks.
+        Func::Floor => f.base(symbol("⌊")).base(x()).base(symbol("⌋")),
+        Func::Ceil => f.base(symbol("⌈")).base(x()).base(symbol("⌉")),
+        _ => {
+            let name = match func {
+                Func::Log => "log".to_owned(),
+                Func::Ln => "ln".to_owned(),
+                Func::Dms => "→dms".to_owned(),
+                Func::Degrees => "→deg".to_owned(),
+                Func::Trig(trig) => trig_label(trig),
+                _ => String::new(),
+            };
+            return text(&name, size, FontFamily::Proportional).into();
+        }
+    };
+    formula.into()
 }
 
 /// `sin`, `sin⁻¹`, `sinh` or `sinh⁻¹`, as the Trigonometry menu shows them.

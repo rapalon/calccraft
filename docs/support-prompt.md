@@ -336,24 +336,44 @@ Notes for the owner's setup:
 
 ---
 
-## 8. Store builds: `DonationChannel`
+## 8. Distribution channels: GitHub, Google Play free, Google Play paid
 
-Google Play and the App Store require their own in-app purchase for tips and paid versions.
-`src/support/donate.rs` defines:
+Google Play's Payments policy requires payments for an app to go through Play billing and
+forbids leading users to other payment methods. So the Play builds have no Donate link: the
+free Play app's popup leads to the paid Play app, **CalcCraft Pro**, and the paid app has no
+prompt (Konst's decision of 2026-11-17).
 
-```rust
-pub trait DonationChannel {
-    /// Starts a donation for a Donate click from `source`.
-    fn donate(&self, ctx: &egui::Context, request: &DonateContext);
-}
-pub struct ExternalLink; // opens donate_url(DONATE_URL, request) with ctx.open_url
-```
+The channel is chosen **at build time with Cargo features**, so the code of the other channels,
+the donate URL included, isn't compiled into a build at all:
 
-`SupportState` holds a `Box<dyn DonationChannel>`, `ExternalLink` today. A store build would add
-a `PlayBilling` (Google Play Billing through JNI, next to `src/app/android.rs`) or `StoreKit`
-implementation and pick it in `SupportState::new` under its `cfg`; a "buy the paid version" action
-would be another method of the trait (or a second channel) shown as a popup button. The policy,
-stats and UI stay as they are. Nothing of this is implemented yet: no SDKs.
+| Channel | Features | Support prompt |
+| --- | --- | --- |
+| Default: GitHub releases, F-Droid, desktops, web | `support-prompt` (the default) | Unchanged: Donate opens `DONATE_URL` with its parameters (section 7). |
+| Google Play, free app | `play-free` (turns on `support-prompt`) | The same staged policy, dots, calm moment, backoff and reactions. The green button reads **"Get CalcCraft Pro"** and opens the paid app's listing: `market://details?id=<PAID_ID>` (an `ACTION_VIEW` intent, which the Play Store app takes), or `https://play.google.com/store/apps/details?id=<PAID_ID>` where nothing takes `market://`. No query parameters. The body says "… Get CalcCraft Pro, the supporter edition on Google Play, …". "I already supported" (after a click on the button; 365 days) and "Tell a friend" stay. |
+| Google Play, free app, no `PAID_ID` | `play-free` | **Hidden**: no dot, no popup, no menu button (`PromptMode::Hidden`). The first free release ships like this, before the paid app exists. |
+| Google Play, paid app | `play-paid` (turns on `support-prompt`) | **No prompt**: no dot, no popup, no amber button. The menu always shows "Supported by you" with the green heart, as plain text with no popup behind it, and its share glyph (`PromptMode::Supporter`). |
+
+- `play-free` and `play-paid` together are a compile error.
+- `PAID_ID`, the paid app's application ID, is the environment variable `CALCCRAFT_PAID_ID` at
+  compile time (`option_env!`, which Cargo tracks: a new value rebuilds). It is unset by
+  default. It must be a valid Android package name (at least two dot-separated parts of ASCII
+  letters, digits and `_`, each starting with a letter), or it counts as unset. The paid app is
+  to be `com.rapalon.calccraft.pro`, but the ID stays a build parameter
+  (`android/build-apk.ps1 -PaidApplicationId`).
+- In both Play channels "Tell a friend" shares `SHARE_URL` (`https://rapalon.com/calccraft`)
+  **without parameters**, so no Play build puts anything into a link.
+- `src/support/channel.rs` has the channel (`CHANNEL`), `paid_id()`, `prompt_mode()` and
+  `store_urls()`. The policy gets the mode as `SupportPolicyConfig::prompt`: unless it is
+  `Full`, `evaluate` answers `Nothing` and `menu_entry` answers `Hidden` or `SupporterThanks`
+  whatever the stats say, which the policy's tests pin. `SupportState::open_on_demand` and the
+  demo stages open no popup unless the mode is `Full`.
+- `DonationChannel` (`src/support/donate.rs`) is the seam: `ExternalLink` opens the donate page
+  in the default channel, `PlayListing` the paid app's listing in `play-free`. `DONATE_URL`,
+  `donate_url` and `ExternalLink` exist only in the default channel, and CI checks the Play
+  builds' library for `rapalon.com/calccraft/donate` and `stripe.com`.
+- Commands (android/README.md): `pwsh android/build-apk.ps1 -Channel play-free -Bundle
+  [-PaidApplicationId com.rapalon.calccraft.pro]` and `pwsh android/build-apk.ps1 -Channel
+  play-paid -PaidApplicationId com.rapalon.calccraft.pro -Bundle`.
 
 ---
 
@@ -389,6 +409,8 @@ migration), `donate.rs` (URL, `DonationChannel`), `clock.rs` (real and fast time
 - `CalcCraft.Support.AlreadySupported=I already supported`
 - `CalcCraft.Support.ThankYou=Thank you!`
 - `CalcCraft.Support.Thanks=Supported by you` — the supporter state's menu line
+- `CalcCraft.Support.Store.Get=Get CalcCraft Pro` and `.Store.Body`: the `play-free` button and
+  body (section 8)
 - `CalcCraft.Support.Share=Tell a friend`, `.ShareTooltip=Share CalcCraft`,
   `.ShareMessage=CalcCraft — a free, precise calculator:`, `.LinkCopied=Link copied` (section 12)
 

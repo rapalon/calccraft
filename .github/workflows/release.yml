@@ -4,10 +4,11 @@ name: Release
 # for Apple silicon and Intel) and Android (arm64) and publishes them as a GitHub release. When it succeeds,
 # pages.yml deploys the web version of the same commit.
 #
-# The Android APK is signed with the release key from the repository's secrets
-# (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and, if the key has
-# its own, ANDROID_KEY_PASSWORD; see android/README.md). Without them it gets a new debug key,
-# and installing it over an earlier release needs an uninstall first.
+# The Android APK and App Bundle (for Google Play) are signed with the upload key from the
+# repository's secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
+# and, if the key has its own, ANDROID_KEY_PASSWORD; see android/README.md). Without them the
+# APK gets a new debug key, and installing it over an earlier release needs an uninstall first;
+# the bundle is skipped, since Play takes only one signed with the upload key.
 on:
   push:
     tags:
@@ -232,6 +233,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865
+      # Google Play takes only bundles signed with the upload key.
+      HAS_UPLOAD_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -253,7 +256,7 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install
           "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK" > /dev/null
 
-      - name: Build the APK
+      - name: Build the APK and the App Bundle
         shell: pwsh
         env:
           APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
@@ -262,27 +265,72 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          $bundle = @()
           if ($env:ANDROID_KEYSTORE_BASE64) {
               $env:ANDROID_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.keystore'
               [IO.File]::WriteAllBytes($env:ANDROID_KEYSTORE,
                   [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+              $bundle = @('-Bundle')
           } else {
-              '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key.'
+              '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key, and no App Bundle is built (Google Play takes only one signed with the upload key).'
           }
-          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID
+          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID @bundle
 
       - name: Package
         run: |
-          asset="calculator-$GITHUB_REF_NAME-android-arm64.apk"
+          asset="calculator-$GITHUB_REF_NAME-android-arm64"
           mkdir dist
-          cp target/android/CalcCraft-*-arm64.apk "dist/$asset"
+          cp target/android/CalcCraft-*-arm64.apk "dist/$asset.apk"
+          # The bundle is there only when the upload key was.
+          if ls target/android/CalcCraft-*-arm64.aab > /dev/null 2>&1; then
+            cp target/android/CalcCraft-*-arm64.aab "dist/$asset.aab"
+          fi
           cd dist
-          sha256sum "$asset" > "$asset.sha256"
+          for file in "$asset".*; do
+            sha256sum "$file" > "$file.sha256"
+          done
 
       - name: Upload to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+      # The Google Play App Bundles (docs/support-prompt.md, section 8), signed with the upload
+      # key: the free app (play-free; its popup leads to the paid app once the repository
+      # variable CALCCRAFT_PAID_ID names it, and is hidden until then) and, with that variable,
+      # the paid app (play-paid). They go to the run's artifacts for the Play Console, not to
+      # the GitHub release, whose APK and bundle above keep the default channel.
+      - name: Build the Google Play App Bundles
+        if: env.HAS_UPLOAD_KEY == 'true'
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
+          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID }}
+        run: |
+          $env:ANDROID_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.keystore'
+          [IO.File]::WriteAllBytes($env:ANDROID_KEYSTORE,
+              [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          New-Item -ItemType Directory -Force play | Out-Null
+          android/build-apk.ps1 -Ndk $env:NDK -ApplicationId $env:APPLICATION_ID -Channel play-free -PaidApplicationId "$env:PAID_ID" -Bundle
+          Copy-Item target/android/CalcCraft-Play-*-arm64.aab play/
+          if ($env:PAID_ID) {
+              android/build-apk.ps1 -Ndk $env:NDK -Channel play-paid -PaidApplicationId $env:PAID_ID -Bundle
+              Copy-Item target/android/CalcCraft-Pro-*-arm64.aab play/
+          } else {
+              '::notice::No CALCCRAFT_PAID_ID variable: no paid app bundle, and the free app hides its support prompt.'
+          }
+
+      - name: Keep the Google Play App Bundles
+        if: env.HAS_UPLOAD_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CalcCraft-google-play-${{ github.ref_name }}
+          path: play/*.aab
+          if-no-files-found: error
 
   publish:
     name: Publish the release

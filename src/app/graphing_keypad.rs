@@ -16,9 +16,10 @@ use super::icons::{
     ICON_BACKSPACE, ICON_CHEVRON_DOWN, ICON_DIVIDE, ICON_EQUALS, ICON_MINUS, ICON_MULTIPLY,
     ICON_PLUS, ICON_RETURN, icon_label,
 };
+use super::math_label::Label;
 use super::scientific_view::{
-    Sizes, function_label, italic, log_base_label, paint_triangle_icon, second_label, superscript,
-    symbol_formula, trig_label,
+    Sizes, function_icon, function_label, italic, log_base_label, paint_triangle_icon, power_label,
+    root_label, second_label, trig_label,
 };
 use super::strings::tr;
 use super::{CalculatorApp, GAP, Kind, RADIUS, access, text};
@@ -99,7 +100,7 @@ impl CalculatorApp {
                     paint_inequality_icon(painter, icon_center, glyph_size, color)
                 }
                 KeypadMenu::Function => {
-                    let f = painter.layout_job(italic("ƒ", glyph_size));
+                    let f = painter.layout_job(function_icon(glyph_size));
                     painter.galley(icon_center - f.size() / 2.0, f, color);
                 }
             }
@@ -196,100 +197,65 @@ impl CalculatorApp {
     }
 
     /// A key's label and what a screen reader calls it.
-    fn graphing_key_label(
-        &self,
-        i: usize,
-        key: GraphKey,
-        sizes: Sizes,
-    ) -> (LayoutJob, &'static str) {
+    fn graphing_key_label(&self, i: usize, key: GraphKey, sizes: Sizes) -> (Label, &'static str) {
         let size = sizes.operator;
-        let plain = |s: &str| text(s, size, FontFamily::Proportional);
+        let plain = |s: &str| Label::from(text(s, size, FontFamily::Proportional));
+        let icon = |glyph: char| Label::from(icon_label(glyph, size));
         let f = |func: Func| function_label(func, size);
         match (i, key) {
             (_, GraphKey::Clear) => (plain("C"), tr("clearButton.AutomationName")),
-            (_, GraphKey::Backspace) => (
-                icon_label(ICON_BACKSPACE, size),
-                tr("backSpaceButton.AutomationName"),
-            ),
-            (_, GraphKey::Submit) => (
-                icon_label(ICON_RETURN, size),
-                tr("submitButton.AutomationName"),
-            ),
+            (_, GraphKey::Backspace) => {
+                (icon(ICON_BACKSPACE), tr("backSpaceButton.AutomationName"))
+            }
+            (_, GraphKey::Submit) => (icon(ICON_RETURN), tr("submitButton.AutomationName")),
             (1, _) => (plain("π"), tr("piButton.AutomationName")),
             (2, _) => (plain("e"), tr("eulerButton.AutomationName")),
             (5, GraphKey::Type("^2", ..)) => (f(Func::Square), tr("xpower2Button.AutomationName")),
             (5, _) => (f(Func::Cube), tr("xpower3Button.AutomationName")),
             (6, _) => (f(Func::Reciprocal), tr("invertButton.AutomationName")),
             (7, _) => (f(Func::Abs), tr("absButton.AutomationName")),
-            (8, _) => (italic("x", size + 2.0), tr("xButton.AutomationName")),
-            (9, _) => (italic("y", size + 2.0), tr("yButton.AutomationName")),
+            (8, _) => (italic('x', size + 2.0), tr("xButton.AutomationName")),
+            (9, _) => (italic('y', size + 2.0), tr("yButton.AutomationName")),
             (10, GraphKey::Type("sqrt()", ..)) => {
                 (f(Func::SquareRoot), tr("squareRootButton.AutomationName"))
             }
             (10, _) => (f(Func::CubeRoot), tr("cubeRootButton.AutomationName")),
             (11, _) => (plain("("), tr("openParenthesisButton.AutomationName")),
             (12, _) => (plain(")"), tr("closeParenthesisButton.AutomationName")),
-            (13, _) => (
-                icon_label(ICON_EQUALS, size),
-                tr("graphingEqualButton.AutomationName"),
-            ),
-            (14, _) => (
-                icon_label(ICON_DIVIDE, size),
-                tr("divideButton.AutomationName"),
-            ),
-            (15, GraphKey::Type("^", ..)) => (
-                superscript(italic("x", size), "y", size),
-                tr("powerButton.AutomationName"),
-            ),
-            (15, _) => {
-                let mut job = superscript(LayoutJob::default(), "y", size);
-                job.append("√", 0.0, super::format(size, FontFamily::Proportional));
-                job.append(
-                    "x",
-                    0.0,
-                    egui::TextFormat {
-                        italics: true,
-                        ..super::format(size, FontFamily::Proportional)
-                    },
-                );
-                (job, tr("ySquareRootButton.AutomationName"))
-            }
-            (19, _) => (
-                icon_label(ICON_MULTIPLY, size),
-                tr("multiplyButton.AutomationName"),
-            ),
+            (13, _) => (icon(ICON_EQUALS), tr("graphingEqualButton.AutomationName")),
+            (14, _) => (icon(ICON_DIVIDE), tr("divideButton.AutomationName")),
+            (15, GraphKey::Type("^", ..)) => (power_label(size), tr("powerButton.AutomationName")),
+            (15, _) => (root_label(size), tr("ySquareRootButton.AutomationName")),
+            (19, _) => (icon(ICON_MULTIPLY), tr("multiplyButton.AutomationName")),
             (20, GraphKey::Type("10^", ..)) => {
                 (f(Func::TenToX), tr("powerOf10Button.AutomationName"))
             }
             (20, _) => (f(Func::TwoToX), tr("twoPowerXButton.AutomationName")),
-            (24, _) => (
-                icon_label(ICON_MINUS, size),
-                tr("minusButton.AutomationName"),
-            ),
+            (24, _) => (icon(ICON_MINUS), tr("minusButton.AutomationName")),
             (25, GraphKey::Type("log()", ..)) => {
                 (plain("log"), tr("logBase10Button.AutomationName"))
             }
             (25, _) => (log_base_label(size), tr("logBaseY.AutomationName")),
-            (29, _) => (icon_label(ICON_PLUS, size), tr("plusButton.AutomationName")),
+            (29, _) => (icon(ICON_PLUS), tr("plusButton.AutomationName")),
             (30, GraphKey::Type("ln()", ..)) => (plain("ln"), tr("logBaseEButton.AutomationName")),
             (30, _) => (f(Func::EToX), tr("powerOfEButton.AutomationName")),
             (31, _) => (
-                text("(−)", sizes.digit * 0.8, FontFamily::Proportional),
+                text("(−)", sizes.digit * 0.8, FontFamily::Proportional).into(),
                 tr("negateButton.AutomationName"),
             ),
             // The key types the region's separator, so it shows what it types.
             (33, GraphKey::Type(decimal, ..)) => (
-                text(decimal, sizes.digit, FontFamily::Proportional),
+                text(decimal, sizes.digit, FontFamily::Proportional).into(),
                 tr("decimalSeparatorButton.AutomationName"),
             ),
             (_, GraphKey::Type(digit, ..)) => {
                 let name = format!("num{digit}Button.AutomationName");
                 (
-                    text(digit, sizes.digit, FontFamily::Proportional),
+                    text(digit, sizes.digit, FontFamily::Proportional).into(),
                     tr(&name),
                 )
             }
-            _ => (LayoutJob::default(), ""),
+            _ => (LayoutJob::default().into(), ""),
         }
     }
 
@@ -470,11 +436,7 @@ impl CalculatorApp {
                     if self.take_popup_focus(i == 0) {
                         ui.memory_mut(|memory| memory.request_focus(id));
                     }
-                    let label = match func {
-                        Func::Abs => function_label(func, sizes.text_icon),
-                        Func::Floor => symbol_formula("⌊", "⌋", sizes.text_icon),
-                        _ => symbol_formula("⌈", "⌉", sizes.text_icon),
-                    };
+                    let label = function_label(func, sizes.text_icon);
                     if self.button(ui, cell(i, 0), id, Kind::Operator, true, label, tr(name)) {
                         chosen = Some(output);
                     }

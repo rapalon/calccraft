@@ -5,6 +5,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.rapalon.calccraft">
 
+    <!-- The keys' tap of the vibration motor (Settings → Key vibration, android.rs key_tap).
+         A normal permission: Android grants it at install, without asking. The app has no
+         other permission (see PRIVACY.md). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- enableOnBackInvokedCallback: without it, Android 16 and later handle the back button
          themselves (predictive back) and the app never sees it; android.rs makes it close
          what is open, or else leave the app. -->

@@ -46,6 +46,15 @@ jobs:
       - name: Test
         run: cargo test
 
+      # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
+      # differently: their own tests, with and without the paid app's ID.
+      - name: Test the Google Play channels
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --lib --features play-free support
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free support
+          cargo test --lib --features play-paid support
+
   licenses:
     name: licenses (cargo-deny)
     # Every library in Cargo.lock must have a license from deny.toml's allow-list: permissive
@@ -91,11 +100,12 @@ jobs:
   android:
     name: Android build (arm64)
     # The Android app (android/README.md) builds from the same code, so every push and pull
-    # request checks it and builds an APK, signed with a debug key, which the run keeps as an
-    # artifact for `adb install`.
+    # request checks it and builds an APK and an App Bundle, signed with a debug key, which the
+    # run keeps as an artifact for `adb install`.
     runs-on: ubuntu-latest
     env:
       NDK: 29.0.14206865
+      BUILD_TOOLS: 36.0.0
       APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
     steps:
       - uses: actions/checkout@v7
@@ -117,17 +127,68 @@ jobs:
       - name: Install the Android SDK packages
         run: >
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install
-          "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK" > /dev/null
+          "platforms;android-36" "build-tools;$BUILD_TOOLS" "ndk;$NDK" > /dev/null
 
       - name: Clippy (Android)
-        run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK" cargo ndk -t arm64-v8a -P 24 clippy --all-targets -- -D warnings
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK"
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets -- -D warnings
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-free -- -D warnings
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-free -- -D warnings
+          cargo ndk -t arm64-v8a -P 24 clippy --all-targets --features play-paid -- -D warnings
 
-      - name: Build the APK
+      - name: Build the APK and the App Bundle
         shell: pwsh
-        run: android/build-apk.ps1 -Ndk $env:NDK
+        run: android/build-apk.ps1 -Ndk $env:NDK -BuildTools $env:BUILD_TOOLS -Bundle
+
+      # The bundle's manifest must carry the values of android/README.md, and the universal APK
+      # bundletool builds from it (what Google Play would make of it) the library on 16 KB pages.
+      - name: Check the App Bundle
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          IFS=. read -r major minor patch <<< "$version"
+          code=$((major * 10000 + minor * 100 + patch))
+          jar=$(ls .tools/bundletool-all-*.jar)
+          aab="target/android/CalcCraft-$version-arm64.aab"
+          java -jar "$jar" dump manifest --bundle="$aab"
+          for check in "@package=$APPLICATION_ID" "@android:versionCode=$code" "@android:versionName=$version" \
+              "uses-sdk/@android:minSdkVersion=24" "uses-sdk/@android:targetSdkVersion=36"; do
+            value=$(java -jar "$jar" dump manifest --bundle="$aab" --xpath "/manifest/${check%%=*}")
+            if [ "$value" != "${check#*=}" ]; then
+              echo "::error::The bundle's manifest has ${check%%=*} = '$value', not '${check#*=}'."
+              exit 1
+            fi
+          done
+          java -jar "$jar" build-apks --mode=universal --bundle="$aab" --output=target/android/universal.apks
+          unzip -o -q target/android/universal.apks universal.apk -d target/android
+          tools="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
+          "$tools/aapt2" dump badging target/android/universal.apk | tee target/android/badging.txt
+          grep -q "^native-code: 'arm64-v8a'" target/android/badging.txt
+          "$tools/zipalign" -c -P 16 4 target/android/universal.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: CalcCraft-android-arm64
-          path: target/android/*.apk
+          path: |
+            target/android/*.apk
+            target/android/*.aab
           if-no-files-found: error
+
+      # The Google Play App Bundles (docs/support-prompt.md, section 8), after the upload above:
+      # build-apk.ps1 starts each build with an empty target/android. It fails when a Play
+      # library contains the donate page's or Stripe's address. The paid bundle must carry the
+      # paid app's ID.
+      - name: Build and check the Google Play free and paid App Bundles
+        shell: pwsh
+        run: |
+          # A hashtable: an array splat would pass '-Ndk' to a script as a positional value.
+          $common = @{ Ndk = $env:NDK; BuildTools = $env:BUILD_TOOLS; Bundle = $true }
+          android/build-apk.ps1 @common -Channel play-free
+          android/build-apk.ps1 @common -Channel play-free -PaidApplicationId com.rapalon.calccraft.pro
+          android/build-apk.ps1 @common -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro
+          $jar = (Get-ChildItem .tools/bundletool-all-*.jar).FullName
+          $aab = (Get-ChildItem target/android/CalcCraft-Pro-*-arm64.aab).FullName
+          $package = java -jar $jar dump manifest "--bundle=$aab" --xpath /manifest/@package
+          if ($package -ne 'com.rapalon.calccraft.pro') {
+              throw "The paid bundle's package is '$package', not com.rapalon.calccraft.pro."
+          }
