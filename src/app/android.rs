@@ -1,6 +1,7 @@
 //! The Android app's ties to the system, through JNI where only Java can tell: the parts of
 //! the screen under the status bar, the navigation bar and a camera cutout (NativeActivity
-//! draws under them), the user's languages, the back button, and the keys' vibration.
+//! draws under them), the user's languages, the back button, the keys' vibration, and
+//! whether the system keyboard is open.
 
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -362,6 +363,38 @@ fn covered_edges() -> Option<[i32; 4]> {
             ]
         };
         Ok(Some(insets))
+    })
+    .flatten()
+}
+
+/// Whether the system keyboard is open (`WindowInsets.isVisible(Type.ime())`), or `None`
+/// before Android 11, which can't tell. The Graphing mode's keyboard toggle goes off when
+/// the keyboard closes (Back), which the app isn't told otherwise: the keyboard takes that
+/// Back itself. egui-winit opens and closes the keyboard (`showSoftInput`).
+pub(super) fn ime_visible() -> Option<bool> {
+    with_activity(|env, activity| {
+        if sdk_version(env)? < 30 {
+            return Ok(None);
+        }
+        let decor = decor_view(env, activity)?;
+        let insets = env
+            .call_method(
+                &decor,
+                "getRootWindowInsets",
+                "()Landroid/view/WindowInsets;",
+                &[],
+            )?
+            .l()?;
+        if insets.is_null() {
+            return Ok(None);
+        }
+        let ime = env
+            .call_static_method("android/view/WindowInsets$Type", "ime", "()I", &[])?
+            .i()?;
+        let visible = env
+            .call_method(&insets, "isVisible", "(I)Z", &[JValue::Int(ime)])?
+            .z()?;
+        Ok(Some(visible))
     })
     .flatten()
 }
