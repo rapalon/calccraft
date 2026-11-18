@@ -493,6 +493,11 @@ mod tests {
             "CalcCraft.RegionalFormat",
             "CalcCraft.Contribute",
             "CalcCraft.PrivacyPolicy",
+            "CalcCraft.KeyVibration",
+            "CalcCraft.KeyVibrationDescription",
+            "CalcCraft.KeyVibrationOff",
+            "CalcCraft.KeyVibrationPercent",
+            "CalcCraft.KeyVibrationSystemOff",
         ];
         for language in languages() {
             let table = parse(own(language));
@@ -508,7 +513,19 @@ mod tests {
         for language in languages() {
             let contribute = load(language).get("CalcCraft.Contribute");
             assert_eq!(contribute.matches("%1").count(), 1, "{language}");
+            // And the key vibration's percentage the place of its number.
+            let percent = load(language).get("CalcCraft.KeyVibrationPercent");
+            assert_eq!(percent.matches("%1").count(), 1, "{language}");
+            assert_eq!(percent.matches('%').count(), 2, "{language}");
         }
+        assert_eq!(
+            format_message(load("de-DE").get("CalcCraft.KeyVibrationPercent"), &["50"]),
+            "50 %"
+        );
+        assert_eq!(
+            format_message(load("tr-TR").get("CalcCraft.KeyVibrationPercent"), &["50"]),
+            "%50"
+        );
         // Languages without their own section fall back to English.
         assert_eq!(load("ar-SA").get("CalcCraft.Language"), "Language");
         // Support strings fall back to English for all languages without explicit translations.

@@ -16,6 +16,7 @@ mod region;
 mod scientific_view;
 mod share;
 pub(crate) mod strings;
+mod vibration;
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod web;
 
@@ -240,6 +241,136 @@ impl ComboCard {
             wide,
             box_width,
             height,
+        }
+    }
+}
+
+/// The cards of the Settings page's Appearance group under the App theme card.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SettingsCard {
+    Language,
+    /// The Android app's Key vibration slider.
+    KeyVibration,
+    Region,
+}
+
+/// The cards under App theme, in order: Language, Key vibration where keys vibrate (the
+/// Android app), and Regional format where there are formats to choose. Where
+/// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
+/// setting", which changes nothing there: the formats are en-US until those systems' own are
+/// read.
+fn settings_cards(key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
+    let mut cards = vec![SettingsCard::Language];
+    if key_vibration {
+        cards.push(SettingsCard::KeyVibration);
+    }
+    if has_regions {
+        cards.push(SettingsCard::Region);
+    }
+    cards
+}
+
+/// The Key vibration card's layout (the Android app): like a `ComboCard`, with a slider and
+/// its value (`Off` or a percentage) in place of the box, and a hint under them while touch
+/// feedback is off in Android's settings.
+struct VibrationCard {
+    title: Arc<Galley>,
+    description: Arc<Galley>,
+    hint: Option<Arc<Galley>>,
+    wide: bool,
+    /// The slider and its value, right of the text or under it.
+    control_width: f32,
+    /// Room for the value, right of the slider: as wide as the widest one.
+    value_width: f32,
+    height: f32,
+}
+
+impl VibrationCard {
+    const HINT_GAP: f32 = 8.0;
+
+    fn new(painter: &Painter, p: &Palette, width: f32, touch_feedback: bool) -> Self {
+        let wide = width >= 476.0;
+        let room = width - ComboCard::TEXT_X - ComboCard::PADDING;
+        let font = FontId::proportional(14.0);
+        let value_width = [0, vibration::MAX]
+            .into_iter()
+            .map(|strength| {
+                painter
+                    .layout_no_wrap(vibration_value(strength), font.clone(), p.text)
+                    .size()
+                    .x
+            })
+            .fold(0.0, f32::max)
+            + 12.0;
+        let control_width = if wide { (room / 2.0).min(280.0) } else { room };
+        let text_width = if wide {
+            room - control_width - ComboCard::PADDING
+        } else {
+            room
+        };
+        let title = painter.layout(
+            tr("CalcCraft.KeyVibration").to_string(),
+            font,
+            p.text,
+            text_width,
+        );
+        let description = painter.layout(
+            tr("CalcCraft.KeyVibrationDescription").to_string(),
+            FontId::proportional(12.0),
+            p.text_secondary,
+            text_width,
+        );
+        let hint = (!touch_feedback).then(|| {
+            painter.layout(
+                tr("CalcCraft.KeyVibrationSystemOff").to_string(),
+                FontId::proportional(12.0),
+                p.text_secondary,
+                room,
+            )
+        });
+        let text_height = title.size().y + description.size().y;
+        let top_block = if wide {
+            text_height.max(ComboCard::BOX_HEIGHT)
+        } else {
+            text_height + 12.0 + ComboCard::BOX_HEIGHT
+        };
+        let hint_height = hint
+            .as_ref()
+            .map_or(0.0, |hint| Self::HINT_GAP + hint.size().y);
+        let mut height = ComboCard::PADDING + top_block + hint_height + ComboCard::PADDING;
+        if wide && hint.is_none() {
+            height = height.max(68.0);
+        }
+        Self {
+            title,
+            description,
+            hint,
+            wide,
+            control_width,
+            value_width,
+            height,
+        }
+    }
+}
+
+/// The Key vibration slider's value as shown: `Off`, or the strength as a percentage.
+fn vibration_value(strength: u8) -> String {
+    if strength == 0 {
+        tr("CalcCraft.KeyVibrationOff").to_string()
+    } else {
+        strings::tr_format("CalcCraft.KeyVibrationPercent", &[&strength.to_string()])
+    }
+}
+
+/// The vibration icon of the Key vibration card: a phone between two pairs of short lines.
+fn paint_vibration_icon(painter: &Painter, center: Pos2, color: Color32) {
+    let stroke = Stroke::new(1.3, color);
+    let phone = Rect::from_center_size(center, vec2(9.0, 15.0));
+    painter.rect_stroke(phone, 2.0, stroke, StrokeKind::Middle);
+    for side in [-1.0, 1.0] {
+        for (dx, half) in [(7.5, 3.5), (10.5, 2.0)] {
+            let x = center.x + side * dx;
+            painter.line_segment([pos2(x, center.y - half), pos2(x, center.y + half)], stroke);
         }
     }
 }
@@ -485,13 +616,14 @@ impl WindowSizes {
     }
 }
 
-/// In the Android app, a light tap of the vibration motor as a finger lands on a key (see
-/// `android::key_tap`), like the system keyboard's. Keys typed on a keyboard don't vibrate.
+/// In the Android app, a light tap of the vibration motor as a finger lands on a key, at the
+/// strength of Settings → Key vibration (see `android::key_tap`). Keys typed on a keyboard
+/// don't vibrate.
 #[cfg_attr(not(target_os = "android"), allow(unused_variables))]
 fn key_feedback(ui: &Ui, response: &Response) {
     #[cfg(target_os = "android")]
     if response.is_pointer_button_down_on() && ui.input(|i| i.pointer.primary_pressed()) {
-        android::key_tap();
+        android::key_tap(vibration::strength());
     }
 }
 
@@ -620,6 +752,12 @@ impl CalculatorApp {
         };
         let language_choice = choice(LANGUAGE_KEY);
         let region_choice = choice(REGION_KEY);
+        if vibration::AVAILABLE {
+            let stored = cc
+                .storage
+                .and_then(|storage| storage.get_string(vibration::STORAGE_KEY));
+            vibration::set_strength(vibration::parse(stored.as_deref()));
+        }
         // Before anything looks up a string or formats a number.
         let language = strings::set_language(language_choice.as_deref());
         let region = &region::set_region(region_choice.as_deref()).tag;
@@ -2199,6 +2337,15 @@ impl CalculatorApp {
                 self.all_scripts = true;
                 self.update_fonts(&ctx);
             }
+            #[cfg_attr(not(target_os = "android"), allow(unused_variables))]
+            Some(SettingsAction::SetVibration(strength, tap)) => {
+                vibration::set_strength(strength);
+                // One tap at the new strength, to tune it by feel.
+                #[cfg(target_os = "android")]
+                if tap {
+                    android::key_tap(strength);
+                }
+            }
             None => {}
         }
 
@@ -2267,16 +2414,17 @@ impl CalculatorApp {
                 )
                 .unwrap_or_default()
         };
-        let combo_cards = [
-            ComboCard::new(
-                &painter,
-                p,
-                width - 2.0 * SIDE,
-                SettingsList::Language,
-                tr("CalcCraft.Language"),
-                tr("CalcCraft.LanguageDescription"),
-                &chosen(SettingsList::Language),
-            ),
+        let cards = settings_cards(vibration::AVAILABLE, !region::regions().is_empty());
+        let language_card = ComboCard::new(
+            &painter,
+            p,
+            width - 2.0 * SIDE,
+            SettingsList::Language,
+            tr("CalcCraft.Language"),
+            tr("CalcCraft.LanguageDescription"),
+            &chosen(SettingsList::Language),
+        );
+        let region_card = cards.contains(&SettingsCard::Region).then(|| {
             ComboCard::new(
                 &painter,
                 p,
@@ -2285,8 +2433,15 @@ impl CalculatorApp {
                 tr("CalcCraft.RegionalFormat"),
                 &region::formats().example(today),
                 &chosen(SettingsList::Region),
-            ),
-        ];
+            )
+        });
+        #[cfg(target_os = "android")]
+        let touch_feedback = android::touch_feedback_enabled();
+        #[cfg(not(target_os = "android"))]
+        let touch_feedback = true;
+        let vibration_card = cards
+            .contains(&SettingsCard::KeyVibration)
+            .then(|| VibrationCard::new(&painter, p, width - 2.0 * SIDE, touch_feedback));
         let link_text = "GitHub";
         // Windows' own sentence (`AboutControlContribute`) names the Windows Calculator, so
         // CalcCraft has its own, with the link at `%1`.
@@ -2310,9 +2465,18 @@ impl CalculatorApp {
         let theme_top = appearance_y + 18.0;
         let theme_bottom = theme_top + header_height + options_height;
         // Cards in a group are 4 px apart.
-        let language_top = theme_bottom + 4.0;
-        let region_top = language_top + combo_cards[0].height + 4.0;
-        let cards_bottom = region_top + combo_cards[1].height;
+        let mut card_tops = Vec::with_capacity(cards.len());
+        let mut cards_bottom = theme_bottom;
+        for card in &cards {
+            let card_top = cards_bottom + 4.0;
+            card_tops.push(card_top);
+            cards_bottom = card_top
+                + match card {
+                    SettingsCard::Language => language_card.height,
+                    SettingsCard::KeyVibration => vibration_card.as_ref().map_or(0.0, |c| c.height),
+                    SettingsCard::Region => region_card.as_ref().map_or(0.0, |c| c.height),
+                };
+        }
         let about_y = cards_bottom + 45.0;
         let about_top = about_y + 18.0;
         let feedback_y = about_top + CARD_HEIGHT + 25.0;
@@ -2420,19 +2584,31 @@ impl CalculatorApp {
             }
         }
 
-        // Language and Regional format (CalcCraft's own; Windows follows its settings).
-        for (card, card_top) in combo_cards.iter().zip([language_top, region_top]) {
-            let rect =
-                Rect::from_min_size(pos2(left, top + card_top), vec2(right - left, card.height));
-            let icon = icon_label(
-                match card.list {
-                    SettingsList::Language => ICON_LANGUAGE,
-                    SettingsList::Region => ICON_REGION,
-                },
-                20.0,
-            );
-            if let Some(anchor) = self.draw_combo_card(ui, &painter, rect, card, icon) {
-                action = Some(SettingsAction::OpenList(card.list, anchor));
+        // Language, Key vibration and Regional format (CalcCraft's own; Windows follows its
+        // settings).
+        for (kind, card_top) in cards.iter().zip(card_tops) {
+            let combo = match kind {
+                SettingsCard::Language => Some((&language_card, ICON_LANGUAGE)),
+                SettingsCard::Region => region_card.as_ref().map(|card| (card, ICON_REGION)),
+                SettingsCard::KeyVibration => None,
+            };
+            if let Some((card, icon)) = combo {
+                let rect = Rect::from_min_size(
+                    pos2(left, top + card_top),
+                    vec2(right - left, card.height),
+                );
+                let icon = icon_label(icon, 20.0);
+                if let Some(anchor) = self.draw_combo_card(ui, &painter, rect, card, icon) {
+                    action = Some(SettingsAction::OpenList(card.list, anchor));
+                }
+            } else if let Some(card) = &vibration_card {
+                let rect = Rect::from_min_size(
+                    pos2(left, top + card_top),
+                    vec2(right - left, card.height),
+                );
+                if let Some(set) = self.draw_vibration_card(ui, &painter, rect, card) {
+                    action = Some(set);
+                }
             }
         }
 
@@ -2619,6 +2795,151 @@ impl CalculatorApp {
         response.clicked().then_some(field)
     }
 
+    /// Draws the Key vibration card in `rect` (the Android app): its slider runs from Off at
+    /// the far left to 100 %. Returns the new strength while it is dragged, with a tap to play
+    /// when it is released, tapped or moved with the arrow keys.
+    fn draw_vibration_card(
+        &self,
+        ui: &Ui,
+        painter: &Painter,
+        rect: Rect,
+        card: &VibrationCard,
+    ) -> Option<SettingsAction> {
+        let p = self.palette;
+        painter.rect_filled(rect, RADIUS, p.card);
+        painter.rect_stroke(
+            rect,
+            RADIUS,
+            Stroke::new(1.0, p.card_border),
+            StrokeKind::Inside,
+        );
+        let title_height = card.title.size().y;
+        let text_height = title_height + card.description.size().y;
+        let top_block = if card.wide {
+            text_height.max(ComboCard::BOX_HEIGHT)
+        } else {
+            text_height + 12.0 + ComboCard::BOX_HEIGHT
+        };
+        let block_top = rect.top() + ComboCard::PADDING;
+        let text_top = if card.wide {
+            block_top + (top_block - text_height) / 2.0
+        } else {
+            block_top
+        };
+        paint_vibration_icon(
+            painter,
+            pos2(
+                rect.left() + ComboCard::ICON_X,
+                text_top + text_height / 2.0,
+            ),
+            p.text,
+        );
+        let text_left = rect.left() + ComboCard::TEXT_X;
+        painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
+        painter.galley(
+            pos2(text_left, text_top + title_height),
+            card.description.clone(),
+            p.text_secondary,
+        );
+        if let Some(hint) = &card.hint {
+            let hint_top = block_top + top_block + VibrationCard::HINT_GAP;
+            painter.galley(pos2(text_left, hint_top), hint.clone(), p.text_secondary);
+        }
+
+        // The slider, then its value.
+        let control = if card.wide {
+            Rect::from_min_size(
+                pos2(
+                    rect.right() - ComboCard::PADDING - card.control_width,
+                    block_top + (top_block - ComboCard::BOX_HEIGHT) / 2.0,
+                ),
+                vec2(card.control_width, ComboCard::BOX_HEIGHT),
+            )
+        } else {
+            Rect::from_min_size(
+                pos2(text_left, text_top + text_height + 12.0),
+                vec2(card.control_width, ComboCard::BOX_HEIGHT),
+            )
+        };
+        let slider = control.with_max_x(control.right() - card.value_width);
+        let strength = vibration::strength();
+        let id = Id::new("key-vibration-slider");
+        let name = tr("CalcCraft.KeyVibration");
+        let info = move || {
+            let mut info = WidgetInfo::labeled(WidgetType::Slider, true, name);
+            info.value = Some(f64::from(strength));
+            info
+        };
+        let response = access::interact(ui, p, slider, id, Sense::click_and_drag(), RADIUS, info);
+        let track = Rect::from_min_max(
+            pos2(slider.left() + 10.0, slider.center().y - 2.0),
+            pos2(slider.right() - 10.0, slider.center().y + 2.0),
+        );
+        let mut new = strength;
+        if let Some(pos) = response.interact_pointer_pos()
+            && (response.dragged() || response.clicked() || response.is_pointer_button_down_on())
+        {
+            let t = ((pos.x - track.left()) / track.width()).clamp(0.0, 1.0);
+            new = (t * f32::from(vibration::MAX)).round() as u8;
+        }
+        let mut tap = response.drag_stopped() || response.clicked();
+        if response.has_focus() {
+            // The arrow keys move the thumb, not the focus.
+            ui.ctx().memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    id,
+                    egui::EventFilter {
+                        horizontal_arrows: true,
+                        vertical_arrows: true,
+                        ..Default::default()
+                    },
+                )
+            });
+            let (down, up) = ui.ctx().input(|i| {
+                (
+                    i.key_pressed(Key::ArrowLeft) || i.key_pressed(Key::ArrowDown),
+                    i.key_pressed(Key::ArrowRight) || i.key_pressed(Key::ArrowUp),
+                )
+            });
+            if down && new > 0 {
+                new -= 1;
+                tap = true;
+            }
+            if up && new < vibration::MAX {
+                new += 1;
+                tap = true;
+            }
+        }
+
+        let t = f32::from(new) / f32::from(vibration::MAX);
+        let thumb_x = track.left() + t * track.width();
+        painter.rect_filled(track, 2.0, p.slider_rail);
+        painter.rect_filled(track.with_max_x(thumb_x), 2.0, p.accent);
+        let center = pos2(thumb_x, track.center().y);
+        painter.circle(
+            center,
+            10.0,
+            p.slider_thumb,
+            Stroke::new(1.0, p.slider_thumb_border),
+        );
+        let inner = if response.is_pointer_button_down_on() {
+            5.0
+        } else if response.hovered() {
+            7.0
+        } else {
+            6.0
+        };
+        painter.circle_filled(center, inner, p.accent);
+        painter.text(
+            pos2(control.right(), control.center().y),
+            Align2::RIGHT_CENTER,
+            vibration_value(new),
+            FontId::proportional(14.0),
+            p.text,
+        );
+        (new != strength || tap).then_some(SettingsAction::SetVibration(new, tap))
+    }
+
     /// The open Settings drop-down: the entries, with the selected one over the box where it
     /// fits, as in WinUI. Returns the entry chosen: `Some(None)` is the Windows setting.
     fn draw_settings_list(
@@ -2720,6 +3041,9 @@ enum SettingsAction {
     OpenUrl(&'static str),
     /// Open a drop-down list from its box.
     OpenList(SettingsList, Rect),
+    /// A new key vibration strength, and whether to play a tap at it (the slider was
+    /// released, or moved with a key).
+    SetVibration(u8, bool),
 }
 
 #[derive(Clone, Copy)]
@@ -2778,6 +3102,9 @@ impl eframe::App for CalculatorApp {
         ] {
             let value = choice.as_deref().unwrap_or(SYSTEM_CHOICE);
             storage.set_string(key, value.to_owned());
+        }
+        if vibration::AVAILABLE {
+            storage.set_string(vibration::STORAGE_KEY, vibration::strength().to_string());
         }
         storage.set_string(
             graphing_view::THEME_KEY,
@@ -3863,6 +4190,38 @@ mod tests {
     use egui::accesskit::{Action, NodeId, Role};
 
     const GRAPH_WINDOW: egui::Vec2 = vec2(1000.0, 700.0);
+
+    #[test]
+    fn settings_card_order() {
+        use SettingsCard::*;
+        // Windows and the web version: regional formats to choose, no key vibration.
+        assert_eq!(settings_cards(false, true), [Language, Region]);
+        // The Android app: no regional formats yet, Key vibration right after Language.
+        assert_eq!(settings_cards(true, false), [Language, KeyVibration]);
+        // Linux and macOS: the Regional format card would only offer "Use system setting".
+        assert_eq!(settings_cards(false, false), [Language]);
+        assert_eq!(settings_cards(true, true), [Language, KeyVibration, Region]);
+        // This build's own cards.
+        let cards = settings_cards(vibration::AVAILABLE, !region::regions().is_empty());
+        assert_eq!(
+            cards.contains(&Region),
+            cfg!(any(windows, target_arch = "wasm32"))
+        );
+        assert_eq!(cards.contains(&KeyVibration), cfg!(target_os = "android"));
+    }
+
+    #[test]
+    fn key_vibration_values() {
+        // In the language the tests run in (the system's, unless a test switched it).
+        assert_eq!(vibration_value(0), tr("CalcCraft.KeyVibrationOff"));
+        for strength in [1, 50, 100] {
+            let text = vibration_value(strength);
+            assert!(
+                text.contains(&strength.to_string()) && text.contains('%'),
+                "{text}"
+            );
+        }
+    }
 
     fn key(key: Key, modifiers: Modifiers) -> Event {
         Event::Key {
