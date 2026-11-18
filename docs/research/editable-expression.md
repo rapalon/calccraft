@@ -1,6 +1,8 @@
 # Research: editing the entry and the expression with a cursor
 
-Status: research only, no product code changed. Written 2026-11-18 for task 39036547.
+Status: written 2026-11-18 for task 39036547 as research; A, B and C were then built on one
+branch for task 246b6e2c (`src/engine/caret.rs`, `src/engine/tape.rs`, `src/app/caret.rs`), with
+the choices in "Decisions" at the end.
 
 ## The request
 

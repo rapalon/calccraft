@@ -50,6 +50,9 @@ build.rs                 embeds the icon and version info into calculator.exe (W
 src/engine.rs            calculator logic, no UI dependencies, unit tests at the bottom
 src/engine/math.rs       the Scientific mode's functions (a child module of engine.rs), unit tests
 src/engine/integer.rs    the Programmer mode's integer mode (a child module of engine.rs), unit tests
+src/engine/caret.rs      the caret in the number being typed (CalcCraft's own), unit tests
+src/engine/tape.rs       the tape: replaying a calculation with a number edited, the history's
+                         Edit (CalcCraft's own), unit and property tests
 src/dates.rs             date calculation logic (chrono), no UI dependencies, unit tests
 src/converter.rs         unit converter logic and unit data, no UI dependencies, unit tests
 src/locale.rs            regional number formats and date patterns, no UI dependencies, unit tests
@@ -61,6 +64,7 @@ src/graphing/analysis.rs the key graph features (function analysis)
 src/graphing/exact.rs    exact values (fractions, multiples of π, square roots) for the analysis
 src/app.rs               egui user interface (custom painting), modes, menu, keyboard, fonts, title bar
 src/app/access.rs        keyboard focus, focus visuals and screen reader names of every control
+src/app/caret.rs         where the engine's caret is in the text shown (grouping, padding), pure
 src/app/icons.rs         the icons: code points of the embedded icon font, and a test that it has them
 src/app/strings.rs       the interface's text in the user's language (from locales/)
 src/app/region.rs        the user's regional formats, read from Windows (or the browser's Intl)
@@ -175,6 +179,40 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
 - `digit_fits` and `sign_toggles` port `CalcInput`'s integer limits; `paste_operand_is_valid`
   ports `CopyPasteManager`'s Programmer patterns and limits (no regex crate: `operand_matches`).
 
+### `engine/caret.rs` and `engine/tape.rs` (editing, CalcCraft's own)
+
+Windows has no caret and no editable expression line; CalcCraft adds them, always on, and
+nothing changes until the display or the line is touched. The spec and every choice made are in
+`docs/research/editable-expression.md` ("Decisions").
+
+- **A, the caret** (`caret.rs`): `Input::caret` is a position in the typed characters (digits and
+  point, then the exponent's digits as a second segment), never in the text shown. Every edit is
+  checked by typing the edited number again from scratch (`Input::retype`), so the typing limits
+  hold at the caret. A hidden caret, or one at the end, is exactly the old typing.
+- **B, the tape** (`tape.rs`): `execute` records every command since the last `C`, a typed number
+  as one `Item::Operand` with the keys that typed it. `Token::source` links an operand of the
+  expression line to its tape item (`current_source`; every assignment to `current` clears it),
+  and `expression_parts` gives those numbers' places in the line. An edit replaces the item and
+  replays the tape into a fresh engine (`replayed`), which is what typing the edited keys fresh
+  gives: the property tests `replaying_an_edit_is_typing_it_fresh` and
+  `caret_edits_replay_the_same` check it in all three modes. Keep these rules when the engine
+  changes: a replay (`replaying`) adds no history and doesn't touch the memory; MR, `rand` and a
+  history recall replay the value they gave (`Item::Recall`, `Random`, `HistoryRecall`); a new
+  public entry point that changes the state has to record itself on the tape; and the state
+  after `C` must equal a fresh engine with the tape's settings.
+- A number whose keys were made from its digits (`Input::keys`, after the caret edited it) also
+  remembers how its typing ended, its last key and whether the line was hidden
+  (`Operand::finish`), since those keys can end otherwise and the next key depends on it.
+- While a number of the line is edited (`Edit::Line`), `display` and `error` show what `=` would
+  give (`preview`), and the line shows the edited number (`expression_parts`). `=`, any other key
+  and a tap elsewhere commit it (`commit_edit`): an edited finished calculation adds a new
+  history entry. Esc (`hide_entry_caret`) puts the original engine back. A tap on a computed
+  display value edits a typed copy (`Edit::Display`) that replaces its operand once a key
+  changes it (`display_copy_start` says where that operand starts on the tape).
+- **C, Edit in the history**: `HistoryEntry` keeps the tape that logged it (`entry_tape`, with
+  `=` for a Standard step an operator logged); `edit_history` replays it and puts the caret
+  into its last number.
+
 ### `app.rs`
 
 - Everything is painted by hand. `button_flash` draws every key, and the layout is computed
@@ -267,6 +305,12 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   modifiers. The right `Alt` key's own events tell when it's down, in order with the other
   keys; a letter key that typed only other characters than its letter (diacritics aside, so a
   dead key's `é` and `´q` stay `E` and `Q`) counts as pressed with `AltGr` too.
+- The display and the expression line sense taps (`draw_display_sized`,
+  `draw_expression_line`) to place the caret (`app/caret.rs` maps it onto the localized text by
+  finding the typed characters in it). While a caret is shown, `caret_key` takes Left, Right,
+  Home, End, Ctrl+Left/Right, Delete (which is otherwise CE) and Esc (otherwise C), and cancels
+  egui's focus move; with no caret they do what they did. The keypad needs nothing: the engine's
+  `execute` sends the typing keys to the edited number.
 - Every interactive control goes through `access::control`, which makes it clickable and
   focusable (`Tab`, `Shift+Tab`, arrow keys: egui's own focus handling), gives it a screen
   reader description (`access::button`, `item`, `combo_box`), draws WinUI's focus visual and
@@ -885,7 +929,9 @@ Unit tests don't cover the UI. After visual or interaction changes:
    `Ctrl` + plus, minus and 0, hover tracing and active tracing with the arrow keys and `Esc`,
    the graph options (ranges, units, line thickness, graph theme in both app themes), Copy, and
    the share sheet (Paint and Outlook among its targets). Open every popup in the narrowest
-   window (320 px) too.
+   window (320 px) too. For editing (Standard, Scientific, Programmer): click into the number
+   being typed (grouped, `de-DE`, HEX and BIN), a number of the expression line before and after
+   `=`, the display after `)`, Edit in the history menu, and the caret keys.
 2. Compare it side by side with the real Windows Calculator.
 3. If the look changed, update `docs/screenshot.png` (dark), `docs/screenshot-light.png`,
    `docs/scientific.png`, `docs/date-calculation.png`, `docs/programmer.png` or
