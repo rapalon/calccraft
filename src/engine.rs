@@ -1271,14 +1271,9 @@ impl Calculator {
             if ends_typing {
                 self.record = false;
                 self.current = self.input.value(self.integer.as_ref());
-                self.display_num();
                 // A typed exponent can make the number too large for the display, which
-                // Windows' `DisplayNum` reports as an overflow.
-                if self.integer.is_none()
-                    && let Err(error) = normalize(self.current.clone())
-                {
-                    self.display_error(error);
-                }
+                // `display_num` reports as an overflow, as Windows' `DisplayNum` does.
+                self.display_num();
             }
         } else if matches!(command, Command::Digit(_) | Command::Decimal) {
             self.record = true;
@@ -1295,13 +1290,19 @@ impl Calculator {
         self.this_key = self.last_key;
     }
 
-    /// In the Programmer mode, the steps of Windows' `DisplayNum` that change the value:
-    /// a result becomes an unsigned integer of the word size, so `5 ÷ 2 × 2` is 4.
+    /// The steps of Windows' `DisplayNum` that change the state. In the Programmer mode a
+    /// result becomes an unsigned integer of the word size, so `5 ÷ 2 × 2` is 4. Otherwise
+    /// the number is checked as the display writes it (`IsNumberInvalid`): an exponent
+    /// beyond ±9999 is an overflow, also when the rounding to the display's digits makes
+    /// it one (9.99…9e+9999 shows as `1.e+10000`).
     fn display_num(&mut self) {
-        if let Some(mode) = &self.integer
-            && !self.record
-        {
+        if self.record {
+            return;
+        }
+        if let Some(mode) = &self.integer {
             self.current = mode.truncate(&self.current);
+        } else if exponent_too_large(&self.number_text()) {
+            self.display_error(CalcError::Overflow);
         }
     }
 
@@ -1385,7 +1386,9 @@ impl Calculator {
                 if self.error.is_none() {
                     self.display_num();
                     if !self.precedence {
-                        // Standard mode logs every step and continues from its result.
+                        // Standard mode logs every step and continues from its result, even
+                        // one whose display overflows: Windows tests for an error before
+                        // `DisplayNum` (the history shows `1.e+10000`).
                         self.complete_equation();
                         self.add_operand();
                     }
@@ -1493,6 +1496,9 @@ impl Calculator {
             Ok(result) => self.current = result,
             Err(error) => return self.display_error(error),
         }
+        // Windows shows the result with `DisplayNum`, whose rounding can still overflow, and
+        // writes it in the expression line all the same.
+        self.display_num();
         self.check_and_add_last_bin_op_to_history(true);
         self.add_operand();
         self.refresh();
@@ -2307,14 +2313,29 @@ fn normalize(v: Number) -> Result<Number, CalcError> {
         return Ok(v);
     }
     let magnitude = v.numer().abs();
-    let e = exponent(&magnitude, v.denom());
-    if e.abs() > MAX_EXPONENT {
+    if exponent_overflows(exponent(&magnitude, v.denom())) {
         return Err(CalcError::Overflow);
     }
     if v.denom().bits() <= MAX_DENOM_BITS {
         return Ok(v);
     }
     Ok(math::round_digits(&v, INTERNAL_DIGITS))
+}
+
+/// Whether a result with this decimal exponent overflows however the display rounds it:
+/// from 10^10000 on, or below 10^-10000. Rounding can't bring those back to four exponent
+/// digits, but just below 10^-9999 a number can still show as `1.e-9999`, so there (and
+/// just below 10^10000) `Calculator::display_num` decides on the rounded number.
+fn exponent_overflows(e: i64) -> bool {
+    !(-MAX_EXPONENT - 1..=MAX_EXPONENT).contains(&e)
+}
+
+/// Whether a number as `format_with` writes it has an exponent beyond ±9999, which
+/// Windows' `IsNumberInvalid` refuses (more than four exponent digits).
+fn exponent_too_large(text: &str) -> bool {
+    text.split_once('e')
+        .and_then(|(_, e)| e.parse::<i64>().ok())
+        .is_some_and(|e| e.abs() > MAX_EXPONENT)
 }
 
 fn pow10(n: i64) -> BigInt {
@@ -3243,6 +3264,51 @@ mod tests {
         assert_eq!(
             run_scientific("99 exp 9999 +"),
             pair("Overflow", "9.9e+10000 +")
+        );
+    }
+
+    #[test]
+    fn overflow_is_decided_on_the_rounded_number() {
+        // As in Windows' `DisplayNum`, the number as the display rounds it decides:
+        // 9.99…9e+9999 shows as 1.e+10000, an overflow, and 9.99…9e-10000 as 1.e-9999.
+        let mut calc = Calculator::with_precedence();
+        press_scientific(&mut calc, "10 - 1 exp 35 neg = * 1 exp 9999 =");
+        assert_eq!(
+            (calc.display(), calc.expression()),
+            pair("Overflow", "10 ×")
+        );
+        assert_eq!(calc.history().len(), 1);
+        assert_eq!(
+            run_scientific("1 - 1 exp 35 neg = * 1 exp 9999 neg ="),
+            pair("1.e-9999", "1 × 1.e-9999 =")
+        );
+        // The Standard mode rounds to 16 digits. After `=` nothing is logged.
+        let mut calc = Calculator::default();
+        assert!(calc.paste("9.999999999999999e9999+9e9983="));
+        assert_eq!(calc.display(), "Overflow");
+        assert!(calc.history().is_empty());
+        // When `DisplayNum` finds the overflow, Windows still does the rest of the step: a
+        // chain logs it and goes on from its result, and `%` writes its operand.
+        assert!(calc.paste("9.999999999999999e9999+9e9983"));
+        calc.execute(Command::Operator(Op::Add));
+        assert_eq!(
+            (calc.display(), calc.expression()),
+            pair("Overflow", "1.e+10000 +")
+        );
+        let entry = &calc.history()[0];
+        assert_eq!(
+            pair(&entry.expression, &entry.text),
+            pair("9.999999999999999e+9999 + 9.e+9983 =", "1.e+10000")
+        );
+        assert!(calc.paste("100+7e-15="));
+        calc.execute(Command::MemoryStore);
+        assert!(calc.paste("9.999999999999999e9999"));
+        calc.execute(Command::Operator(Op::Add));
+        calc.execute(Command::MemoryRecall);
+        calc.execute(Command::Percent);
+        assert_eq!(
+            (calc.display(), calc.expression()),
+            pair("Overflow", "9.999999999999999e+9999 + 1.e+10000")
         );
     }
 

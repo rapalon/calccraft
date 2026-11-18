@@ -17,7 +17,10 @@ use num_bigint::{BigInt, BigUint};
 use num_rational::BigRational;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 
-use super::{CalcError, INTERNAL_DIGITS, MAX_EXPONENT, Number, exponent, pow10, scaled_round};
+use super::{
+    CalcError, INTERNAL_DIGITS, MAX_EXPONENT, Number, exponent, exponent_overflows, pow10,
+    scaled_round,
+};
 
 /// Bits of the working precision, about 120 decimal digits.
 const PREC: u64 = 400;
@@ -463,7 +466,8 @@ fn atan_float(x: &Float, prec: u64) -> Float {
 // --------------------------------------------------------------- finishing
 
 /// A result for the engine: rounded to `INTERNAL_DIGITS` significant digits, or
-/// `Overflow` when its decimal exponent goes beyond Windows' four digits.
+/// `Overflow` when its decimal exponent is beyond Windows' four digits however the display
+/// rounds it (`exponent_overflows`).
 fn finish(f: &Float) -> Result<Number, CalcError> {
     if f.is_zero() {
         return Ok(Number::zero());
@@ -474,7 +478,7 @@ fn finish(f: &Float) -> Result<Number, CalcError> {
     }
     let value = round_digits(&f.to_rational(), INTERNAL_DIGITS);
     let magnitude = value.numer().abs();
-    if exponent(&magnitude, value.denom()).abs() > MAX_EXPONENT {
+    if exponent_overflows(exponent(&magnitude, value.denom())) {
         return Err(CalcError::Overflow);
     }
     Ok(value)
@@ -670,8 +674,7 @@ pub fn power(x: &Number, y: &Number) -> Result<Number, CalcError> {
         let size = (base.numer().bits() + base.denom().bits()) * u64::from(n.unsigned_abs());
         let magnitude = if size <= 100_000 {
             let exact = base.pow(n);
-            let e = decimal_exponent(&exact);
-            if e.abs() > MAX_EXPONENT {
+            if exponent_overflows(decimal_exponent(&exact)) {
                 return Err(CalcError::Overflow);
             }
             exact
