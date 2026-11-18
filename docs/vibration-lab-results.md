@@ -149,3 +149,14 @@ LOW_TICK 12 ms):
   of its own (`getPrimitiveDurations`: CLICK's duration differs from TICK's). Then Auto is
   Click; otherwise Pulse where the vibrator has amplitude control, otherwise a one-shot whose
   duration follows the strength. So the Pixel gets Click and the Samsung Pulse.
+
+## Checked on the phones (2026-11-17)
+
+The play-free build of `mc/085ed422` (711ed30) logs Auto's pick once at startup
+(`adb logcat -s CalcCraft`):
+
+- Pixel 7 Pro: `Key vibration: Auto plays Click (API 36, amplitude control true, click
+  primitive true, resonant frequency 145.95691 Hz, CLICK 26 ms, TICK 5 ms, calibrated true)`
+- Samsung S26 Ultra: `Key vibration: Auto plays Pulse { ms: 8 } (API 37, amplitude control
+  true, click primitive true, resonant frequency NaN Hz, CLICK 20 ms, TICK 20 ms, calibrated
+  false)`. Both conditions fail there: no resonant frequency, and CLICK lasts as long as TICK.
