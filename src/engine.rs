@@ -844,6 +844,22 @@ impl HistoryLine {
     }
 }
 
+/// Whether a logged expression has a binary operation outside parentheses (`2 + 3 =`,
+/// `2 × (3 + 4) =`, but not `5 =`, `√(4)` or `sqr(1 + 2)`), which Windows' replay of the
+/// entry's keys without the `=` leaves pending. `render` writes binary operators between
+/// spaces, and nothing else has a space but the final ` =`.
+fn has_pending_operation(expression: &str) -> bool {
+    let mut depth = 0;
+    expression.trim_end_matches(" =").chars().any(|c| {
+        match c {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            _ => {}
+        }
+        c == ' ' && depth == 0
+    })
+}
+
 #[derive(Clone, Debug)]
 pub struct Calculator {
     /// Operator precedence and parentheses (`m_fPrecedence`, Scientific mode).
@@ -880,6 +896,15 @@ pub struct Calculator {
     line: HistoryLine,
     /// The expression line as last shown; Windows refreshes it only at certain steps.
     shown: String,
+    /// The text of a recalled history entry, which the display shows instead of `current`
+    /// until a command shows the number again: Windows' `SelectHistoryItem` displays
+    /// `item.Result`, the result as it was logged (with the F-E setting of that time).
+    recalled: Option<String>,
+    /// The recalled entry has a binary operation outside parentheses (`2 + 3 =`, unlike
+    /// `5 =` or `√(4)`). Windows recalls an entry by replaying its keys without the `=`,
+    /// which leaves that operation pending: the next operator resolves it and shows the
+    /// number again.
+    recalled_pending: bool,
     memory: Vec<Number>,
     history: Vec<HistoryEntry>,
 }
@@ -908,6 +933,8 @@ impl Default for Calculator {
             error: None,
             line: HistoryLine::default(),
             shown: String::new(),
+            recalled: None,
+            recalled_pending: false,
             memory: Vec::new(),
             history: Vec::new(),
         }
@@ -970,6 +997,9 @@ impl Calculator {
             } else {
                 text
             };
+        }
+        if let Some(text) = &self.recalled {
+            return text.clone();
         }
         if self.record {
             self.input.display()
@@ -1235,6 +1265,27 @@ impl Calculator {
 
     /// The steps every command starts with.
     fn begin(&mut self, command: Command) {
+        // A recalled history entry's text stays until a command shows the number again.
+        // Windows doesn't call `DisplayNum` for ⌫ and `exp` with nothing typed, the memory
+        // keys, the angle unit, an operator with no pending operation to resolve, or a `)`
+        // without an open parenthesis, which it ignores (`HandleErrorCommand`). Only the
+        // replay of an entry like `2 + 3 =` leaves an operation for the first operator;
+        // after that, a second operator replaces the first, and other keys drop the text.
+        let keeps_text = match command {
+            Command::Backspace
+            | Command::Exponent
+            | Command::MemoryStore
+            | Command::MemoryAdd
+            | Command::MemorySubtract
+            | Command::MemoryClear
+            | Command::Angle(_) => true,
+            Command::Operator(_) => !self.recalled_pending,
+            Command::CloseParen => self.paren_stack.is_empty(),
+            _ => false,
+        };
+        if !keeps_text {
+            self.recalled = None;
+        }
         if let Some(key) = Key::of(command) {
             self.last_key = self.this_key;
             self.this_key = key;
@@ -1915,7 +1966,9 @@ impl Calculator {
         }
     }
 
-    /// Shows a history entry's result and expression, as after `=`.
+    /// Shows a history entry's result and expression, as after `=`. The display shows the
+    /// result as the history logged it (`SelectHistoryItem`'s `SetPrimaryDisplay`), which
+    /// can be in another notation than F-E's now; the next operation uses its value.
     pub fn recall_history(&mut self, index: usize) {
         let Some(entry) = self.history.get(index).cloned() else {
             return;
@@ -1924,7 +1977,9 @@ impl Calculator {
         self.current = entry.result.clone();
         self.last = entry.result;
         self.record = false;
+        self.recalled_pending = has_pending_operation(&entry.expression);
         self.shown = entry.expression;
+        self.recalled = Some(entry.text);
         // The next key clears the expression line, as after `=`.
         self.no_prev_equ = false;
         self.this_key = Key::Equals;
@@ -3306,6 +3361,49 @@ mod tests {
         assert_eq!(calc.history()[0].expression, "2 + 3 ^ 2 =");
         assert_eq!(calc.history()[0].text, "11");
         assert_eq!(calc.display(), "11");
+    }
+
+    #[test]
+    fn history_recall_shows_the_logged_text() {
+        // A recalled entry shows its result as the history logged it, in the notation of
+        // that time, even after F-E was turned off, and the other way round.
+        let mut calc = Calculator::with_precedence();
+        press_scientific(&mut calc, "fe 2 + 3 = fe");
+        calc.recall_history(0);
+        assert_eq!(calc.display(), "5.e+0");
+        // Windows recalls by replaying `2 + 3` without the `=`: `+` resolves it and shows
+        // the number again, in the current notation.
+        press_scientific(&mut calc, "+");
+        assert_eq!(calc.display(), "5");
+        let mut calc = Calculator::with_precedence();
+        press_scientific(&mut calc, "2 + 4 = fe");
+        calc.recall_history(0);
+        assert_eq!(calc.display(), "6");
+        // Keys that don't show the number again in Windows (no `DisplayNum`) leave the
+        // text: MS, the angle unit, and an operator after an entry like `5 =`, whose
+        // replay leaves nothing pending.
+        let mut calc = Calculator::with_precedence();
+        press_scientific(&mut calc, "fe 5 = fe");
+        calc.recall_history(0);
+        calc.execute(Command::MemoryStore);
+        press_scientific(&mut calc, "RAD +");
+        assert_eq!((calc.display(), calc.expression()), pair("5.e+0", "5 +"));
+        // The next operation uses the value 5.
+        press_scientific(&mut calc, "1 =");
+        assert_eq!((calc.display(), calc.expression()), pair("6", "5 + 1 ="));
+        // An unmatched `)` is ignored, and the text stays too.
+        let mut calc = Calculator::with_precedence();
+        press_scientific(&mut calc, "fe ( 2 + 3 ) = fe");
+        calc.recall_history(0);
+        press_scientific(&mut calc, ")");
+        assert_eq!(calc.display(), "5.e+0");
+        // A replay leaves an operation pending when one is outside parentheses.
+        assert!(has_pending_operation("2 × (3 + 4) ="));
+        assert!(has_pending_operation("8 log base 2 ="));
+        assert!(!has_pending_operation("√(4)"));
+        assert!(!has_pending_operation("(2 + 3)"));
+        assert!(!has_pending_operation("sqr(1 + 2)"));
+        assert!(!has_pending_operation("1.e-35 ="));
     }
 
     #[test]
