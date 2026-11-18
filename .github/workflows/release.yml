@@ -22,7 +22,9 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag or commit to build (default: the branch the run is for)
+        # Quoted: an unquoted ": " inside it is a YAML error, which GitHub reports as a failed
+        # run with no jobs on every push.
+        description: "Branch, tag or commit to build (default: the branch the run is for)"
         required: false
         default: ""
 
