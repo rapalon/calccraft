@@ -195,8 +195,9 @@ tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent Syst
   The Regional format card is left out where `region::regions()` is empty (Android, Linux,
   macOS: only "Use system setting", which changes nothing there; `show_region_card`).
 - The Android app alone has a Key vibration card after Language (`draw_vibration_card`): a
-  strength slider from Off (0) to 100, a Style drop-down (`SettingsList::VibrationStyle`:
-  Auto, Click, Pulse, Heavy click) and, for an explicit Pulse only, a Duration slider (5–12 ms),
+  strength slider from 1 to 100, a Style drop-down (`SettingsList::VibrationStyle`: Off,
+  Auto, Click, Pulse, Heavy click; Off hides the sliders, and a stored strength of 0 from
+  older builds loads as Off, `vibration::load`) and, for an explicit Pulse only, a Duration slider (5–12 ms),
   saved as `CalcCraftKeyVibration`, `CalcCraftKeyVibrationStyle` and
   `CalcCraftKeyVibrationDuration`. `app/vibration.rs` holds the pure parts, tested on every
   platform: the mappings (`click_scale`, `amplitude`, `duration_ms`), the Auto rule over the

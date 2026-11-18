@@ -262,7 +262,9 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   calculator, as in Windows); the interface follows the phone's languages; and a finger
   landing on a key gives a tap of the vibration motor with the strength, style and duration of
   Settings → Key vibration (`key_tap`, with the mappings and the Auto rule in
-  `src/app/vibration.rs`, measured in `docs/vibration-lab-results.md`): Click is a
+  `src/app/vibration.rs`, measured in `docs/vibration-lab-results.md`). The style Off turns
+  the taps off (the strength slider runs from 1 to 100 %; a strength of 0 saved by an older
+  build loads as Off with 50 %). Click is a
   `PRIMITIVE_CLICK` composition (Android 11+), Pulse a 5 to 12 ms one-shot with an amplitude
   (or, without amplitude control, a one-shot whose duration follows the strength), Heavy click
   the predefined `EFFECT_HEAVY_CLICK` (Android 10+). Auto is Click where the vibrator reports a

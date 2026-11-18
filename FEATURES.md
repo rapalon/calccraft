@@ -1247,10 +1247,16 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
   - Android only: a Key vibration card right after the Language card, measured by feel on two
     phones (`docs/vibration-lab-results.md`). In this order:
-    1. A strength slider: far left is Off, then 1 to 100 shown as a percentage (`50%`), 50 by
-       default. Saved as `CalcCraftKeyVibration` (`0` to `100`, `0` is Off).
-    2. A Style drop-down, Auto by default: Auto, Click, Pulse, Heavy click. Saved as
-       `CalcCraftKeyVibrationStyle` (`Auto`, `Click`, `Pulse`, `HeavyClick`).
+    1. A strength slider from 1 to 100, shown as a percentage (`50%`), 50 by default. Saved as
+       `CalcCraftKeyVibration` (`1` to `100`). It has no Off position: Off is a style.
+    2. A Style drop-down, Auto by default: Off, Auto, Click, Pulse, Heavy click ("Off" is the
+       same string as the strength's old Off, `CalcCraft.KeyVibrationOff`). Saved as
+       `CalcCraftKeyVibrationStyle` (`Off`, `Auto`, `Click`, `Pulse`, `HeavyClick`).
+       - Off: keys never vibrate. The card keeps only its title, description and the Style
+         drop-down: the strength and duration sliders and the touch feedback line are hidden.
+         The strength is kept for when another style is chosen again.
+       - Settings saved by an earlier build with strength `0` (its Off) load as Style Off with
+         strength 50.
        - Click: a `PRIMITIVE_CLICK` composition whose scale follows the strength (the square
          root of strength / 100: 10 % of the drive at 1, 71 % at 50, full at 100).
        - Pulse: a one-shot whose amplitude follows the strength, from 60 at 1 % (weak but felt
@@ -1258,8 +1264,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
          without amplitude control the strength sets the duration instead, 5 ms at 1 % to 12 ms
          at 100 %, and the duration slider is hidden.
        - Heavy click: the predefined `EFFECT_HEAVY_CLICK`, whose strength the phone sets: the
-         strength slider only turns it off (0) or on (any other value), and a line under the
-         slider says "Strength is set by the phone for this style".
+         strength slider changes nothing, and a line under the slider says "Strength is set
+         by the phone for this style".
        - Auto: Click where the vibrator looks calibrated: it reports a resonant frequency
          (`VibratorInfo.getResonantFrequency` isn't NaN) and `PRIMITIVE_CLICK`'s duration
          differs from `PRIMITIVE_TICK`'s (`getPrimitiveDurations`). Otherwise Pulse where it has
@@ -1272,10 +1278,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
        (not when Auto picks Pulse): 5 to 12 ms, 8 by default, shown as `8 ms`, never longer
        (both phones buzz from 15 ms). Saved as `CalcCraftKeyVibrationDuration`.
 
-    Releasing either slider (or moving it with the arrow keys) and choosing a style play one key
-    tap as it would now be, so it can be tuned by feel. Off vibrates never; with touch feedback
-    turned off in Android's settings (`HAPTIC_FEEDBACK_ENABLED`) nothing vibrates either, and a
-    line at the bottom of the card says so. Keys typed on a hardware keyboard don't vibrate.
+    Releasing either slider (or moving it with the arrow keys) and choosing a style other than
+    Off play one key tap as it would now be, so it can be tuned by feel; choosing Off plays
+    nothing. With touch feedback turned off in Android's settings (`HAPTIC_FEEDBACK_ENABLED`)
+    nothing vibrates either, and a line at the bottom of the card says so (not for Off). Keys typed on a hardware keyboard don't vibrate.
     The taps go through the Vibrator API (`android::key_tap`; the mappings and the Auto rule
     are pure functions in `app/vibration.rs`).
   - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
