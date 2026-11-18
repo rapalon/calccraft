@@ -2062,13 +2062,17 @@ impl Calculator {
         }
     }
 
-    /// Shows a history entry's result and expression, as after `=`.
+    /// Shows a history entry's result and expression, as after `=`. An entry with a tape
+    /// comes back with its typed numbers editable, as if just worked out (`tape.rs`).
     pub fn recall_history(&mut self, index: usize) {
         self.commit_edit();
         let Some(entry) = self.history.get(index).cloned() else {
             return;
         };
-        self.recall_entry(entry.result, entry.expression);
+        match entry.tape {
+            Some(tape) => self.recall_tape(&tape),
+            None => self.recall_entry(entry.result, entry.expression),
+        }
     }
 
     /// `recall_history`'s steps, which a replay repeats with the recalled entry's values.

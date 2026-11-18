@@ -197,7 +197,9 @@ nothing changes until the display or the line is touched. The spec and every cho
   gives: the property tests `replaying_an_edit_is_typing_it_fresh` and
   `caret_edits_replay_the_same` check it in all three modes. Keep these rules when the engine
   changes: a replay (`replaying`) adds no history and doesn't touch the memory; MR, `rand` and a
-  history recall replay the value they gave (`Item::Recall`, `Random`, `HistoryRecall`); a new
+  a history entry without a tape replay the value they gave (`Item::Recall`, `Random`,
+  `HistoryRecall`); a history entry with a tape is recalled by replaying it, then `Recalled`
+  leaves the engine as Windows' recall does (`recall_tape`, `settle_recall`); a new
   public entry point that changes the state has to record itself on the tape; and the state
   after `C` must equal a fresh engine with the tape's settings.
 - A number whose keys were made from its digits (`Input::keys`, after the caret edited it) also

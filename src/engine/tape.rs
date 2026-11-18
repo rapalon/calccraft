@@ -45,8 +45,12 @@ pub(super) enum Item {
     Raw(Command),
     /// Pasted text that wasn't valid.
     PasteError,
-    /// A history entry recalled: its result and expression.
+    /// A history entry without a tape recalled: its result and expression.
     HistoryRecall(Number, String),
+    /// A history entry with a tape recalled: the entry's items come before this one, which
+    /// leaves the engine as a recall does (the result after `C`, the line kept), with the angle
+    /// unit and F-E of the moment of the recall.
+    Recalled { angle: Angle, notation: bool },
 }
 
 /// A typed number on the tape.
@@ -373,7 +377,47 @@ impl Calculator {
             Item::HistoryRecall(result, expression) => {
                 self.recall_entry(result.clone(), expression.clone());
             }
+            Item::Recalled { angle, notation } => self.settle_recall(*angle, *notation),
         }
+    }
+
+    /// A plain recall of a history entry with a tape: the tape is replayed, so the expression
+    /// line's numbers can be edited as after typing the calculation, and the engine is then
+    /// left as `recall_entry` leaves it (a `=` doesn't repeat the entry's last operation, the
+    /// angle unit and F-E stay as they are).
+    pub(super) fn recall_tape(&mut self, tape: &Tape) {
+        // What the recall's `C` logs (a pending `√(5)`), as `recall_entry` does.
+        self.process(Command::Clear);
+        let (angle, notation) = (self.angle, self.notation);
+        let calc = self.replayed(tape, &tape.items);
+        self.adopt(calc);
+        let replaying = std::mem::replace(&mut self.replaying, true);
+        self.settle_recall(angle, notation);
+        self.replaying = replaying;
+    }
+
+    /// `Item::Recalled`: the steps of `recall_entry` after the entry's tape, with the result
+    /// it gave and the line it shows (and its editable numbers).
+    fn settle_recall(&mut self, angle: Angle, notation: bool) {
+        self.record_item(Item::Recalled { angle, notation });
+        self.angle = angle;
+        self.notation = notation;
+        if self.error.is_some() {
+            return;
+        }
+        let result = self.current.clone();
+        let shown = std::mem::take(&mut self.shown);
+        let parts = std::mem::take(&mut self.shown_parts);
+        self.process(Command::Clear);
+        self.current = result.clone();
+        self.current_source = None;
+        self.last = result;
+        self.record = false;
+        self.shown = shown;
+        self.shown_parts = parts;
+        // The next key clears the expression line, as after `=`.
+        self.no_prev_equ = false;
+        self.this_key = Key::Equals;
     }
 
     /// Becomes `calc`, keeping this engine's memory and history.
@@ -1171,6 +1215,93 @@ mod tests {
         assert!(calc.edit_history(1));
         assert_eq!(calc.expression(), "2 + 3 =");
         assert_eq!(calc.display(), "5");
+    }
+
+    /// The numbers of the line, as the UI offers them for the caret.
+    fn line_numbers(calc: &Calculator) -> Vec<String> {
+        let (text, parts) = calc.expression_parts();
+        parts
+            .iter()
+            .map(|p| text[p.range.clone()].to_string())
+            .collect()
+    }
+
+    #[test]
+    fn a_recalled_entry_edits_like_a_fresh_calculation() {
+        // Konst's bug: after a plain tap on an earlier entry only the result took the caret.
+        for mut calc in [Calculator::default(), Calculator::with_precedence()] {
+            press(&mut calc, "12 + 7 = C 3 * 4 = C 100 - 1 =");
+            assert_eq!(calc.history().len(), 3);
+            let before: Vec<_> = calc
+                .history()
+                .iter()
+                .map(|e| (e.expression.clone(), e.text.clone()))
+                .collect();
+            // Entry 2 of 3.
+            calc.recall_history(1);
+            assert_eq!(calc.expression(), "3 × 4 =");
+            assert_eq!(calc.display(), "12");
+            assert_eq!(line_numbers(&calc), ["3", "4"]);
+            retype_part(&mut calc, 0, "25");
+            let mut fresh = if calc.precedence {
+                Calculator::with_precedence()
+            } else {
+                Calculator::default()
+            };
+            press(&mut fresh, "25 * 4 =");
+            assert_eq!(calc.display(), fresh.display());
+            assert_eq!(calc.display(), "100");
+            assert_eq!(calc.expression(), fresh.expression());
+            calc.execute(Command::Equals);
+            // A new entry; the old ones stay as they were.
+            assert_eq!(calc.history().len(), 4);
+            assert_eq!(calc.history()[0].expression, "25 × 4 =");
+            assert_eq!(calc.history()[0].text, "100");
+            let after: Vec<_> = calc.history()[1..]
+                .iter()
+                .map(|e| (e.expression.clone(), e.text.clone()))
+                .collect();
+            assert_eq!(after, before);
+            // The new entry can be recalled and edited again.
+            calc.recall_history(0);
+            assert_eq!(line_numbers(&calc), ["25", "4"]);
+        }
+    }
+
+    #[test]
+    fn a_recall_keeps_its_windows_behavior() {
+        // `=` after a recall doesn't repeat the entry's operation, and a new number starts
+        // over, as before the tape came back with it.
+        let mut calc = Calculator::default();
+        press(&mut calc, "2 + 3 = C 9 =");
+        calc.recall_history(1);
+        assert_eq!(calc.display(), "5");
+        press(&mut calc, "=");
+        assert_eq!(calc.display(), "5");
+        let mut calc = Calculator::default();
+        press(&mut calc, "2 + 3 = C 9 =");
+        calc.recall_history(1);
+        press(&mut calc, "+ 1 =");
+        assert_eq!(calc.display(), "6");
+        assert_eq!(calc.expression(), "5 + 1 =");
+        // An edit after more keys replays the recall too.
+        let mut calc = Calculator::default();
+        press(&mut calc, "2 + 3 = C 9 =");
+        calc.recall_history(1);
+        press(&mut calc, "* 2 =");
+        assert_eq!(calc.display(), "10");
+        retype_part(&mut calc, 0, "4");
+        assert_eq!(calc.display(), "20");
+        // The angle unit of the moment of the recall stays.
+        let mut calc = Calculator::with_precedence();
+        press(&mut calc, "30 sin =");
+        calc.execute(Command::Angle(Angle::Radians));
+        calc.recall_history(0);
+        assert_eq!(calc.display(), "0.5");
+        assert_eq!(calc.angle, Angle::Radians);
+        retype_part(&mut calc, 0, "90");
+        assert_eq!(calc.display(), "1");
+        assert_eq!(calc.angle, Angle::Radians);
     }
 
     #[test]
