@@ -768,6 +768,14 @@ fn run_scenario(scenario: &Json, screen: &Screen) -> Result<(), String> {
     };
     let ctx = Context::default();
     let mut app = settled(&ctx, Mode::Standard, screen);
+    // The app's edition for `edition` steps: the free Play app, or one with every colour theme
+    // unlocked (CalcCraft Pro, and the open-source default build).
+    let edition = if crate::channel::CHANNEL == crate::channel::Channel::PlayFree {
+        "free"
+    } else {
+        "pro"
+    };
+    let mut skipping = false;
     for (number, step) in steps.iter().enumerate() {
         let Json::Object(fields) = step else {
             return Err(format!("step {}: not an object", number + 1));
@@ -775,6 +783,15 @@ fn run_scenario(scenario: &Json, screen: &Screen) -> Result<(), String> {
         let [(op, arg)] = fields.as_slice() else {
             return Err(format!("step {}: not one key", number + 1));
         };
+        // `edition`: the steps up to the next one run only in that edition ("any": in all).
+        if op == "edition" {
+            let wanted = arg.text().unwrap_or_default();
+            skipping = wanted != "any" && wanted != edition;
+            continue;
+        }
+        if skipping {
+            continue;
+        }
         let fail = |what: String| Err(format!("step {} ({op}): {what}", number + 1));
         let present = |ctx: &Context, app: &mut CalculatorApp, name: &str| {
             names(ctx, app, screen).iter().any(|n| n == name)
@@ -804,6 +821,45 @@ fn run_scenario(scenario: &Json, screen: &Screen) -> Result<(), String> {
                 tap_named(&ctx, &mut app, text)
             }),
             "tap" => tap_named(&ctx, &mut app, text),
+            // Scrolls the page up until the node shows (Settings on a low screen): the phone
+            // gets a finger drawn up the middle of the screen, here the wheel scrolls as far.
+            "scroll_to" => {
+                let center = screen.safe_rect().center();
+                for _ in 0..6 {
+                    if present(&ctx, &mut app, text) {
+                        break;
+                    }
+                    let wheel = egui::Event::MouseWheel {
+                        unit: egui::MouseWheelUnit::Point,
+                        delta: vec2(0.0, -0.35 * screen.safe_rect().height()),
+                        phase: egui::TouchPhase::Move,
+                        modifiers: Default::default(),
+                    };
+                    frame_with(
+                        &ctx,
+                        &mut app,
+                        screen,
+                        vec![egui::Event::PointerMoved(center), wheel],
+                    );
+                    for _ in 0..3 {
+                        frame(&ctx, &mut app, screen, None);
+                    }
+                }
+                present(&ctx, &mut app, text)
+                    .then_some(())
+                    .ok_or_else(|| format!("no node named {text:?} after scrolling"))
+            }
+            // A checked radio button or switch (uiautomator's `checked="true"`).
+            "expect_checked" => {
+                let tree = tree(&ctx, &mut app, screen);
+                let mut nodes = Vec::new();
+                self::shown(&tree.state().root(), &mut nodes);
+                match find(&nodes, text) {
+                    Some(node) if node.toggled() == Some(accesskit::Toggled::True) => Ok(()),
+                    Some(node) => Err(format!("{text:?} is {:?}, not checked", node.toggled())),
+                    None => Err(format!("no node named {text:?}")),
+                }
+            }
             "taps" => match arg {
                 Json::List(keys) => keys
                     .iter()

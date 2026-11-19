@@ -4,6 +4,7 @@ pub(crate) mod access;
 #[cfg(target_os = "android")]
 pub(crate) mod android;
 mod caret;
+mod color_theme;
 mod converter_view;
 mod date_view;
 mod expression_size;
@@ -39,6 +40,7 @@ use crate::converter::Category;
 use crate::engine::{
     Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, PartKind, Radix,
 };
+use color_theme::ColorTheme;
 use expression_size::ExpressionSize;
 use icons::{
     ICON_BACK, ICON_BACK_TO_FULL, ICON_BACKSPACE, ICON_CALCULATOR, ICON_CALENDAR,
@@ -721,12 +723,142 @@ impl Theme {
     }
 }
 
-/// The palette for the theme egui resolved (the system one for `Theme::System`).
-fn palette_for(theme: egui::Theme) -> &'static Palette {
-    match theme {
-        egui::Theme::Dark => &palette::DARK,
-        egui::Theme::Light => &palette::LIGHT,
+/// The palette of `color` for the theme egui resolved (the system one for `Theme::System`).
+fn palette_for(color: ColorTheme, theme: egui::Theme) -> &'static Palette {
+    palette::spec(color).palette(theme)
+}
+
+/// What egui follows: the colour theme's own light or dark if it fixes one (Night, Paper,
+/// Retro LCD), else the App theme choice.
+fn preference(theme: Theme, color: ColorTheme) -> egui::ThemePreference {
+    match palette::spec(color).fixed {
+        Some(egui::Theme::Dark) => egui::ThemePreference::Dark,
+        Some(egui::Theme::Light) => egui::ThemePreference::Light,
+        None => theme.preference(),
     }
+}
+
+/// Styles egui's own widgets (tooltips, text boxes, scroll bars, selections) for `p` in
+/// `theme`: egui's defaults for the palettes that keep them (Classic, Gold), else the
+/// palette's colors, so that Night has no white or blue anywhere.
+fn restyle(ctx: &Context, theme: egui::Theme, p: &Palette) {
+    let mut visuals = match theme {
+        egui::Theme::Dark => egui::Visuals::dark(),
+        egui::Theme::Light => egui::Visuals::light(),
+    };
+    if p.restyle {
+        visuals.override_text_color = Some(p.text);
+        visuals.hyperlink_color = p.link;
+        visuals.window_fill = p.popup;
+        visuals.panel_fill = p.background;
+        visuals.faint_bg_color = p.card;
+        visuals.extreme_bg_color = p.control;
+        visuals.code_bg_color = p.card;
+        visuals.window_stroke = Stroke::new(1.0, p.popup_border);
+        visuals.selection.bg_fill = p.accent.gamma_multiply(0.45);
+        visuals.selection.stroke = Stroke::new(1.0, p.text);
+        visuals.text_cursor.stroke = Stroke::new(1.5, p.text);
+        visuals.warn_fg_color = p.critical;
+        visuals.error_fg_color = p.critical;
+        let widgets = &mut visuals.widgets;
+        for (state, fill, stroke) in [
+            (&mut widgets.noninteractive, p.card, p.text_secondary),
+            (&mut widgets.inactive, p.control, p.text),
+            (&mut widgets.hovered, p.control_hover, p.text),
+            (&mut widgets.active, p.control_pressed, p.text),
+            (&mut widgets.open, p.control, p.text),
+        ] {
+            state.bg_fill = fill;
+            state.weak_bg_fill = fill;
+            state.bg_stroke.color = p.control_border;
+            state.fg_stroke.color = stroke;
+        }
+    }
+    ctx.set_visuals_of(theme, visuals);
+}
+
+/// Paints a metal key (Gold's `=`) in `rect`: the vertical gradient of `metal.stops` in the
+/// key's rounded shape, a soft specular highlight near the top, and a thin darker rim. Hover
+/// brightens it; pressed darkens it and drops the highlight. Static: no animation.
+fn paint_metal_key(
+    painter: &Painter,
+    rect: Rect,
+    metal: &palette::Metal,
+    hovered: bool,
+    down: bool,
+) {
+    let mix = |c: Color32, to: Color32, t: f32| {
+        let m = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
+        Color32::from_rgb(m(c.r(), to.r()), m(c.g(), to.g()), m(c.b(), to.b()))
+    };
+    let shade = |c: Color32| {
+        if down {
+            mix(c, Color32::BLACK, 0.14)
+        } else if hovered {
+            mix(c, Color32::WHITE, 0.10)
+        } else {
+            c
+        }
+    };
+    let (top, height) = (rect.top(), rect.height().max(1.0));
+    let r = RADIUS.min(rect.height() / 2.0).min(rect.width() / 2.0);
+    // Rows of the shape: the corners' arcs and the gradient's stops, which a mesh of
+    // horizontal bands then colors exactly (a vertical gradient is linear between rows).
+    const ARC: usize = 6;
+    let mut ys = Vec::with_capacity(2 * ARC + 6);
+    for i in 0..=ARC {
+        let a = i as f32 / ARC as f32 * std::f32::consts::FRAC_PI_2;
+        ys.push(top + r - r * a.cos());
+        ys.push(rect.bottom() - r + r * a.sin());
+    }
+    let n = metal.stops.len();
+    ys.extend((1..n - 1).map(|k| top + height * k as f32 / (n - 1) as f32));
+    ys.sort_by(f32::total_cmp);
+    ys.dedup_by(|a, b| (*a - *b).abs() < 0.01);
+    let inset = |y: f32| {
+        let dy = if y < top + r {
+            top + r - y
+        } else if y > rect.bottom() - r {
+            y - (rect.bottom() - r)
+        } else {
+            0.0
+        };
+        r - (r * r - dy * dy).max(0.0).sqrt()
+    };
+    let mut mesh = egui::Mesh::default();
+    for (i, &y) in ys.iter().enumerate() {
+        let color = shade(palette::gradient_at(&metal.stops, (y - top) / height));
+        let dx = inset(y);
+        mesh.colored_vertex(pos2(rect.left() + dx, y), color);
+        mesh.colored_vertex(pos2(rect.right() - dx, y), color);
+        if i > 0 {
+            let v = 2 * i as u32;
+            mesh.add_triangle(v - 2, v - 1, v);
+            mesh.add_triangle(v - 1, v + 1, v);
+        }
+    }
+    painter.add(egui::Shape::mesh(mesh));
+    if !down {
+        // The specular highlight: an ellipse that fades out from its middle.
+        const SEGMENTS: u32 = 32;
+        let center = pos2(rect.center().x, top + height * 0.27);
+        let radii = vec2(rect.width() * 0.40, height * 0.17);
+        let mut glow = egui::Mesh::default();
+        glow.colored_vertex(center, metal.highlight);
+        for i in 0..SEGMENTS {
+            let a = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+            let at = center + vec2(a.cos() * radii.x, a.sin() * radii.y);
+            glow.colored_vertex(at, Color32::TRANSPARENT);
+            glow.add_triangle(0, 1 + i, 1 + (i + 1) % SEGMENTS);
+        }
+        painter.add(egui::Shape::mesh(glow));
+    }
+    painter.rect_stroke(
+        rect,
+        RADIUS,
+        Stroke::new(1.0, shade(metal.edge)),
+        StrokeKind::Inside,
+    );
 }
 
 /// Button style.
@@ -950,6 +1082,12 @@ pub struct CalculatorApp {
     theme: Theme,
     /// Colors of the theme in effect, picked at the start of every frame.
     palette: &'static Palette,
+    /// The Colour theme choice (CalcCraft's own, docs/color-themes.md).
+    color_theme: ColorTheme,
+    /// Whether the Colour theme card on the Settings page shows its options.
+    color_theme_expanded: bool,
+    /// The colour theme and egui theme egui's own widgets were last styled for.
+    restyled: Option<(ColorTheme, egui::Theme)>,
     /// The theme the title bar was last colored for.
     title_bar_theme: Option<egui::Theme>,
     title_bar: TitleBar,
@@ -998,7 +1136,15 @@ impl CalculatorApp {
             .ok()
             .and_then(|key| Theme::from_key(&key))
             .unwrap_or(theme);
-        cc.egui_ctx.set_theme(theme.preference());
+        let stored_color = cc
+            .storage
+            .and_then(|storage| storage.get_string(color_theme::STORAGE_KEY));
+        // For screenshots of every theme: `CALCCRAFT_COLOR_THEME=Night` (a stored key). A
+        // theme this build doesn't unlock is refused there too.
+        #[cfg(not(target_arch = "wasm32"))]
+        let stored_color = std::env::var("CALCCRAFT_COLOR_THEME").ok().or(stored_color);
+        let color_theme = color_theme::load(stored_color.as_deref());
+        cc.egui_ctx.set_theme(preference(theme, color_theme));
         // A stored language or region, or `None` for the Windows setting.
         let choice = |key: &str| {
             cc.storage
@@ -1090,7 +1236,10 @@ impl CalculatorApp {
             key_flash: None,
             page: Page::Calculator,
             theme,
-            palette: palette_for(cc.egui_ctx.theme()),
+            palette: palette_for(color_theme, cc.egui_ctx.theme()),
+            color_theme,
+            color_theme_expanded: false,
+            restyled: None,
             title_bar_theme: None,
             title_bar: TitleBar::new(cc),
             theme_expanded: false,
@@ -1234,7 +1383,12 @@ impl CalculatorApp {
 
     fn set_theme(&mut self, ctx: &Context, theme: Theme) {
         self.theme = theme;
-        ctx.set_theme(theme.preference());
+        ctx.set_theme(preference(theme, self.color_theme));
+    }
+
+    fn set_color_theme(&mut self, ctx: &Context, color: ColorTheme) {
+        self.color_theme = color;
+        ctx.set_theme(preference(self.theme, color));
     }
 
     fn set_mode(&mut self, mode: Mode) {
@@ -1611,6 +1765,14 @@ impl CalculatorApp {
         };
 
         let painter = ui.painter();
+        if kind == Kind::Accent
+            && enabled
+            && let Some(metal) = p.metal
+        {
+            paint_metal_key(painter, rect, metal, hovered, pressed);
+            label.into().paint(painter, rect.center(), metal.text);
+            return;
+        }
         painter.rect_filled(rect, RADIUS, fill);
         if matches!(kind, Kind::Digit | Kind::Operator | Kind::Emphasized) {
             painter.rect_stroke(rect, RADIUS, Stroke::new(1.0, p.border), StrokeKind::Inside);
@@ -1739,6 +1901,13 @@ impl CalculatorApp {
         #[cfg(feature = "support-prompt")]
         crate::support::note_display(ui.ctx(), rect);
         let p = self.palette;
+        // Retro LCD's glass, under the expression line and the result.
+        if let Some((glass, rim)) = p.display_panel {
+            let panel = rect.shrink2(vec2(6.0, 4.0));
+            ui.painter().rect_filled(panel, 6.0, glass);
+            ui.painter()
+                .rect_stroke(panel, 6.0, Stroke::new(1.0, rim), StrokeKind::Inside);
+        }
         let right = rect.right() - 12.0;
         let max_width = rect.width() - 24.0;
 
@@ -3078,6 +3247,11 @@ impl CalculatorApp {
         match action {
             Some(SettingsAction::ToggleTheme) => self.theme_expanded = !self.theme_expanded,
             Some(SettingsAction::SetTheme(theme)) => self.set_theme(&ctx, theme),
+            Some(SettingsAction::ToggleColorTheme) => {
+                self.color_theme_expanded = !self.color_theme_expanded;
+            }
+            Some(SettingsAction::SetColorTheme(theme)) => self.set_color_theme(&ctx, theme),
+            Some(SettingsAction::OpenProListing) => open_pro_listing(&ctx),
             Some(SettingsAction::OpenUrl(url)) => open_link(&ctx, url),
             Some(SettingsAction::OpenList(list, anchor)) => {
                 self.settings_popup = Some(SettingsPopup {
@@ -3181,6 +3355,34 @@ impl CalculatorApp {
         } else {
             0.0
         };
+        // The Colour theme card (CalcCraft's own): the themes this build shows, locked or not.
+        let color_items: Vec<(ColorTheme, color_theme::Access)> = ColorTheme::ALL
+            .into_iter()
+            .map(|theme| (theme, color_theme::access(theme)))
+            .filter(|&(_, access)| access != color_theme::Access::Hidden)
+            .collect();
+        let color_title = painter.layout(
+            tr("CalcCraft.ColorTheme").into(),
+            body.clone(),
+            p.text,
+            text_width,
+        );
+        let color_subtitle = painter.layout(
+            tr("CalcCraft.ColorThemeDescription").into(),
+            FontId::proportional(12.0),
+            p.text_secondary,
+            text_width,
+        );
+        let color_header_height =
+            (color_title.size().y + color_subtitle.size().y + 32.0).max(CARD_HEIGHT);
+        let color_options_height = if self.color_theme_expanded {
+            2.0 * MARGIN + color_items.len() as f32 * OPTION_HEIGHT
+        } else {
+            0.0
+        };
+        // The free Play app's quiet way to the paid app, under Privacy policy.
+        let pro_link = crate::channel::CHANNEL == crate::channel::Channel::PlayFree
+            && crate::channel::paid_id().is_some();
         // The Language and Regional format cards: the region's describes it by example.
         let today = chrono::Local::now().date_naive();
         // A stored choice that isn't in the list shows by its own name.
@@ -3278,8 +3480,10 @@ impl CalculatorApp {
         let theme_top = appearance_y + 18.0;
         let theme_bottom = theme_top + header_height + options_height;
         // Cards in a group are 4 px apart.
+        let color_top = theme_bottom + 4.0;
+        let color_bottom = color_top + color_header_height + color_options_height;
         let mut card_tops = Vec::with_capacity(cards.len());
-        let mut cards_bottom = theme_bottom;
+        let mut cards_bottom = color_bottom;
         for card in &cards {
             let card_top = cards_bottom + 4.0;
             card_tops.push(card_top);
@@ -3299,7 +3503,9 @@ impl CalculatorApp {
         let feedback_y = about_top + CARD_HEIGHT + 25.0;
         // The privacy policy's link sits under Send feedback, one hyperlink button lower.
         let privacy_y = feedback_y + 32.0;
-        let contribute_top = privacy_y + 40.0 - row_height / 2.0;
+        let pro_y = privacy_y + 32.0;
+        let last_link_y = if pro_link { pro_y } else { privacy_y };
+        let contribute_top = last_link_y + 40.0 - row_height / 2.0;
         let height = contribute_top + contribute.size().y + SIDE;
 
         let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
@@ -3401,6 +3607,40 @@ impl CalculatorApp {
             }
         }
 
+        // Colour theme: Classic and the Pro themes; in the free Play app those are locked.
+        let card = Rect::from_x_y_ranges(left..=right, top + color_top..=top + color_bottom);
+        if expander_card(
+            p,
+            ui,
+            &painter,
+            card,
+            color_header_height,
+            self.color_theme_expanded,
+            Id::new("color-theme-card"),
+            tr("CalcCraft.ColorTheme"),
+            ICON_CALCULATOR,
+            color_title,
+            color_subtitle,
+        ) {
+            action = Some(SettingsAction::ToggleColorTheme);
+        }
+        if self.color_theme_expanded {
+            let options_top = card.top() + color_header_height + MARGIN;
+            for (i, (theme, access)) in color_items.into_iter().enumerate() {
+                let y = options_top + (i as f32 + 0.5) * OPTION_HEIGHT;
+                let at = pos2(card.left() + TEXT_X, y);
+                let id = Id::new("color-theme").with(theme);
+                let label = tr(theme.label_key());
+                if access == color_theme::Access::Locked {
+                    if locked_theme_item(p, ui, at, label, id) {
+                        action = Some(SettingsAction::OpenProListing);
+                    }
+                } else if radio_button(p, ui, at, label, self.color_theme == theme, id) {
+                    action = Some(SettingsAction::SetColorTheme(theme));
+                }
+            }
+        }
+
         // Language, Screen orientation, Key vibration and Regional format (CalcCraft's own;
         // Windows follows its settings).
         for (kind, card_top) in cards.iter().zip(card_tops) {
@@ -3459,7 +3699,9 @@ impl CalculatorApp {
             vec2(16.0, 16.0),
         );
         let uv = Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0));
-        painter.image(self.app_icon.id(), icon, uv, Color32::WHITE);
+        // Night has no blue: its icon is tinted red.
+        let tint = if p.no_white { p.text } else { Color32::WHITE };
+        painter.image(self.app_icon.id(), icon, uv, tint);
         let name = painter.layout_no_wrap("CalcCraft".to_owned(), body.clone(), p.text);
         let by = brand::CREDIT
             .strip_suffix(brand::COMPANY)
@@ -3518,6 +3760,17 @@ impl CalculatorApp {
             Id::new("privacy-policy"),
         ) {
             action = Some(SettingsAction::OpenUrl(PRIVACY_URL));
+        }
+        if pro_link
+            && link_button(
+                p,
+                ui,
+                pos2(left, top + pro_y),
+                tr("CalcCraft.GetPro"),
+                Id::new("get-pro"),
+            )
+        {
+            action = Some(SettingsAction::OpenProListing);
         }
 
         // A sentence with an inline link: find the link's glyphs to make them clickable.
@@ -3964,6 +4217,10 @@ impl CalculatorApp {
 enum SettingsAction {
     ToggleTheme,
     SetTheme(Theme),
+    ToggleColorTheme,
+    SetColorTheme(ColorTheme),
+    /// A locked Pro theme or "Get CalcCraft Pro": the paid app's Play listing.
+    OpenProListing,
     OpenUrl(&'static str),
     /// Open a drop-down list from its box.
     OpenList(SettingsList, Rect),
@@ -4023,6 +4280,7 @@ fn history_key(history: &[HistoryEntry]) -> u64 {
 impl eframe::App for CalculatorApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         storage.set_string(THEME_KEY, self.theme.key().to_owned());
+        storage.set_string(color_theme::STORAGE_KEY, self.color_theme.key().to_owned());
         // On the Settings page, the mode under it: Settings is a page, not a mode.
         storage.set_string(MODE_KEY, self.mode.serialization_id().to_string());
         storage.set_string(CONVERTER_KEY, self.converter.converter.preferences());
@@ -4070,9 +4328,15 @@ impl eframe::App for CalculatorApp {
         let ctx = ui.ctx().clone();
         // egui resolves "Use system setting" and reports when Windows switches modes.
         let theme = ctx.theme();
-        self.palette = palette_for(theme);
+        self.palette = palette_for(self.color_theme, theme);
+        if self.restyled != Some((self.color_theme, theme)) {
+            restyle(&ctx, theme, self.palette);
+            self.restyled = Some((self.color_theme, theme));
+            // The title bar takes the new palette's background too.
+            self.title_bar_theme = None;
+        }
         if self.title_bar_theme != Some(theme) {
-            self.title_bar.apply(theme);
+            self.title_bar.apply(theme, self.palette);
             self.title_bar_theme = Some(theme);
         }
         // A phone on its side docks the list only where its left column has room for it.
@@ -4412,6 +4676,22 @@ pub(crate) fn open_link(ctx: &Context, url: impl Into<String>) {
     ctx.open_url(egui::OpenUrl::new_tab(url));
 }
 
+/// Opens the paid app's (CalcCraft Pro's) Google Play listing: the Play Store app
+/// (`market://`), else its web page. Nothing without a paid app ID (then nothing offers it).
+pub(crate) fn open_pro_listing(ctx: &Context) {
+    let Some(id) = crate::channel::paid_id() else {
+        return;
+    };
+    let [market, web] = crate::channel::store_urls(id);
+    #[cfg(target_os = "android")]
+    if android::open_url(&market) {
+        return;
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = market;
+    open_link(ctx, web);
+}
+
 pub(crate) fn semibold() -> FontFamily {
     FontFamily::Name("semibold".into())
 }
@@ -4586,6 +4866,160 @@ fn radio_button(
     let center = pos2(left_center.x + 10.0, left_center.y);
     paint_radio(p, painter, center, checked, hovered, pressed);
     painter.galley(text_pos, galley, p.text);
+    response.clicked()
+}
+
+/// An expander card's header, like the App theme card's: the icon, the title and description,
+/// the chevron, and the card under it. Returns `true` when the header was clicked.
+#[allow(clippy::too_many_arguments)]
+fn expander_card(
+    p: &Palette,
+    ui: &Ui,
+    painter: &Painter,
+    card: Rect,
+    header_height: f32,
+    expanded: bool,
+    id: Id,
+    name: &str,
+    icon: char,
+    title: Arc<Galley>,
+    subtitle: Arc<Galley>,
+) -> bool {
+    let header = card.with_max_y(card.top() + header_height);
+    let info = || {
+        let mut info = WidgetInfo::labeled(WidgetType::CollapsingHeader, true, name);
+        info.selected = Some(expanded);
+        info
+    };
+    let response = access::control(ui, p, header, id, true, RADIUS, info);
+    let fill = if response.is_pointer_button_down_on() {
+        p.card_pressed
+    } else if response.hovered() {
+        p.card_hover
+    } else {
+        p.card
+    };
+    painter.rect_filled(card, RADIUS, p.card);
+    let corners = if expanded {
+        CornerRadius {
+            nw: 4,
+            ne: 4,
+            sw: 0,
+            se: 0,
+        }
+    } else {
+        CornerRadius::same(4)
+    };
+    painter.rect_filled(header, corners, fill);
+    painter.rect_stroke(
+        card,
+        RADIUS,
+        Stroke::new(1.0, p.card_border),
+        StrokeKind::Inside,
+    );
+    let glyph = painter.layout_job(icon_label(icon, 20.0));
+    painter.galley(
+        pos2(card.left() + ComboCard::ICON_X, header.center().y) - glyph.size() / 2.0,
+        glyph,
+        p.text,
+    );
+    let text_top = header.center().y - (title.size().y + subtitle.size().y) / 2.0;
+    let title_height = title.size().y;
+    painter.galley(
+        pos2(card.left() + ComboCard::TEXT_X, text_top),
+        title,
+        p.text,
+    );
+    painter.galley(
+        pos2(card.left() + ComboCard::TEXT_X, text_top + title_height),
+        subtitle,
+        p.text_secondary,
+    );
+    let chevron = icon_label(
+        if expanded {
+            ICON_CHEVRON_UP
+        } else {
+            ICON_CHEVRON_DOWN
+        },
+        12.0,
+    );
+    let chevron = painter.layout_job(chevron);
+    painter.galley(
+        pos2(card.right() - 24.0, header.center().y) - chevron.size() / 2.0,
+        chevron,
+        p.text,
+    );
+    if expanded {
+        painter.hline(
+            card.x_range(),
+            header.bottom(),
+            Stroke::new(1.0, p.card_border),
+        );
+    }
+    response.clicked()
+}
+
+/// A Pro theme the free Play app can't pick: a dimmed radio button and name with an oval PRO
+/// pill after them. A click opens CalcCraft Pro's listing; the screen reader hears "Gold, Pro
+/// theme, locked, opens CalcCraft Pro on Google Play". Returns `true` if it was clicked.
+fn locked_theme_item(p: &Palette, ui: &Ui, left_center: Pos2, label: &str, id: Id) -> bool {
+    let painter = ui.painter();
+    let galley = painter.layout_no_wrap(
+        label.to_owned(),
+        FontId::proportional(14.0),
+        p.text_disabled,
+    );
+    let text_pos = pos2(left_center.x + 28.0, left_center.y - galley.size().y / 2.0);
+    let pill_text = painter.layout_no_wrap(
+        "PRO".to_owned(),
+        FontId::new(11.0, semibold()),
+        palette::GOLD.text,
+    );
+    let pill = Rect::from_min_size(
+        pos2(
+            text_pos.x + galley.size().x + 10.0,
+            left_center.y - (pill_text.size().y + 4.0) / 2.0,
+        ),
+        pill_text.size() + vec2(16.0, 4.0),
+    );
+    let rect = Rect::from_min_max(
+        pos2(left_center.x, left_center.y - 16.0),
+        pos2(pill.right(), left_center.y + 16.0),
+    );
+    let name = tr_format("CalcCraft.ProThemeLocked", &[label]);
+    let info = access::button(true, &name);
+    let response = access::control(ui, p, rect, id, true, RADIUS, info)
+        .on_hover_cursor(CursorIcon::PointingHand);
+    let hovered = response.hovered();
+    let center = pos2(left_center.x + 10.0, left_center.y);
+    let ring = if hovered {
+        p.text_secondary
+    } else {
+        p.text_disabled
+    };
+    painter.circle_stroke(center, 9.5, Stroke::new(1.0, ring));
+    painter.galley(text_pos, galley, p.text_disabled);
+    // The pill is gold, as the Pro edition's `=` key is.
+    let fill = if response.is_pointer_button_down_on() {
+        palette::GOLD.stops[2]
+    } else if hovered {
+        palette::GOLD.stops[0]
+    } else {
+        palette::GOLD.stops[1]
+    };
+    let radius = (pill.height() / 2.0).round() as u8;
+    painter.rect_filled(pill, CornerRadius::same(radius), fill);
+    painter.rect_stroke(
+        pill,
+        CornerRadius::same(radius),
+        Stroke::new(1.0, palette::GOLD.edge),
+        StrokeKind::Inside,
+    );
+    painter.galley(
+        pill.center() - pill_text.size() / 2.0,
+        pill_text,
+        palette::GOLD.text,
+    );
     response.clicked()
 }
 
@@ -5198,7 +5632,7 @@ impl TitleBar {
     }
 
     #[cfg(windows)]
-    fn apply(&self, theme: egui::Theme) {
+    fn apply(&self, theme: egui::Theme, p: &Palette) {
         use windows_sys::Win32::Graphics::Dwm::{
             DWMWA_CAPTION_COLOR, DWMWA_USE_IMMERSIVE_DARK_MODE, DwmSetWindowAttribute,
         };
@@ -5209,7 +5643,7 @@ impl TitleBar {
         let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
         let dark_mode = u32::from(theme == egui::Theme::Dark);
         // COLORREF stores the color as 0x00BBGGRR.
-        let [r, g, b, _] = palette_for(theme).background.to_array();
+        let [r, g, b, _] = p.background.to_array();
         let caption = u32::from_le_bytes([r, g, b, 0]);
         // SAFETY: hwnd is eframe's window, which lives as long as the app; the pointers point
         // to local u32 values, the size both attributes expect.
@@ -5223,7 +5657,7 @@ impl TitleBar {
     }
 
     #[cfg(not(windows))]
-    fn apply(&self, _theme: egui::Theme) {}
+    fn apply(&self, _theme: egui::Theme, _p: &Palette) {}
 }
 
 /// The window icon, from `icon.rs` (the executable embeds the same picture).

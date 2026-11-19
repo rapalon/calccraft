@@ -91,7 +91,7 @@ impl CalculatorApp {
         let p = self.palette;
         let ctx = ui.ctx().clone();
         let dark = ctx.theme() == egui::Theme::Dark;
-        let gp: &GraphPalette = self.graphing.graph_palette(dark);
+        let gp: &GraphPalette = self.graphing.graph_palette(dark, p);
         let (w, h) = (rect.width().max(1.0), rect.height().max(1.0));
         self.graphing.graph_size = (w, h);
         let values = self.graphing.values();
@@ -402,7 +402,9 @@ impl CalculatorApp {
             self.paint_trace_popup(ui, rect, at, &trace_text(point.x, point.y));
         }
         if let Some(at) = trace_at {
-            paint_trace_pointer(&painter, rect.min + at.to_vec2());
+            // Night has no white: its arrow is its red.
+            let fill = if p.no_white { p.text } else { Color32::WHITE };
+            paint_trace_pointer(&painter, rect.min + at.to_vec2(), fill);
         }
 
         self.draw_graph_buttons(ui, rect);
@@ -790,7 +792,7 @@ impl CalculatorApp {
     fn share_graph(&mut self, ctx: &egui::Context, image: ColorImage) {
         let gp = self
             .graphing
-            .graph_palette(ctx.theme() == egui::Theme::Dark);
+            .graph_palette(ctx.theme() == egui::Theme::Dark, self.palette);
         let equations: Vec<(String, Color32)> = self
             .graphing
             .rows
@@ -866,8 +868,8 @@ fn paint_line(painter: &Painter, points: Vec<Pos2>, stroke: Stroke, style: LineS
 }
 
 /// The trace pointer: Windows' arrow (`M0 0 l1371 1371 H538 l-538 538 Z` in 18 × 18 px),
-/// white with a black outline and a soft shadow, its tip at `tip`.
-fn paint_trace_pointer(painter: &Painter, tip: Pos2) {
+/// `fill` (white) with a black outline and a soft shadow, its tip at `tip`.
+fn paint_trace_pointer(painter: &Painter, tip: Pos2, fill_color: Color32) {
     let s = 18.0 / 1909.0;
     let shape = |offset: egui::Vec2| {
         vec![
@@ -891,12 +893,12 @@ fn paint_trace_pointer(painter: &Painter, tip: Pos2) {
     let notch = fill.remove(2);
     painter.add(Shape::convex_polygon(
         vec![fill[0], fill[1], notch],
-        Color32::WHITE,
+        fill_color,
         Stroke::NONE,
     ));
     painter.add(Shape::convex_polygon(
         vec![fill[0], notch, fill[2]],
-        Color32::WHITE,
+        fill_color,
         Stroke::NONE,
     ));
     painter.add(Shape::closed_line(

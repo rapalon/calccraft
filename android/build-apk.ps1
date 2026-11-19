@@ -178,6 +178,17 @@ if ($Channel -ne 'default') {
         }
     }
     "Checked: no donate or Stripe address in the $Channel library"
+    # The free app's popup, locked Pro themes and "Get CalcCraft Pro" lead to the paid app's
+    # listing: its ID must be compiled in (1.4.3's free build had none, and hid the prompt).
+    if ($Channel -eq 'play-free' -and $PaidApplicationId) {
+        if (-not $text.Contains("details?id=")) {
+            throw "The play-free library has no Play listing address."
+        }
+        if (-not $text.Contains($PaidApplicationId)) {
+            throw "The play-free library doesn't contain the paid app's ID $PaidApplicationId."
+        }
+        "Checked: the play-free library leads to $PaidApplicationId"
+    }
 }
 
 # The Java code (java/: the graph share's ContentProvider) as classes.dex: javac against the
@@ -201,6 +212,15 @@ if (-not (Test-Path $dex)) {
 # Manifest and resources (the launcher icon and the themes).
 $resources = Join-Path $out 'resources.zip'
 & (Join-Path $tools "aapt2$exe") compile --dir (Join-Path $PSScriptRoot 'res') -o $resources
+# CalcCraft Pro (play-paid) has its own launcher icon: android/res-pro/ (tools/app-icon.py --pro)
+# overrides res/'s icon files and background colour (aapt2 link -R). The free app keeps res/'s.
+$overlay = @()
+if ($Channel -eq 'play-paid') {
+    $proResources = Join-Path $out 'resources-pro.zip'
+    & (Join-Path $tools "aapt2$exe") compile --dir (Join-Path $PSScriptRoot 'res-pro') -o $proResources
+    $overlay = @('-R', $proResources)
+    'Launcher icon: CalcCraft Pro (android/res-pro/)'
+}
 
 $manifestPath = Join-Path $staging 'AndroidManifest.xml'
 $manifestContent = Get-Content (Join-Path $PSScriptRoot 'AndroidManifest.xml') -Raw
@@ -211,7 +231,7 @@ $manifestContent = $manifestContent.Replace('${applicationId}', $ApplicationId)
 
 $link = @('-I', (Join-Path $Sdk "platforms/$Platform/android.jar"), '--manifest', $manifestPath,
     '--min-sdk-version', $minSdk, '--target-sdk-version', $targetSdk,
-    '--version-code', $versionCode, '--version-name', $version, $resources)
+    '--version-code', $versionCode, '--version-name', $version, $resources) + $overlay
 if ($Debuggable) {
     $link += '--debug-mode'
 }
@@ -343,3 +363,4 @@ if ($Bundle) {
     }
 }
 Remove-Item $resources, $staging, $classes -Recurse -Force
+if ($overlay) { Remove-Item $proResources -Force }

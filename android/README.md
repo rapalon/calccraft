@@ -306,9 +306,16 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   the square icon, its display and top keys inside the 66 dp safe circle, and a one-colour
   silhouette of it for Android 13's themed icons; `drawable-*dpi`), the square and round PNG
   icons of Android 7 (`mipmap-*dpi`, API 24 and 25), and Google Play's listing icon
-  (`store/icon-512.png`, the square icon as it is: Play adds the shape and the shadow). Both
-  Play channels and every application ID use the same icon. Previews in the launchers' masks
-  go to `target/icon-preview/`.
+  (`store/icon-512.png`, the square icon as it is: Play adds the shape and the shadow). The
+  default channel and `play-free` (every application ID) use this icon. Previews in the
+  launchers' masks go to `target/icon-preview/`.
+- `res-pro/`: CalcCraft Pro's launcher icon (`play-paid` only), from Konst's Pro artwork in
+  `icon-source/pro/` (`calccraft-pro-icon-512.png`, `calccraft-pro-foreground.png`: the same
+  calculator with a gold key). `uv run tools/app-icon.py --pro` writes the same files as above
+  into `res-pro/` (its own `ic_launcher_background` in `values/colors.xml`), the Pro listing icon
+  `store/pro/icon-512.png` (the square as it is) and previews into `target/icon-preview-pro/`.
+  `build-apk.ps1 -Channel play-paid` lays `res-pro/` over `res/` (`aapt2 link -R`); CI checks by
+  their SHA-256 that the Pro APK's 20 icon PNGs are its own and the free APKs' are `res/`'s.
 - `src/app/android.rs` (JNI on the NativeActivity that `android_main` gets; ndk-context's
   context is the Application, which has no window): the system bars' and camera cutout's part
   of the screen becomes egui's safe area, which the layout keeps clear (NativeActivity always

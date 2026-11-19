@@ -25,6 +25,7 @@ result table to the release (AGENTS.md, "Git and pull requests").
 | `graphing-three-equations` | x^2, sin(x) and 2x+1 typed on the Graphing keypad (its Trigonometry menu too) and submitted; the graph's node says `displaying 3 equations` |
 | `length-converter` | a typed value in the Length converter |
 | `mode-switching` | the navigation menu opens every kind of page, and the Standard mode still calculates after them |
+| `themes` | Settings → Color theme (docs/color-themes.md). The free app: Classic checked, the Pro themes named `Gold, Pro theme, locked, opens CalcCraft Pro on Google Play` and so on, never tapped (that opens Google Play). CalcCraft Pro: Night picked, 7 × 6 = 42 still on the display, Gold picked back |
 
 Each step is an object with one key:
 
@@ -41,6 +42,9 @@ Each step is an object with one key:
 | `{ "expect_absent": "Trigonometry" }` | no node is named so |
 | `{ "display": "1000" }` | the display's node is `Display is 1000`, compared **loosely** |
 | `{ "expression": "12 + 7 × 3 =" }` | the expression line's node starts with `Expression is 12 + 7 × 3 =`, loosely |
+| `{ "scroll_to": "Night" }` | until a node is named so: a finger drawn up the middle of the screen, from 65 % of its height to 35 %, up to 6 times (Settings on a low screen) |
+| `{ "expect_checked": "Classic" }` | a node is named so and is checked (a radio button: uiautomator's `checked="true"`) |
+| `{ "edition": "free" }` | the steps up to the next `edition` are only for that edition: `free` (the free Play app and its test builds) or `pro` (CalcCraft Pro, an application ID ending in `.pro`); `any` ends the part. The other edition's steps are left out, not failed |
 
 A node's name is its `content-desc`, else its `text`. **Loosely** means without `,` `.` `'` `’`,
 spaces and non-breaking spaces on both sides, so that the scenarios' en-US numbers match the
@@ -64,7 +68,8 @@ bounded by … displaying 3 equations`, its text the equations, one a line).
 - The build under test is installed: the accessibility test build is
   `com.rapalon.calccraft.a11ytest` (`pwsh -File android/build-apk.ps1 -ApplicationId
   com.rapalon.calccraft.a11ytest -Channel play-free -Debuggable`, then `adb install -r
-  target/android/<the APK>`), a release `com.rapalon.calccraft`.
+  target/android/<the APK>`), a release `com.rapalon.calccraft`, and CalcCraft Pro
+  `com.rapalon.calccraft.pro` (run the scenarios for each app: `themes` differs between them).
 - Android 8.0 or later: the accessibility tree needs it.
 
 ## Runner: adb and uiautomator
@@ -107,6 +112,11 @@ JSON or let it read them from the repository):
 >   `get_screen` and compare as the README says (`display` and `expression` loosely, without
 >   `,` `.` `'` `’` and spaces). If it doesn't match, wait for the screen to be stable
 >   (`wait_for_screen(until="stable")`) and look once more before you call it a failure.
+> - `scroll_to`: `find(text)` (it scrolls) until the element named exactly so is on screen.
+>   `expect_checked`: the element named so is checked (`get_screen` marks it).
+> - `edition`: `<package>` ending in `.pro` is the `pro` edition, any other the `free` one.
+>   Leave out the steps after an `edition` step of the other edition, up to the next `edition`
+>   step (`any` ends it); they get no row.
 >
 > After a failed step, skip the rest of that scenario and go on with the next one. Report a
 > Markdown table with one row per step: scenario, step number, the step as written, PASS, FAIL

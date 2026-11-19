@@ -8,7 +8,8 @@
 //!
 //! The rest of the app only calls the hooks of [`SupportState`] and [`note_display`].
 
-pub mod channel;
+/// The whole build's channel (`crate::channel`), which the prompt's code names from here.
+pub use crate::channel;
 pub mod clock;
 pub mod donate;
 mod logo;

@@ -23,7 +23,7 @@ use super::icons::{
     ICON_LIGHTNING, ICON_MULTIPLY, ICON_PASTE, ICON_REMOVE, ICON_THEME, ICON_UNDO, ICON_VIEW,
     ICON_WARNING, icon_label,
 };
-use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH};
+use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH, Palette};
 use super::scientific_view::Sizes;
 use super::strings::{tr, tr_format};
 use super::{
@@ -591,9 +591,11 @@ impl GraphingState {
         self.variables.iter().map(|v| (v.name, v.value)).collect()
     }
 
-    /// The graph's colors for the effective app theme.
-    pub(super) fn graph_palette(&self, app_dark: bool) -> &'static GraphPalette {
-        if self.match_app_theme && app_dark {
+    /// The graph's colors for the effective app theme, or the colour theme's own (Night's).
+    pub(super) fn graph_palette(&self, app_dark: bool, p: &Palette) -> &'static GraphPalette {
+        if let Some(graph) = p.graph {
+            graph
+        } else if self.match_app_theme && app_dark {
             &DARK_GRAPH
         } else {
             &LIGHT_GRAPH
@@ -841,6 +843,20 @@ fn contrast(color: Color32) -> Color32 {
     } else {
         Color32::WHITE
     }
+}
+
+/// `contrast` in the palette `p`: Night has no white, so its labels on an equation's color
+/// are its dark ink.
+fn contrast_in(p: &Palette, color: Color32) -> Color32 {
+    match contrast(color) {
+        Color32::WHITE if p.no_white => p.text_on_accent,
+        other => other,
+    }
+}
+
+/// The overlay that lightens a hovered equation button in a dark theme: white, or Night's red.
+fn light_overlay(p: &Palette) -> Color32 {
+    if p.no_white { p.text } else { Color32::WHITE }
 }
 
 /// `f` with its number as a subscript: the equation button's label.
@@ -1208,7 +1224,7 @@ impl CalculatorApp {
         let ctx = ui.ctx().clone();
         let graph = self
             .graphing
-            .graph_palette(ctx.theme() == egui::Theme::Dark);
+            .graph_palette(ctx.theme() == egui::Theme::Dark, self.palette);
         let Some(index) = self.graphing.index_of(id) else {
             return;
         };
@@ -1267,12 +1283,12 @@ impl CalculatorApp {
         let (fill, text_color) = if add_mode || !visible {
             (p.hidden_equation, p.hidden_equation_text)
         } else {
-            (color, contrast(color))
+            (color, contrast_in(p, color))
         };
         painter.rect_filled(button, RADIUS, fill);
         if !add_mode && response.hovered() {
             let overlay = if ctx.theme() == egui::Theme::Dark {
-                Color32::WHITE
+                light_overlay(p)
             } else {
                 Color32::BLACK
             };
@@ -1912,7 +1928,7 @@ impl CalculatorApp {
         };
         let graph = self
             .graphing
-            .graph_palette(ui.ctx().theme() == egui::Theme::Dark);
+            .graph_palette(ui.ctx().theme() == egui::Theme::Dark, self.palette);
         let row = &self.graphing.rows[index];
         let color = graph.equations[row.color];
         let painter = ui.painter().clone();
@@ -1936,7 +1952,11 @@ impl CalculatorApp {
         painter.rect_filled(back, RADIUS, color);
         if response.hovered() {
             let dark = ui.ctx().theme() == egui::Theme::Dark;
-            let overlay = if dark { Color32::WHITE } else { Color32::BLACK };
+            let overlay = if dark {
+                light_overlay(p)
+            } else {
+                Color32::BLACK
+            };
             let opacity = match (dark, response.is_pointer_button_down_on()) {
                 (true, false) => 0.3,
                 (true, true) => 0.5,
@@ -1945,7 +1965,11 @@ impl CalculatorApp {
             };
             painter.rect_filled(back, RADIUS, overlay.gamma_multiply(opacity));
         }
-        let fg = Color32::WHITE;
+        let fg = if p.no_white {
+            p.text_on_accent
+        } else {
+            Color32::WHITE
+        };
         let arrow = painter.layout_job(icon_label(ICON_BACK, 16.0));
         painter.galley(
             pos2(back.left() + 10.0, back.center().y - arrow.size().y / 2.0),
@@ -2425,7 +2449,7 @@ impl CalculatorApp {
         };
         let graph = self
             .graphing
-            .graph_palette(ui.ctx().theme() == egui::Theme::Dark);
+            .graph_palette(ui.ctx().theme() == egui::Theme::Dark, self.palette);
         let full = ui.max_rect();
         // Seven 44 px swatches a row, smaller ones in the narrowest windows.
         let swatch = ((full.width() - 8.0 - 32.0) / 7.0).min(44.0);

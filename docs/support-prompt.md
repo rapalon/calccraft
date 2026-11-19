@@ -371,6 +371,12 @@ the donate URL included, isn't compiled into a build at all:
   in the default channel, `PlayListing` the paid app's listing in `play-free`. `DONATE_URL`,
   `donate_url` and `ExternalLink` exist only in the default channel, and CI checks the Play
   builds' library for `rapalon.com/calccraft/donate` and `stripe.com`.
+- From 1.4.4 the channel also gates the colour themes (`docs/color-themes.md`): the Pro themes
+  are unlocked in the default channel and in `play-paid`, and locked in `play-free`, where a tap
+  on one (or on About's "Get CalcCraft Pro") opens the same listing. `channel.rs` moved to
+  `src/channel.rs`, compiled in every build; `support::channel` re-exports it.
+- `release.yml` passes `vars.CALCCRAFT_PAID_ID || 'com.rapalon.calccraft.pro'`: 1.4.3's run had
+  no variable, so its free app hid the prompt.
 - Commands (android/README.md): `pwsh android/build-apk.ps1 -Channel play-free -Bundle
   [-PaidApplicationId com.rapalon.calccraft.pro]` and `pwsh android/build-apk.ps1 -Channel
   play-paid -PaidApplicationId com.rapalon.calccraft.pro -Bundle`.

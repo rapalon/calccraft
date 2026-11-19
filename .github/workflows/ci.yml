@@ -54,13 +54,14 @@ jobs:
         run: tests/device/run.ps1 -SelfTest
 
       # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
-      # differently: their own tests, with and without the paid app's ID.
+      # and the colour themes (docs/color-themes.md) differently: their own tests, with and
+      # without the paid app's ID.
       - name: Test the Google Play channels
         if: runner.os == 'Linux'
         run: |
-          cargo test --lib --features play-free support
-          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free support
-          cargo test --lib --features play-paid support
+          cargo test --lib --features play-free -- support color_theme palette
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free -- support color_theme palette device_scenarios
+          cargo test --lib --features play-paid -- support color_theme palette device_scenarios
 
   licenses:
     name: licenses (cargo-deny)
@@ -218,9 +219,38 @@ jobs:
         run: |
           # A hashtable: an array splat would pass '-Ndk' to a script as a positional value.
           $common = @{ Ndk = $env:NDK; BuildTools = $env:BUILD_TOOLS; Bundle = $true }
+          # The launcher icon's PNGs in an APK (5 densities × foreground, monochrome, square,
+          # round) by their SHA-256: each build starts with an empty target/android.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          function Get-IconHashes([string] $Pattern) {
+              $zip = [IO.Compression.ZipFile]::OpenRead((Get-Item $Pattern).FullName)
+              try {
+                  $hashes = @{}
+                  foreach ($entry in $zip.Entries) {
+                      if ($entry.FullName -notmatch '^res/(drawable|mipmap)-[a-z]+-v4/ic_launcher[a-z_]*\.png$') { continue }
+                      $stream = $entry.Open()
+                      try { $hashes[$entry.FullName] = (Get-FileHash -InputStream $stream -Algorithm SHA256).Hash } finally { $stream.Dispose() }
+                  }
+                  $hashes
+              } finally { $zip.Dispose() }
+          }
           android/build-apk.ps1 @common -Channel play-free
+          $free = Get-IconHashes 'target/android/CalcCraft-Play-*-arm64.apk'
           android/build-apk.ps1 @common -Channel play-free -PaidApplicationId com.rapalon.calccraft.pro
+          $freeWithPro = Get-IconHashes 'target/android/CalcCraft-Play-*-arm64.apk'
           android/build-apk.ps1 @common -Channel play-paid -PaidApplicationId com.rapalon.calccraft.pro
+          $pro = Get-IconHashes 'target/android/CalcCraft-Pro-*-arm64.apk'
+          # The free app keeps android/res/'s icon whatever its paid ID; CalcCraft Pro has
+          # android/res-pro/'s (tools/app-icon.py --pro) in every one of the 20 files.
+          if ($free.Count -ne 20 -or $pro.Count -ne 20) {
+              throw "Expected 20 launcher icon PNGs, the free APK has $($free.Count) and the Pro APK $($pro.Count)."
+          }
+          foreach ($name in $free.Keys) {
+              if ($freeWithPro[$name] -ne $free[$name]) { throw "The free app's $name changes with the paid app's ID." }
+              if (-not $pro.ContainsKey($name)) { throw "The Pro APK has no $name." }
+              if ($pro[$name] -eq $free[$name]) { throw "The Pro APK's $name is the free app's icon." }
+          }
+          'Checked: the free APKs carry the free launcher icon, the Pro APK its own (20 files each)'
           $jar = (Get-ChildItem .tools/bundletool-all-*.jar).FullName
           $aab = (Get-ChildItem target/android/CalcCraft-Pro-*-arm64.aab).FullName
           $package = java -jar $jar dump manifest "--bundle=$aab" --xpath /manifest/@package

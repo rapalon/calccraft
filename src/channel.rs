@@ -2,7 +2,11 @@
 //! features: the default (GitHub, F-Droid, desktops, web) has the donate link, and the Google
 //! Play builds have none, because Play's Payments policy forbids leading users to other
 //! payment methods. `play-free` leads to the paid app's Play listing instead, and `play-paid`
-//! shows no prompt at all.
+//! shows no prompt at all. The channel also gates the colour themes (docs/color-themes.md),
+//! so this module is in every build, with or without `support-prompt`.
+
+// Without the prompt only the themes' part (the channel, the paid app) is used.
+#![cfg_attr(not(feature = "support-prompt"), allow(dead_code))]
 
 #[cfg(all(feature = "play-free", feature = "play-paid"))]
 compile_error!("the features `play-free` and `play-paid` exclude each other");
@@ -63,7 +67,6 @@ fn checked_id(raw: Option<&'static str>) -> Option<&'static str> {
 }
 
 /// The paid app's application ID, if this build was given a valid one.
-#[cfg_attr(not(feature = "play-free"), allow(dead_code))]
 pub fn paid_id() -> Option<&'static str> {
     checked_id(PAID_ID_RAW)
 }
@@ -85,7 +88,6 @@ pub fn prompt_mode() -> PromptMode {
 
 /// The paid app's listing: the Play Store app's `market://` address, and the web page for
 /// where nothing takes it. No query parameters.
-#[cfg_attr(not(feature = "play-free"), allow(dead_code))]
 pub fn store_urls(paid_id: &str) -> [String; 2] {
     [
         format!("market://details?id={paid_id}"),

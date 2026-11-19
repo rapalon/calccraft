@@ -40,6 +40,15 @@ CalcCraft.ExpressionSizeSmall=Small
 CalcCraft.ExpressionSizeMedium=Medium
 CalcCraft.ExpressionSizeLarge=Large
 CalcCraft.ExpressionSizeExtraLarge=Extra large
+CalcCraft.ColorTheme=Color theme
+CalcCraft.ColorThemeDescription=Select the colors of the keys and the display
+CalcCraft.ThemeClassic=Classic
+CalcCraft.ThemeGold=Gold
+CalcCraft.ThemeNight=Night
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Paper
+CalcCraft.ProThemeLocked=%1, Pro theme, locked, opens CalcCraft Pro on Google Play
+CalcCraft.GetPro=Get CalcCraft Pro
 CalcCraft.Support.MenuButton=Please Support!
 CalcCraft.Support.Title=Please support us!
 CalcCraft.Support.Body=CalcCraft is free and ad-free. Your support helps keep development active.
@@ -92,6 +101,15 @@ CalcCraft.ExpressionSizeSmall=Small
 CalcCraft.ExpressionSizeMedium=Medium
 CalcCraft.ExpressionSizeLarge=Large
 CalcCraft.ExpressionSizeExtraLarge=Extra large
+CalcCraft.ColorTheme=Colour theme
+CalcCraft.ColorThemeDescription=Select the colours of the keys and the display
+CalcCraft.ThemeClassic=Classic
+CalcCraft.ThemeGold=Gold
+CalcCraft.ThemeNight=Night
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Paper
+CalcCraft.ProThemeLocked=%1, Pro theme, locked, opens CalcCraft Pro on Google Play
+CalcCraft.GetPro=Get CalcCraft Pro
 
 [af-ZA]
 CalcCraft.Language=Taal
@@ -129,6 +147,15 @@ CalcCraft.ExpressionSizeSmall=Klein
 CalcCraft.ExpressionSizeMedium=Medium
 CalcCraft.ExpressionSizeLarge=Groot
 CalcCraft.ExpressionSizeExtraLarge=Ekstra groot
+CalcCraft.ColorTheme=Kleurtema
+CalcCraft.ColorThemeDescription=Kies die kleure van die sleutels en die skerm
+CalcCraft.ThemeClassic=Klassiek
+CalcCraft.ThemeGold=Goud
+CalcCraft.ThemeNight=Nag
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, Pro-tema, gesluit, open CalcCraft Pro op Google Play
+CalcCraft.GetPro=Kry CalcCraft Pro
 
 [am-ET]
 CalcCraft.Language=ቋንቋ
@@ -166,6 +193,15 @@ CalcCraft.ExpressionSizeSmall=ትንሽ
 CalcCraft.ExpressionSizeMedium=መካከለኛ
 CalcCraft.ExpressionSizeLarge=ትልቅ
 CalcCraft.ExpressionSizeExtraLarge=በጣም ትልቅ
+CalcCraft.ColorTheme=የቀለም ገጽታ
+CalcCraft.ColorThemeDescription=የቁልፎቹንና የማሳያውን ቀለሞች ይምረጡ
+CalcCraft.ThemeClassic=ክላሲክ
+CalcCraft.ThemeGold=ወርቅ
+CalcCraft.ThemeNight=ሌሊት
+CalcCraft.ThemeRetroLcd=ሬትሮ LCD
+CalcCraft.ThemePaper=ወረቀት
+CalcCraft.ProThemeLocked=%1፣ የPro ገጽታ፣ ተቆልፏል፣ CalcCraft Proን በGoogle Play ላይ ይከፍታል
+CalcCraft.GetPro=CalcCraft Proን ያግኙ
 
 [az-Latn-AZ]
 CalcCraft.Language=Dil
@@ -203,6 +239,15 @@ CalcCraft.ExpressionSizeSmall=Kiçik
 CalcCraft.ExpressionSizeMedium=Orta
 CalcCraft.ExpressionSizeLarge=Böyük
 CalcCraft.ExpressionSizeExtraLarge=Çox böyük
+CalcCraft.ColorTheme=Rəng mövzusu
+CalcCraft.ColorThemeDescription=Düymələrin və ekranın rənglərini seçin
+CalcCraft.ThemeClassic=Klassik
+CalcCraft.ThemeGold=Qızılı
+CalcCraft.ThemeNight=Gecə
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Kağız
+CalcCraft.ProThemeLocked=%1, Pro mövzusu, kilidlidir, Google Play-də CalcCraft Pro-nu açır
+CalcCraft.GetPro=CalcCraft Pro əldə edin
 
 [bg-BG]
 CalcCraft.Language=Език
@@ -240,6 +285,15 @@ CalcCraft.ExpressionSizeSmall=Малък
 CalcCraft.ExpressionSizeMedium=Среден
 CalcCraft.ExpressionSizeLarge=Голям
 CalcCraft.ExpressionSizeExtraLarge=Много голям
+CalcCraft.ColorTheme=Цветова тема
+CalcCraft.ColorThemeDescription=Изберете цветовете на клавишите и дисплея
+CalcCraft.ThemeClassic=Класическа
+CalcCraft.ThemeGold=Златна
+CalcCraft.ThemeNight=Нощна
+CalcCraft.ThemeRetroLcd=Ретро LCD
+CalcCraft.ThemePaper=Хартия
+CalcCraft.ProThemeLocked=%1, тема Pro, заключена, отваря CalcCraft Pro в Google Play
+CalcCraft.GetPro=Вземете CalcCraft Pro
 
 [ca-ES]
 CalcCraft.Language=Idioma
@@ -277,6 +331,15 @@ CalcCraft.ExpressionSizeSmall=Petita
 CalcCraft.ExpressionSizeMedium=Mitjana
 CalcCraft.ExpressionSizeLarge=Gran
 CalcCraft.ExpressionSizeExtraLarge=Molt gran
+CalcCraft.ColorTheme=Tema de color
+CalcCraft.ColorThemeDescription=Selecciona els colors de les tecles i de la pantalla
+CalcCraft.ThemeClassic=Clàssic
+CalcCraft.ThemeGold=Or
+CalcCraft.ThemeNight=Nit
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Paper
+CalcCraft.ProThemeLocked=%1, tema Pro, bloquejat, obre CalcCraft Pro a Google Play
+CalcCraft.GetPro=Obtén CalcCraft Pro
 
 [cs-CZ]
 CalcCraft.Language=Jazyk
@@ -314,6 +377,15 @@ CalcCraft.ExpressionSizeSmall=Malá
 CalcCraft.ExpressionSizeMedium=Střední
 CalcCraft.ExpressionSizeLarge=Velká
 CalcCraft.ExpressionSizeExtraLarge=Extra velká
+CalcCraft.ColorTheme=Barevný motiv
+CalcCraft.ColorThemeDescription=Vyberte barvy kláves a displeje
+CalcCraft.ThemeClassic=Klasický
+CalcCraft.ThemeGold=Zlatý
+CalcCraft.ThemeNight=Noční
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papír
+CalcCraft.ProThemeLocked=%1, motiv Pro, uzamčeno, otevře CalcCraft Pro na Google Play
+CalcCraft.GetPro=Získat CalcCraft Pro
 
 [da-DK]
 CalcCraft.Language=Sprog
@@ -351,6 +423,15 @@ CalcCraft.ExpressionSizeSmall=Lille
 CalcCraft.ExpressionSizeMedium=Mellem
 CalcCraft.ExpressionSizeLarge=Stor
 CalcCraft.ExpressionSizeExtraLarge=Ekstra stor
+CalcCraft.ColorTheme=Farvetema
+CalcCraft.ColorThemeDescription=Vælg farverne på tasterne og displayet
+CalcCraft.ThemeClassic=Klassisk
+CalcCraft.ThemeGold=Guld
+CalcCraft.ThemeNight=Nat
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papir
+CalcCraft.ProThemeLocked=%1, Pro-tema, låst, åbner CalcCraft Pro på Google Play
+CalcCraft.GetPro=Hent CalcCraft Pro
 
 [de-DE]
 CalcCraft.Language=Sprache
@@ -388,6 +469,15 @@ CalcCraft.ExpressionSizeSmall=Klein
 CalcCraft.ExpressionSizeMedium=Mittel
 CalcCraft.ExpressionSizeLarge=Groß
 CalcCraft.ExpressionSizeExtraLarge=Sehr groß
+CalcCraft.ColorTheme=Farbdesign
+CalcCraft.ColorThemeDescription=Auswählen der Farben der Tasten und der Anzeige
+CalcCraft.ThemeClassic=Klassisch
+CalcCraft.ThemeGold=Gold
+CalcCraft.ThemeNight=Nacht
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, Pro-Design, gesperrt, öffnet CalcCraft Pro bei Google Play
+CalcCraft.GetPro=CalcCraft Pro holen
 
 [el-GR]
 CalcCraft.Language=Γλώσσα
@@ -425,6 +515,15 @@ CalcCraft.ExpressionSizeSmall=Μικρό
 CalcCraft.ExpressionSizeMedium=Μεσαίο
 CalcCraft.ExpressionSizeLarge=Μεγάλο
 CalcCraft.ExpressionSizeExtraLarge=Πολύ μεγάλο
+CalcCraft.ColorTheme=Θέμα χρωμάτων
+CalcCraft.ColorThemeDescription=Επιλέξτε τα χρώματα των πλήκτρων και της οθόνης
+CalcCraft.ThemeClassic=Κλασικό
+CalcCraft.ThemeGold=Χρυσό
+CalcCraft.ThemeNight=Νύχτα
+CalcCraft.ThemeRetroLcd=Ρετρό LCD
+CalcCraft.ThemePaper=Χαρτί
+CalcCraft.ProThemeLocked=%1, θέμα Pro, κλειδωμένο, ανοίγει το CalcCraft Pro στο Google Play
+CalcCraft.GetPro=Αποκτήστε το CalcCraft Pro
 
 [es-ES]
 CalcCraft.Language=Idioma
@@ -462,6 +561,15 @@ CalcCraft.ExpressionSizeSmall=Pequeño
 CalcCraft.ExpressionSizeMedium=Mediano
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Muy grande
+CalcCraft.ColorTheme=Tema de color
+CalcCraft.ColorThemeDescription=Seleccionar los colores de las teclas y de la pantalla
+CalcCraft.ThemeClassic=Clásico
+CalcCraft.ThemeGold=Oro
+CalcCraft.ThemeNight=Noche
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, tema Pro, bloqueado, abre CalcCraft Pro en Google Play
+CalcCraft.GetPro=Obtener CalcCraft Pro
 
 [es-MX]
 CalcCraft.Language=Idioma
@@ -499,6 +607,15 @@ CalcCraft.ExpressionSizeSmall=Pequeño
 CalcCraft.ExpressionSizeMedium=Mediano
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Muy grande
+CalcCraft.ColorTheme=Tema de color
+CalcCraft.ColorThemeDescription=Seleccionar los colores de las teclas y de la pantalla
+CalcCraft.ThemeClassic=Clásico
+CalcCraft.ThemeGold=Oro
+CalcCraft.ThemeNight=Noche
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, tema Pro, bloqueado, abre CalcCraft Pro en Google Play
+CalcCraft.GetPro=Obtener CalcCraft Pro
 
 [et-EE]
 CalcCraft.Language=Keel
@@ -536,6 +653,15 @@ CalcCraft.ExpressionSizeSmall=Väike
 CalcCraft.ExpressionSizeMedium=Keskmine
 CalcCraft.ExpressionSizeLarge=Suur
 CalcCraft.ExpressionSizeExtraLarge=Väga suur
+CalcCraft.ColorTheme=Värviteema
+CalcCraft.ColorThemeDescription=Valige klahvide ja ekraani värvid
+CalcCraft.ThemeClassic=Klassikaline
+CalcCraft.ThemeGold=Kuld
+CalcCraft.ThemeNight=Öö
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Paber
+CalcCraft.ProThemeLocked=%1, Pro-teema, lukus, avab Google Plays rakenduse CalcCraft Pro
+CalcCraft.GetPro=Hankige CalcCraft Pro
 
 [eu-ES]
 CalcCraft.Language=Hizkuntza
@@ -573,6 +699,15 @@ CalcCraft.ExpressionSizeSmall=Txikia
 CalcCraft.ExpressionSizeMedium=Ertaina
 CalcCraft.ExpressionSizeLarge=Handia
 CalcCraft.ExpressionSizeExtraLarge=Oso handia
+CalcCraft.ColorTheme=Kolore-gaia
+CalcCraft.ColorThemeDescription=Hautatu teklen eta pantailaren koloreak
+CalcCraft.ThemeClassic=Klasikoa
+CalcCraft.ThemeGold=Urrea
+CalcCraft.ThemeNight=Gaua
+CalcCraft.ThemeRetroLcd=LCD retroa
+CalcCraft.ThemePaper=Papera
+CalcCraft.ProThemeLocked=%1, Pro gaia, blokeatuta, CalcCraft Pro irekitzen du Google Play-n
+CalcCraft.GetPro=Eskuratu CalcCraft Pro
 
 [fi-FI]
 CalcCraft.Language=Kieli
@@ -610,6 +745,15 @@ CalcCraft.ExpressionSizeSmall=Pieni
 CalcCraft.ExpressionSizeMedium=Keskikokoinen
 CalcCraft.ExpressionSizeLarge=Suuri
 CalcCraft.ExpressionSizeExtraLarge=Erittäin suuri
+CalcCraft.ColorTheme=Väriteema
+CalcCraft.ColorThemeDescription=Valitse näppäinten ja näytön värit
+CalcCraft.ThemeClassic=Klassinen
+CalcCraft.ThemeGold=Kulta
+CalcCraft.ThemeNight=Yö
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Paperi
+CalcCraft.ProThemeLocked=%1, Pro-teema, lukittu, avaa CalcCraft Pron Google Playssa
+CalcCraft.GetPro=Hanki CalcCraft Pro
 
 [fil-PH]
 CalcCraft.Language=Wika
@@ -647,6 +791,15 @@ CalcCraft.ExpressionSizeSmall=Maliit
 CalcCraft.ExpressionSizeMedium=Katamtaman
 CalcCraft.ExpressionSizeLarge=Malaki
 CalcCraft.ExpressionSizeExtraLarge=Napakalaki
+CalcCraft.ColorTheme=Tema ng kulay
+CalcCraft.ColorThemeDescription=Piliin ang mga kulay ng mga key at ng display
+CalcCraft.ThemeClassic=Klasiko
+CalcCraft.ThemeGold=Ginto
+CalcCraft.ThemeNight=Gabi
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, Pro na tema, naka-lock, binubuksan ang CalcCraft Pro sa Google Play
+CalcCraft.GetPro=Kunin ang CalcCraft Pro
 
 [fr-CA]
 CalcCraft.Language=Langue
@@ -684,6 +837,15 @@ CalcCraft.ExpressionSizeSmall=Petite
 CalcCraft.ExpressionSizeMedium=Moyenne
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Très grande
+CalcCraft.ColorTheme=Thème de couleurs
+CalcCraft.ColorThemeDescription=Sélectionner les couleurs des touches et de l’affichage
+CalcCraft.ThemeClassic=Classique
+CalcCraft.ThemeGold=Or
+CalcCraft.ThemeNight=Nuit
+CalcCraft.ThemeRetroLcd=LCD rétro
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, thème Pro, verrouillé, ouvre CalcCraft Pro sur Google Play
+CalcCraft.GetPro=Obtenir CalcCraft Pro
 
 [fr-FR]
 CalcCraft.Language=Langue
@@ -721,6 +883,15 @@ CalcCraft.ExpressionSizeSmall=Petite
 CalcCraft.ExpressionSizeMedium=Moyenne
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Très grande
+CalcCraft.ColorTheme=Thème de couleurs
+CalcCraft.ColorThemeDescription=Sélectionner les couleurs des touches et de l’affichage
+CalcCraft.ThemeClassic=Classique
+CalcCraft.ThemeGold=Or
+CalcCraft.ThemeNight=Nuit
+CalcCraft.ThemeRetroLcd=LCD rétro
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, thème Pro, verrouillé, ouvre CalcCraft Pro sur Google Play
+CalcCraft.GetPro=Obtenir CalcCraft Pro
 
 [gl-ES]
 CalcCraft.Language=Idioma
@@ -758,6 +929,15 @@ CalcCraft.ExpressionSizeSmall=Pequeno
 CalcCraft.ExpressionSizeMedium=Mediano
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Moi grande
+CalcCraft.ColorTheme=Tema de cor
+CalcCraft.ColorThemeDescription=Seleccionar as cores das teclas e da pantalla
+CalcCraft.ThemeClassic=Clásico
+CalcCraft.ThemeGold=Ouro
+CalcCraft.ThemeNight=Noite
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, tema Pro, bloqueado, abre CalcCraft Pro en Google Play
+CalcCraft.GetPro=Obter CalcCraft Pro
 
 [hr-HR]
 CalcCraft.Language=Jezik
@@ -795,6 +975,15 @@ CalcCraft.ExpressionSizeSmall=Mala
 CalcCraft.ExpressionSizeMedium=Srednja
 CalcCraft.ExpressionSizeLarge=Velika
 CalcCraft.ExpressionSizeExtraLarge=Vrlo velika
+CalcCraft.ColorTheme=Tema boja
+CalcCraft.ColorThemeDescription=Odaberite boje tipki i zaslona
+CalcCraft.ThemeClassic=Klasična
+CalcCraft.ThemeGold=Zlatna
+CalcCraft.ThemeNight=Noćna
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papir
+CalcCraft.ProThemeLocked=%1, Pro tema, zaključano, otvara CalcCraft Pro na Google Playu
+CalcCraft.GetPro=Nabavite CalcCraft Pro
 
 [hu-HU]
 CalcCraft.Language=Nyelv
@@ -832,6 +1021,15 @@ CalcCraft.ExpressionSizeSmall=Kicsi
 CalcCraft.ExpressionSizeMedium=Közepes
 CalcCraft.ExpressionSizeLarge=Nagy
 CalcCraft.ExpressionSizeExtraLarge=Nagyon nagy
+CalcCraft.ColorTheme=Színtéma
+CalcCraft.ColorThemeDescription=Válassza ki a gombok és a kijelző színeit
+CalcCraft.ThemeClassic=Klasszikus
+CalcCraft.ThemeGold=Arany
+CalcCraft.ThemeNight=Éjszakai
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papír
+CalcCraft.ProThemeLocked=%1, Pro téma, zárolva, megnyitja a CalcCraft Pro alkalmazást a Google Playen
+CalcCraft.GetPro=CalcCraft Pro beszerzése
 
 [id-ID]
 CalcCraft.Language=Bahasa
@@ -869,6 +1067,15 @@ CalcCraft.ExpressionSizeSmall=Kecil
 CalcCraft.ExpressionSizeMedium=Sedang
 CalcCraft.ExpressionSizeLarge=Besar
 CalcCraft.ExpressionSizeExtraLarge=Ekstra besar
+CalcCraft.ColorTheme=Tema warna
+CalcCraft.ColorThemeDescription=Pilih warna tombol dan layar
+CalcCraft.ThemeClassic=Klasik
+CalcCraft.ThemeGold=Emas
+CalcCraft.ThemeNight=Malam
+CalcCraft.ThemeRetroLcd=LCD Retro
+CalcCraft.ThemePaper=Kertas
+CalcCraft.ProThemeLocked=%1, tema Pro, terkunci, membuka CalcCraft Pro di Google Play
+CalcCraft.GetPro=Dapatkan CalcCraft Pro
 
 [is-IS]
 CalcCraft.Language=Tungumál
@@ -906,6 +1113,15 @@ CalcCraft.ExpressionSizeSmall=Lítil
 CalcCraft.ExpressionSizeMedium=Miðlungs
 CalcCraft.ExpressionSizeLarge=Stór
 CalcCraft.ExpressionSizeExtraLarge=Mjög stór
+CalcCraft.ColorTheme=Litaþema
+CalcCraft.ColorThemeDescription=Velja liti hnappanna og skjásins
+CalcCraft.ThemeClassic=Sígilt
+CalcCraft.ThemeGold=Gull
+CalcCraft.ThemeNight=Nótt
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Pappír
+CalcCraft.ProThemeLocked=%1, Pro-þema, læst, opnar CalcCraft Pro á Google Play
+CalcCraft.GetPro=Sækja CalcCraft Pro
 
 [it-IT]
 CalcCraft.Language=Lingua
@@ -943,6 +1159,15 @@ CalcCraft.ExpressionSizeSmall=Piccola
 CalcCraft.ExpressionSizeMedium=Media
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Molto grande
+CalcCraft.ColorTheme=Tema colori
+CalcCraft.ColorThemeDescription=Seleziona i colori dei tasti e del display
+CalcCraft.ThemeClassic=Classico
+CalcCraft.ThemeGold=Oro
+CalcCraft.ThemeNight=Notte
+CalcCraft.ThemeRetroLcd=LCD retrò
+CalcCraft.ThemePaper=Carta
+CalcCraft.ProThemeLocked=%1, tema Pro, bloccato, apre CalcCraft Pro su Google Play
+CalcCraft.GetPro=Ottieni CalcCraft Pro
 
 [ja-JP]
 CalcCraft.Language=言語
@@ -980,6 +1205,15 @@ CalcCraft.ExpressionSizeSmall=小
 CalcCraft.ExpressionSizeMedium=中
 CalcCraft.ExpressionSizeLarge=大
 CalcCraft.ExpressionSizeExtraLarge=特大
+CalcCraft.ColorTheme=カラー テーマ
+CalcCraft.ColorThemeDescription=キーとディスプレイの色を選択します
+CalcCraft.ThemeClassic=クラシック
+CalcCraft.ThemeGold=ゴールド
+CalcCraft.ThemeNight=ナイト
+CalcCraft.ThemeRetroLcd=レトロ LCD
+CalcCraft.ThemePaper=ペーパー
+CalcCraft.ProThemeLocked=%1、Pro テーマ、ロック済み、Google Play で CalcCraft Pro を開きます
+CalcCraft.GetPro=CalcCraft Pro を入手
 
 [kk-KZ]
 CalcCraft.Language=Тіл
@@ -1017,6 +1251,15 @@ CalcCraft.ExpressionSizeSmall=Кіші
 CalcCraft.ExpressionSizeMedium=Орташа
 CalcCraft.ExpressionSizeLarge=Үлкен
 CalcCraft.ExpressionSizeExtraLarge=Өте үлкен
+CalcCraft.ColorTheme=Түс тақырыбы
+CalcCraft.ColorThemeDescription=Пернелер мен дисплейдің түстерін таңдау
+CalcCraft.ThemeClassic=Классикалық
+CalcCraft.ThemeGold=Алтын
+CalcCraft.ThemeNight=Түнгі
+CalcCraft.ThemeRetroLcd=Ретро LCD
+CalcCraft.ThemePaper=Қағаз
+CalcCraft.ProThemeLocked=%1, Pro тақырыбы, құлыпталған, Google Play қызметінде CalcCraft Pro ашады
+CalcCraft.GetPro=CalcCraft Pro алу
 
 [ko-KR]
 CalcCraft.Language=언어
@@ -1054,6 +1297,15 @@ CalcCraft.ExpressionSizeSmall=작게
 CalcCraft.ExpressionSizeMedium=보통
 CalcCraft.ExpressionSizeLarge=크게
 CalcCraft.ExpressionSizeExtraLarge=아주 크게
+CalcCraft.ColorTheme=색 테마
+CalcCraft.ColorThemeDescription=키와 디스플레이의 색 선택
+CalcCraft.ThemeClassic=클래식
+CalcCraft.ThemeGold=골드
+CalcCraft.ThemeNight=나이트
+CalcCraft.ThemeRetroLcd=레트로 LCD
+CalcCraft.ThemePaper=종이
+CalcCraft.ProThemeLocked=%1, Pro 테마, 잠김, Google Play에서 CalcCraft Pro 열기
+CalcCraft.GetPro=CalcCraft Pro 받기
 
 [lt-LT]
 CalcCraft.Language=Kalba
@@ -1091,6 +1343,15 @@ CalcCraft.ExpressionSizeSmall=Mažas
 CalcCraft.ExpressionSizeMedium=Vidutinis
 CalcCraft.ExpressionSizeLarge=Didelis
 CalcCraft.ExpressionSizeExtraLarge=Labai didelis
+CalcCraft.ColorTheme=Spalvų tema
+CalcCraft.ColorThemeDescription=Pasirinkite klavišų ir ekrano spalvas
+CalcCraft.ThemeClassic=Klasikinė
+CalcCraft.ThemeGold=Auksinė
+CalcCraft.ThemeNight=Naktinė
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Popierinė
+CalcCraft.ProThemeLocked=%1, Pro tema, užrakinta, atidaro CalcCraft Pro parduotuvėje Google Play
+CalcCraft.GetPro=Gauti CalcCraft Pro
 
 [lv-LV]
 CalcCraft.Language=Valoda
@@ -1128,6 +1389,15 @@ CalcCraft.ExpressionSizeSmall=Mazs
 CalcCraft.ExpressionSizeMedium=Vidējs
 CalcCraft.ExpressionSizeLarge=Liels
 CalcCraft.ExpressionSizeExtraLarge=Ļoti liels
+CalcCraft.ColorTheme=Krāsu motīvs
+CalcCraft.ColorThemeDescription=Atlasiet taustiņu un displeja krāsas
+CalcCraft.ThemeClassic=Klasisks
+CalcCraft.ThemeGold=Zelts
+CalcCraft.ThemeNight=Nakts
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papīrs
+CalcCraft.ProThemeLocked=%1, Pro motīvs, bloķēts, atver CalcCraft Pro pakalpojumā Google Play
+CalcCraft.GetPro=Iegūt CalcCraft Pro
 
 [mk-MK]
 CalcCraft.Language=Јазик
@@ -1165,6 +1435,15 @@ CalcCraft.ExpressionSizeSmall=Мала
 CalcCraft.ExpressionSizeMedium=Средна
 CalcCraft.ExpressionSizeLarge=Голема
 CalcCraft.ExpressionSizeExtraLarge=Многу голема
+CalcCraft.ColorTheme=Тема на бои
+CalcCraft.ColorThemeDescription=Изберете ги боите на копчињата и екранот
+CalcCraft.ThemeClassic=Класична
+CalcCraft.ThemeGold=Златна
+CalcCraft.ThemeNight=Ноќна
+CalcCraft.ThemeRetroLcd=Ретро LCD
+CalcCraft.ThemePaper=Хартија
+CalcCraft.ProThemeLocked=%1, Pro тема, заклучена, го отвора CalcCraft Pro на Google Play
+CalcCraft.GetPro=Преземете CalcCraft Pro
 
 [ms-MY]
 CalcCraft.Language=Bahasa
@@ -1202,6 +1481,15 @@ CalcCraft.ExpressionSizeSmall=Kecil
 CalcCraft.ExpressionSizeMedium=Sederhana
 CalcCraft.ExpressionSizeLarge=Besar
 CalcCraft.ExpressionSizeExtraLarge=Sangat besar
+CalcCraft.ColorTheme=Tema warna
+CalcCraft.ColorThemeDescription=Pilih warna kekunci dan paparan
+CalcCraft.ThemeClassic=Klasik
+CalcCraft.ThemeGold=Emas
+CalcCraft.ThemeNight=Malam
+CalcCraft.ThemeRetroLcd=LCD Retro
+CalcCraft.ThemePaper=Kertas
+CalcCraft.ProThemeLocked=%1, tema Pro, dikunci, membuka CalcCraft Pro di Google Play
+CalcCraft.GetPro=Dapatkan CalcCraft Pro
 
 [nb-NO]
 CalcCraft.Language=Språk
@@ -1239,6 +1527,15 @@ CalcCraft.ExpressionSizeSmall=Liten
 CalcCraft.ExpressionSizeMedium=Middels
 CalcCraft.ExpressionSizeLarge=Stor
 CalcCraft.ExpressionSizeExtraLarge=Ekstra stor
+CalcCraft.ColorTheme=Fargetema
+CalcCraft.ColorThemeDescription=Velg fargene på tastene og skjermen
+CalcCraft.ThemeClassic=Klassisk
+CalcCraft.ThemeGold=Gull
+CalcCraft.ThemeNight=Natt
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papir
+CalcCraft.ProThemeLocked=%1, Pro-tema, låst, åpner CalcCraft Pro på Google Play
+CalcCraft.GetPro=Skaff CalcCraft Pro
 
 [nl-NL]
 CalcCraft.Language=Taal
@@ -1276,6 +1573,15 @@ CalcCraft.ExpressionSizeSmall=Klein
 CalcCraft.ExpressionSizeMedium=Middel
 CalcCraft.ExpressionSizeLarge=Groot
 CalcCraft.ExpressionSizeExtraLarge=Extra groot
+CalcCraft.ColorTheme=Kleurthema
+CalcCraft.ColorThemeDescription=Selecteer de kleuren van de toetsen en het display
+CalcCraft.ThemeClassic=Klassiek
+CalcCraft.ThemeGold=Goud
+CalcCraft.ThemeNight=Nacht
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, Pro-thema, vergrendeld, opent CalcCraft Pro in Google Play
+CalcCraft.GetPro=CalcCraft Pro downloaden
 
 [pl-PL]
 CalcCraft.Language=Język
@@ -1313,6 +1619,15 @@ CalcCraft.ExpressionSizeSmall=Mały
 CalcCraft.ExpressionSizeMedium=Średni
 CalcCraft.ExpressionSizeLarge=Duży
 CalcCraft.ExpressionSizeExtraLarge=Bardzo duży
+CalcCraft.ColorTheme=Motyw kolorów
+CalcCraft.ColorThemeDescription=Wybierz kolory klawiszy i wyświetlacza
+CalcCraft.ThemeClassic=Klasyczny
+CalcCraft.ThemeGold=Złoty
+CalcCraft.ThemeNight=Nocny
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papierowy
+CalcCraft.ProThemeLocked=%1, motyw Pro, zablokowany, otwiera CalcCraft Pro w Google Play
+CalcCraft.GetPro=Pobierz CalcCraft Pro
 
 [pt-BR]
 CalcCraft.Language=Idioma
@@ -1350,6 +1665,15 @@ CalcCraft.ExpressionSizeSmall=Pequeno
 CalcCraft.ExpressionSizeMedium=Médio
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Extragrande
+CalcCraft.ColorTheme=Tema de cores
+CalcCraft.ColorThemeDescription=Selecione as cores das teclas e da tela
+CalcCraft.ThemeClassic=Clássico
+CalcCraft.ThemeGold=Dourado
+CalcCraft.ThemeNight=Noite
+CalcCraft.ThemeRetroLcd=LCD retrô
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, tema Pro, bloqueado, abre o CalcCraft Pro no Google Play
+CalcCraft.GetPro=Obter o CalcCraft Pro
 
 [pt-PT]
 CalcCraft.Language=Idioma
@@ -1387,6 +1711,15 @@ CalcCraft.ExpressionSizeSmall=Pequeno
 CalcCraft.ExpressionSizeMedium=Médio
 CalcCraft.ExpressionSizeLarge=Grande
 CalcCraft.ExpressionSizeExtraLarge=Muito grande
+CalcCraft.ColorTheme=Tema de cores
+CalcCraft.ColorThemeDescription=Selecione as cores das teclas e do ecrã
+CalcCraft.ThemeClassic=Clássico
+CalcCraft.ThemeGold=Dourado
+CalcCraft.ThemeNight=Noite
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Papel
+CalcCraft.ProThemeLocked=%1, tema Pro, bloqueado, abre o CalcCraft Pro no Google Play
+CalcCraft.GetPro=Obter o CalcCraft Pro
 
 [ro-RO]
 CalcCraft.Language=Limbă
@@ -1424,6 +1757,15 @@ CalcCraft.ExpressionSizeSmall=Mică
 CalcCraft.ExpressionSizeMedium=Medie
 CalcCraft.ExpressionSizeLarge=Mare
 CalcCraft.ExpressionSizeExtraLarge=Foarte mare
+CalcCraft.ColorTheme=Temă de culori
+CalcCraft.ColorThemeDescription=Selectați culorile tastelor și ale afișajului
+CalcCraft.ThemeClassic=Clasică
+CalcCraft.ThemeGold=Aurie
+CalcCraft.ThemeNight=Noapte
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Hârtie
+CalcCraft.ProThemeLocked=%1, temă Pro, blocată, deschide CalcCraft Pro în Google Play
+CalcCraft.GetPro=Obțineți CalcCraft Pro
 
 [ru-RU]
 CalcCraft.Language=Язык
@@ -1461,6 +1803,15 @@ CalcCraft.ExpressionSizeSmall=Маленький
 CalcCraft.ExpressionSizeMedium=Средний
 CalcCraft.ExpressionSizeLarge=Крупный
 CalcCraft.ExpressionSizeExtraLarge=Очень крупный
+CalcCraft.ColorTheme=Цветовая тема
+CalcCraft.ColorThemeDescription=Выберите цвета клавиш и дисплея
+CalcCraft.ThemeClassic=Классическая
+CalcCraft.ThemeGold=Золотая
+CalcCraft.ThemeNight=Ночная
+CalcCraft.ThemeRetroLcd=Ретро LCD
+CalcCraft.ThemePaper=Бумажная
+CalcCraft.ProThemeLocked=%1, тема Pro, заблокирована, открывает CalcCraft Pro в Google Play
+CalcCraft.GetPro=Получить CalcCraft Pro
 
 [sk-SK]
 CalcCraft.Language=Jazyk
@@ -1498,6 +1849,15 @@ CalcCraft.ExpressionSizeSmall=Malá
 CalcCraft.ExpressionSizeMedium=Stredná
 CalcCraft.ExpressionSizeLarge=Veľká
 CalcCraft.ExpressionSizeExtraLarge=Extra veľká
+CalcCraft.ColorTheme=Farebný motív
+CalcCraft.ColorThemeDescription=Vyberte farby klávesov a displeja
+CalcCraft.ThemeClassic=Klasický
+CalcCraft.ThemeGold=Zlatý
+CalcCraft.ThemeNight=Nočný
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papier
+CalcCraft.ProThemeLocked=%1, motív Pro, uzamknutý, otvorí CalcCraft Pro v Google Play
+CalcCraft.GetPro=Získať CalcCraft Pro
 
 [sl-SI]
 CalcCraft.Language=Jezik
@@ -1535,6 +1895,15 @@ CalcCraft.ExpressionSizeSmall=Majhna
 CalcCraft.ExpressionSizeMedium=Srednja
 CalcCraft.ExpressionSizeLarge=Velika
 CalcCraft.ExpressionSizeExtraLarge=Zelo velika
+CalcCraft.ColorTheme=Barvna tema
+CalcCraft.ColorThemeDescription=Izberite barve tipk in zaslona
+CalcCraft.ThemeClassic=Klasična
+CalcCraft.ThemeGold=Zlata
+CalcCraft.ThemeNight=Nočna
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papir
+CalcCraft.ProThemeLocked=%1, tema Pro, zaklenjeno, odpre CalcCraft Pro v trgovini Google Play
+CalcCraft.GetPro=Pridobite CalcCraft Pro
 
 [sq-AL]
 CalcCraft.Language=Gjuha
@@ -1572,6 +1941,15 @@ CalcCraft.ExpressionSizeSmall=E vogël
 CalcCraft.ExpressionSizeMedium=Mesatare
 CalcCraft.ExpressionSizeLarge=E madhe
 CalcCraft.ExpressionSizeExtraLarge=Shumë e madhe
+CalcCraft.ColorTheme=Tema e ngjyrave
+CalcCraft.ColorThemeDescription=Zgjidh ngjyrat e tasteve dhe të ekranit
+CalcCraft.ThemeClassic=Klasike
+CalcCraft.ThemeGold=E artë
+CalcCraft.ThemeNight=Nata
+CalcCraft.ThemeRetroLcd=LCD retro
+CalcCraft.ThemePaper=Letër
+CalcCraft.ProThemeLocked=%1, temë Pro, e kyçur, hap CalcCraft Pro në Google Play
+CalcCraft.GetPro=Merr CalcCraft Pro
 
 [sr-Latn-RS]
 CalcCraft.Language=Jezik
@@ -1609,6 +1987,15 @@ CalcCraft.ExpressionSizeSmall=Mala
 CalcCraft.ExpressionSizeMedium=Srednja
 CalcCraft.ExpressionSizeLarge=Velika
 CalcCraft.ExpressionSizeExtraLarge=Vrlo velika
+CalcCraft.ColorTheme=Tema boja
+CalcCraft.ColorThemeDescription=Izaberite boje tastera i ekrana
+CalcCraft.ThemeClassic=Klasična
+CalcCraft.ThemeGold=Zlatna
+CalcCraft.ThemeNight=Noćna
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Papir
+CalcCraft.ProThemeLocked=%1, Pro tema, zaključana, otvara CalcCraft Pro na Google Play prodavnici
+CalcCraft.GetPro=Nabavite CalcCraft Pro
 
 [sv-SE]
 CalcCraft.Language=Språk
@@ -1646,6 +2033,15 @@ CalcCraft.ExpressionSizeSmall=Liten
 CalcCraft.ExpressionSizeMedium=Medel
 CalcCraft.ExpressionSizeLarge=Stor
 CalcCraft.ExpressionSizeExtraLarge=Extra stor
+CalcCraft.ColorTheme=Färgtema
+CalcCraft.ColorThemeDescription=Välj färgerna på tangenterna och skärmen
+CalcCraft.ThemeClassic=Klassiskt
+CalcCraft.ThemeGold=Guld
+CalcCraft.ThemeNight=Natt
+CalcCraft.ThemeRetroLcd=Retro-LCD
+CalcCraft.ThemePaper=Papper
+CalcCraft.ProThemeLocked=%1, Pro-tema, låst, öppnar CalcCraft Pro på Google Play
+CalcCraft.GetPro=Skaffa CalcCraft Pro
 
 [th-TH]
 CalcCraft.Language=ภาษา
@@ -1683,6 +2079,15 @@ CalcCraft.ExpressionSizeSmall=เล็ก
 CalcCraft.ExpressionSizeMedium=กลาง
 CalcCraft.ExpressionSizeLarge=ใหญ่
 CalcCraft.ExpressionSizeExtraLarge=ใหญ่พิเศษ
+CalcCraft.ColorTheme=ธีมสี
+CalcCraft.ColorThemeDescription=เลือกสีของปุ่มและจอแสดงผล
+CalcCraft.ThemeClassic=คลาสสิก
+CalcCraft.ThemeGold=ทอง
+CalcCraft.ThemeNight=กลางคืน
+CalcCraft.ThemeRetroLcd=LCD ย้อนยุค
+CalcCraft.ThemePaper=กระดาษ
+CalcCraft.ProThemeLocked=%1, ธีม Pro, ล็อกอยู่, เปิด CalcCraft Pro บน Google Play
+CalcCraft.GetPro=รับ CalcCraft Pro
 
 [tr-TR]
 CalcCraft.Language=Dil
@@ -1720,6 +2125,15 @@ CalcCraft.ExpressionSizeSmall=Küçük
 CalcCraft.ExpressionSizeMedium=Orta
 CalcCraft.ExpressionSizeLarge=Büyük
 CalcCraft.ExpressionSizeExtraLarge=Çok büyük
+CalcCraft.ColorTheme=Renk teması
+CalcCraft.ColorThemeDescription=Tuşların ve ekranın renklerini seçin
+CalcCraft.ThemeClassic=Klasik
+CalcCraft.ThemeGold=Altın
+CalcCraft.ThemeNight=Gece
+CalcCraft.ThemeRetroLcd=Retro LCD
+CalcCraft.ThemePaper=Kâğıt
+CalcCraft.ProThemeLocked=%1, Pro tema, kilitli, Google Play'de CalcCraft Pro'yu açar
+CalcCraft.GetPro=CalcCraft Pro'yu edinin
 
 [uk-UA]
 CalcCraft.Language=Мова
@@ -1757,6 +2171,15 @@ CalcCraft.ExpressionSizeSmall=Малий
 CalcCraft.ExpressionSizeMedium=Середній
 CalcCraft.ExpressionSizeLarge=Великий
 CalcCraft.ExpressionSizeExtraLarge=Дуже великий
+CalcCraft.ColorTheme=Колірна тема
+CalcCraft.ColorThemeDescription=Виберіть кольори клавіш і дисплея
+CalcCraft.ThemeClassic=Класична
+CalcCraft.ThemeGold=Золота
+CalcCraft.ThemeNight=Нічна
+CalcCraft.ThemeRetroLcd=Ретро LCD
+CalcCraft.ThemePaper=Паперова
+CalcCraft.ProThemeLocked=%1, тема Pro, заблоковано, відкриває CalcCraft Pro в Google Play
+CalcCraft.GetPro=Отримати CalcCraft Pro
 
 [vi-VN]
 CalcCraft.Language=Ngôn ngữ
@@ -1794,6 +2217,15 @@ CalcCraft.ExpressionSizeSmall=Nhỏ
 CalcCraft.ExpressionSizeMedium=Vừa
 CalcCraft.ExpressionSizeLarge=Lớn
 CalcCraft.ExpressionSizeExtraLarge=Rất lớn
+CalcCraft.ColorTheme=Chủ đề màu
+CalcCraft.ColorThemeDescription=Chọn màu của các phím và màn hình
+CalcCraft.ThemeClassic=Cổ điển
+CalcCraft.ThemeGold=Vàng kim
+CalcCraft.ThemeNight=Ban đêm
+CalcCraft.ThemeRetroLcd=LCD hoài cổ
+CalcCraft.ThemePaper=Giấy
+CalcCraft.ProThemeLocked=%1, chủ đề Pro, đã khóa, mở CalcCraft Pro trên Google Play
+CalcCraft.GetPro=Tải CalcCraft Pro
 
 [zh-CN]
 CalcCraft.Language=语言
@@ -1831,6 +2263,15 @@ CalcCraft.ExpressionSizeSmall=小
 CalcCraft.ExpressionSizeMedium=中
 CalcCraft.ExpressionSizeLarge=大
 CalcCraft.ExpressionSizeExtraLarge=特大
+CalcCraft.ColorTheme=颜色主题
+CalcCraft.ColorThemeDescription=选择按键和显示屏的颜色
+CalcCraft.ThemeClassic=经典
+CalcCraft.ThemeGold=金色
+CalcCraft.ThemeNight=夜间
+CalcCraft.ThemeRetroLcd=复古 LCD
+CalcCraft.ThemePaper=纸张
+CalcCraft.ProThemeLocked=%1，Pro 主题，已锁定，在 Google Play 上打开 CalcCraft Pro
+CalcCraft.GetPro=获取 CalcCraft Pro
 
 [zh-TW]
 CalcCraft.Language=語言
@@ -1868,3 +2309,12 @@ CalcCraft.ExpressionSizeSmall=小
 CalcCraft.ExpressionSizeMedium=中
 CalcCraft.ExpressionSizeLarge=大
 CalcCraft.ExpressionSizeExtraLarge=特大
+CalcCraft.ColorTheme=色彩主題
+CalcCraft.ColorThemeDescription=選取按鍵和顯示器的色彩
+CalcCraft.ThemeClassic=經典
+CalcCraft.ThemeGold=金色
+CalcCraft.ThemeNight=夜間
+CalcCraft.ThemeRetroLcd=復古 LCD
+CalcCraft.ThemePaper=紙張
+CalcCraft.ProThemeLocked=%1，Pro 主題，已鎖定，在 Google Play 上開啟 CalcCraft Pro
+CalcCraft.GetPro=取得 CalcCraft Pro

@@ -581,3 +581,61 @@ fn write_layout_shots() {
         }
     }
 }
+
+/// Writes a picture of every colour theme (docs/color-themes.md) into `target/shots/`: the
+/// Standard mode after `12 × 3 =`, the Scientific mode, and the Settings page with the Colour
+/// theme card open, on an upright phone, in light and dark where the theme follows them:
+/// `cargo test write_theme_shots -- --ignored`.
+#[test]
+#[ignore]
+fn write_theme_shots() {
+    use crate::engine::Op;
+    let screen = &SCREENS[2];
+    for color in ColorTheme::ALL {
+        for theme in [Theme::Dark, Theme::Light] {
+            // A theme that fixes light or dark has one picture.
+            if palette::spec(color).fixed.is_some() && theme == Theme::Light {
+                continue;
+            }
+            for page in ["Standard", "Scientific", "Settings"] {
+                let ctx = Context::default();
+                let mut app = super::tests::start_in(&ctx);
+                app.set_theme(&ctx, theme);
+                app.set_color_theme(&ctx, color);
+                let mut canvas = Canvas::new(1, 1, Color32::BLACK);
+                for _ in 0..2 {
+                    frame(&ctx, &mut app, screen, Some(&mut canvas));
+                }
+                match page {
+                    "Settings" => {
+                        app.page = Page::Settings;
+                        app.color_theme_expanded = true;
+                    }
+                    mode => {
+                        if mode == "Scientific" {
+                            app.set_mode(Mode::Scientific);
+                        }
+                        for command in [
+                            Command::Digit(1),
+                            Command::Digit(2),
+                            Command::Operator(Op::Multiply),
+                            Command::Digit(3),
+                            Command::Equals,
+                        ] {
+                            app.engine_mut().execute(command);
+                        }
+                    }
+                }
+                for _ in 0..3 {
+                    frame(&ctx, &mut app, screen, Some(&mut canvas));
+                }
+                let shade = match palette::spec(color).fixed {
+                    Some(_) => String::new(),
+                    None => format!("-{}", theme.key()),
+                };
+                let name = format!("theme-{}{shade}-{page}", color.key());
+                shoot(&ctx, &mut app, screen, &name, &mut canvas);
+            }
+        }
+    }
+}

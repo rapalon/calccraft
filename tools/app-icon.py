@@ -29,19 +29,36 @@ It writes:
 Run it from the repository root after changing the artwork:
 
     uv run tools/app-icon.py
+
+CalcCraft Pro (the play-paid app, com.rapalon.calccraft.pro) has its own artwork in
+android/icon-source/pro/ (calccraft-pro-icon-512.png and calccraft-pro-foreground.png: the same
+calculator with a gold key, placed as in the free icon). With --pro the same steps write:
+- android/res-pro/: the Pro launcher icon's layers, Android 7 icons and background colour, which
+  build-apk.ps1 lays over android/res/ for play-paid only (aapt2's -R overlay);
+- android/store/pro/icon-512.png: a copy of the Pro square icon;
+- target/icon-preview-pro/ (not committed): the previews.
+The free app's icons, the desktop and the web icons stay the free artwork's.
+
+    uv run tools/app-icon.py --pro
 """
 
 import math
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "android" / "icon-source"
-SQUARE = SOURCE / "calccraft-icon-512.png"
-FOREGROUND = SOURCE / "calccraft-foreground.png"
+# --pro: CalcCraft Pro's artwork and outputs (see above).
+PRO = "--pro" in sys.argv[1:]
+SOURCE = ROOT / "android" / "icon-source" / ("pro" if PRO else "")
+SQUARE = SOURCE / ("calccraft-pro-icon-512.png" if PRO else "calccraft-icon-512.png")
+FOREGROUND = SOURCE / ("calccraft-pro-foreground.png" if PRO else "calccraft-foreground.png")
+RES = ROOT / "android" / ("res-pro" if PRO else "res")
+STORE = ROOT / "android" / "store" / ("pro" if PRO else "") / "icon-512.png"
+PREVIEW = ROOT / "target" / ("icon-preview-pro" if PRO else "icon-preview")
 
 # Where the square icon has the calculator: its body's left and right edges and its top,
 # measured on the 512 px square. The foreground PNG is the same body, edge to edge.
@@ -110,6 +127,12 @@ def silhouette(art):
     # The green key: clearly greener than red and blue.
     green = ImageChops.subtract(g, ImageChops.lighter(r, b)).point(lambda v: 255 if v > 15 else 0)
     holes = ImageChops.lighter(dark, green)
+    if PRO:
+        # The Pro icon's gold key (#E6C980 to #B99148): far more red than blue, and green
+        # well above blue too, which the grey body and the white keys are not.
+        warm = ImageChops.subtract(r, b).point(lambda v: 255 if v > 60 else 0)
+        yellow = ImageChops.subtract(g, b).point(lambda v: 255 if v > 30 else 0)
+        holes = ImageChops.lighter(holes, ImageChops.multiply(warm, yellow))
     # Fill the keys' gloss highlights and the green key's light gradient (a closing as wide as
     # a highlight: the keys are some 180 px), then drop specks.
     holes = holes.filter(ImageFilter.MaxFilter(25)).filter(ImageFilter.MinFilter(25))
@@ -173,7 +196,7 @@ def save_png(image, path, mode="RGBA"):
 
 
 def write_android():
-    res = ROOT / "android" / "res"
+    res = RES
     art = foreground_art()
     mono = silhouette(art)
     for density, factor in ANDROID_DENSITIES.items():
@@ -192,6 +215,9 @@ def write_android():
         if path.exists():
             path.unlink()
     colors = res / "values" / "colors.xml"
+    if PRO and not colors.exists():
+        colors.parent.mkdir(parents=True, exist_ok=True)
+        colors.write_text(PRO_COLORS, encoding="utf-8", newline="\n")
     text = colors.read_text(encoding="utf-8")
     text = re.sub(
         r'(<color name="ic_launcher_background">)#[0-9A-Fa-f]{6}(</color>)',
@@ -201,8 +227,21 @@ def write_android():
     colors.write_text(text, encoding="utf-8", newline="\n")
 
 
+# android/res-pro/values/colors.xml when it doesn't exist yet; its colour is then sampled.
+# No double hyphen in the comment: XML forbids it there, and aapt2 refuses the file.
+PRO_COLORS = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CalcCraft Pro's launcher icon background, sampled from
+         android/icon-source/pro/calccraft-pro-icon-512.png by tools/app-icon.py in its Pro
+         mode, which rewrites this value. build-apk.ps1 lays android/res-pro/ over
+         android/res/ for the play-paid app only. -->
+    <color name="ic_launcher_background">#000000</color>
+</resources>
+"""
+
+
 def write_store():
-    store = ROOT / "android" / "store" / "icon-512.png"
+    store = STORE
     store.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(SQUARE, store)
 
@@ -291,7 +330,7 @@ THEMED = {"light": ("#0B1D49", "#D8E2FF"), "dark": ("#D8E2FF", "#233A6B")}
 
 
 def write_previews():
-    out = ROOT / "target" / "icon-preview"
+    out = PREVIEW
     out.mkdir(parents=True, exist_ok=True)
     shapes = ["circle", "squircle", "rounded-square"]
     # 48 dp and 108 dp at xxhdpi (3 px a dp).
@@ -335,8 +374,10 @@ def write_previews():
 def main():
     write_android()
     write_store()
-    write_desktop()
-    write_web()
+    # The desktop and web icons are the free artwork's only.
+    if not PRO:
+        write_desktop()
+        write_web()
     write_previews()
     print("background", hex_colour(background_colour()))
 

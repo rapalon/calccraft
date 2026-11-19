@@ -145,20 +145,13 @@ pub struct PlayListing;
 impl DonationChannel for PlayListing {
     fn donate(&self, ctx: &egui::Context, _context: &DonateContext) {
         // Without a paid app the prompt is hidden, so this isn't reached; nothing opens then.
-        let Some(id) = super::channel::paid_id() else {
-            return;
-        };
-        let [market, web] = super::channel::store_urls(id);
-        if super::clock::fast_mode() {
-            eprintln!("support: store URL {market}");
+        if super::clock::fast_mode()
+            && let Some(id) = super::channel::paid_id()
+        {
+            eprintln!("support: store URL {}", super::channel::store_urls(id)[0]);
         }
-        #[cfg(target_os = "android")]
-        if crate::app::android::open_url(&market) {
-            return;
-        }
-        #[cfg(not(target_os = "android"))]
-        let _ = market;
-        crate::app::open_link(ctx, web);
+        // The same listing as a locked Pro theme's (docs/color-themes.md).
+        crate::app::open_pro_listing(ctx);
     }
 }
 
