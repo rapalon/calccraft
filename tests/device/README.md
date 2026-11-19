@@ -42,7 +42,7 @@ Each step is an object with one key:
 | `{ "expect_absent": "Trigonometry" }` | no node is named so |
 | `{ "display": "1000" }` | the display's node is `Display is 1000`, compared **loosely** |
 | `{ "expression": "12 + 7 × 3 =" }` | the expression line's node starts with `Expression is 12 + 7 × 3 =`, loosely |
-| `{ "scroll_to": "Night" }` | until a node is named so: a finger drawn up the middle of the screen, from 65 % of its height to 35 %, up to 6 times (Settings on a low screen) |
+| `{ "scroll_to": "Night" }` | until a node is named so: a finger drawn up the middle of the app's window, from 65 % of its height to 35 %, up to 6 times (Settings on a low screen). The window is the app's outermost node in the dump, so it has the current orientation's size (2340 × 1080 on a phone held sideways, not `wm size`'s 1080 × 2340) |
 | `{ "expect_checked": "Classic" }` | a node is named so and is checked (a radio button: uiautomator's `checked="true"`) |
 | `{ "edition": "free" }` | the steps up to the next `edition` are only for that edition: `free` (the free Play app and its test builds) or `pro` (CalcCraft Pro, an application ID ending in `.pro`); `any` ends the part. The other edition's steps are left out, not failed |
 
@@ -90,6 +90,17 @@ reason and the names on screen, `SKIP` after a failure) and one of the scenarios
 app's version, for the release. It reads the screen with `uiautomator dump`, which fails while
 another UiAutomation client (an instrumentation test) is connected; Marionet's accessibility
 service doesn't get in the way.
+
+A swipe (`scroll_to`) takes its coordinates from the same dump: the bounds of the app's
+outermost node are the window in the current orientation. `wm size` reports the physical panel
+(portrait on a phone), so a swipe computed from it with the phone held sideways went off the
+screen (the 1.4.4 run of `themes`). Without an app node in the dump it falls back to `wm size`,
+swapped when the dump's `rotation` is 90° or 270°.
+
+The self-test (`-SelfTest`, run by CI) checks the script against two recorded dumps,
+`fixtures/window-dump.xml` (portrait, 1080 × 2340) and `fixtures/window-dump-landscape.xml`
+(the same phone sideways, 2340 × 1080): the nodes it finds and leaves out, the loose number
+comparison, each kind of expectation, and that the swipe stays inside both windows.
 
 ## Runner: an AI agent through Marionet
 

@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<!-- A `uiautomator dump` of the Settings page with the phone held sideways (rotation 1: the
+     window is 2340 × 1080 although `wm size` still says 1080x2340), shortened, for
+     `run.ps1 -SelfTest`: the swipe of scroll_to must stay inside this window. -->
+<hierarchy rotation="1">
+  <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.rapalon.calccraft.a11ytest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][2340,1080]">
+    <node index="0" text="" resource-id="android:id/content" class="android.widget.FrameLayout" package="com.rapalon.calccraft.a11ytest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][2340,1080]">
+      <node index="0" text="" resource-id="" class="android.view.View" package="com.rapalon.calccraft.a11ytest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="true" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][2340,1080]">
+        <node index="0" text="" resource-id="" class="android.widget.Button" package="com.rapalon.calccraft.a11ytest" content-desc="Back" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[140,30][245,125]" />
+        <node index="1" text="Settings" resource-id="" class="android.widget.TextView" package="com.rapalon.calccraft.a11ytest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[260,30][560,125]" />
+        <node index="2" text="" resource-id="" class="android.widget.Button" package="com.rapalon.calccraft.a11ytest" content-desc="Color theme" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[140,160][2200,340]" />
+        <node index="3" text="" resource-id="" class="android.widget.RadioButton" package="com.rapalon.calccraft.a11ytest" content-desc="Classic" checkable="true" checked="true" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[140,360][2200,480]" />
+        <node index="4" text="" resource-id="" class="android.widget.RadioButton" package="com.rapalon.calccraft.a11ytest" content-desc="Gold, Pro theme, locked, opens CalcCraft Pro on Google Play" checkable="true" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[140,500][2200,620]" />
+      </node>
+    </node>
+  </node>
+  <node index="1" text="" resource-id="" class="android.widget.FrameLayout" package="com.android.systemui" content-desc="Nameless" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][2340,100]" />
+</hierarchy>
