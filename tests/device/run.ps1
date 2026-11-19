@@ -67,7 +67,9 @@ function Invoke-Adb {
 # A displayed number or expression without digit groups and decimal separators, so that the
 # scenarios' en-US numbers match the phone's regional format (1,000 / 1'000 / 6,25).
 function ConvertTo-Loose([string] $Text) {
-    $Text -replace '[,.''’   ]', ''
+    # Escapes, not the characters: PowerShell takes a typographic apostrophe for a quote.
+    $Text -replace "[,.' `u{2019}`u{00a0}`u{202f}]", ''
+    <#   #>
 }
 
 # The app's nodes on screen now: name, center, from a uiautomator dump.
@@ -203,7 +205,7 @@ if ($SelfTest) {
     Test-That ($seven -and $seven.X -eq 830 -and $seven.Y -eq 300) "Number 7 isn't at (830, 300): $seven"
     Test-That ($null -eq (Find-Node { $_.Name -ceq 'Nameless' })) 'a node of another app was found'
     $wanted = ConvertTo-Loose 'Display is 1,000'
-    Test-That ([bool](Find-Node { (ConvertTo-Loose $_.Name) -ceq $wanted })) 'Display is 1,000 matches no "Display is 1’000"'
+    Test-That ([bool](Find-Node { (ConvertTo-Loose $_.Name) -ceq $wanted })) 'Display is 1,000 matches no "Display is 1(U+2019)000"'
     Test-That ((ConvertTo-Loose '6.25') -ceq (ConvertTo-Loose '6,25')) '6.25 and 6,25 differ'
     try { Invoke-Step 'expect' 'Plus'; } catch { $problems.Add("expect Plus: $($_.Exception.Message)") }
     try { Invoke-Step 'expression' '12 + 7 × 3 ='; } catch { $problems.Add("expression: $($_.Exception.Message)") }

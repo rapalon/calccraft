@@ -180,8 +180,9 @@ fn find<'a>(nodes: &[Node<'a>], name_of: &str) -> Option<Node<'a>> {
 fn check_nodes(page: &str, tree: &Tree) {
     let mut nodes = Vec::new();
     shown(&tree.state().root(), &mut nodes);
-    // The date calculation has the fewest: the menu, the page list, two dates and the result.
-    assert!(nodes.len() >= 5, "{page}: only {} nodes", nodes.len());
+    // A few nodes at least: the Settings page of a phone on its side shows only four where the
+    // Regional format card is left out (Linux, macOS, Android; `show_region_card`).
+    assert!(nodes.len() >= 3, "{page}: only {} nodes", nodes.len());
     assert!(nodes.len() <= MAX_NODES, "{page}: {} nodes", nodes.len());
     let root = tree.state().root();
     for node in std::iter::once(&root).chain(&nodes) {
