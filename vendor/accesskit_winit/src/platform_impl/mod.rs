@@ -31,6 +31,10 @@ mod platform;
 #[path = "android.rs"]
 mod platform;
 
+// CalcCraft's addition for the Android adapter (android.rs's header).
+#[cfg(all(feature = "accesskit_android", target_os = "android"))]
+mod root_bounds;
+
 #[cfg(not(any(
     target_os = "windows",
     target_os = "macos",

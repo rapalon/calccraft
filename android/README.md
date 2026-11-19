@@ -364,11 +364,20 @@ the device: the accessibility services run on the phone.
   `Theme.AppCompat` theme), which this Gradle-less build doesn't have. CalcCraft keeps
   `NativeActivity` and ships a copy of `accesskit_winit` 0.32.2 in `vendor/accesskit_winit`
   (Apache-2.0, its `LICENSE-APACHE` kept), which `[patch.crates-io]` in `Cargo.toml` puts in
-  place of the crates.io release for every platform. The only change is in
-  `src/platform_impl/android.rs`, whose header names the upstream version and the change: the
+  place of the crates.io release for every platform. The changes are in
+  `src/platform_impl/android.rs`, whose header names the upstream version and the changes: the
   adapter's host is NativeActivity's content view (the window's decor view →
-  `android.R.id.content` → its one child), found through JNI. Everything else, and the desktop
-  builds, are the unchanged upstream code.
+  `android.R.id.content` → its one child), found through JNI; and the tree's root node gets the
+  window's rectangle (`src/platform_impl/root_bounds.rs`, tested in `tests/vendor.rs`). egui's
+  root has none, so the content view's node was 0 × 0 (`bounds="[0,0][0,0]"` in a uiautomator
+  dump), and a service that drops empty nodes with their children (Marionet did) saw one
+  empty Group instead of the keys. Everything else, and the desktop builds, are the unchanged
+  upstream code.
+- **Its log lines.** `adb logcat -s CalcCraft` shows, once each, where the delegate went
+  (`AccessKit: the accessibility delegate goes on android.app.NativeActivity$NativeContentView{…}`),
+  when a service first asked for the tree, and the first tree update (`… N nodes, the root in a
+  W×H window`). No request line means no service queried the app; a request without an
+  update means egui never sent its tree.
 - **Android 8.0 and later.** `accesskit_android` loads its Java delegate class from a dex it
   embeds, through `dalvik.system.InMemoryDexClassLoader`, which exists from API 26. Upstream
   creates the adapter unconditionally; the patched copy asks `Build.VERSION.SDK_INT` first
@@ -385,11 +394,14 @@ the device: the accessibility services run on the phone.
   that fails too). Re-apply the patch: copy the new release from
   `~/.cargo/registry/src/*/accesskit_winit-<version>/` over `vendor/accesskit_winit` (its
   `Cargo.toml` without the examples and dev-dependencies, which the copy doesn't carry), put
-  the same change into `src/platform_impl/android.rs` again, and update the version in the
-  file's header.
+  the same changes into `src/platform_impl/android.rs` (and `mod.rs`'s `root_bounds` line)
+  again, keep `root_bounds.rs`, and update the version in the file's header.
 - **Checking it on a phone.** `adb shell uiautomator dump` writes the tree Android sees
-  (`/sdcard/window_dump.xml`): the keys appear as `android.view.View` nodes with their names
-  as `content-desc` and `clickable="true"`, the display with its value as `text`. With
+  (`/sdcard/window_dump.xml`): under NativeContentView, which has the window's bounds, the keys
+  appear as `android.widget.Button` nodes with their names as `content-desc`, the display as a
+  `TextView` with its value as `text` (`Display is 0`). The keys offer `ACTION_CLICK`, which is
+  what TalkBack and services click them by, but say `clickable="false"`: `accesskit_android`
+  0.7.5 never sets the clickable flag (it lives in that crate, not in the vendored one). With
   TalkBack on, swipe right through the keys, double-tap `1`, `2`, `×`, `3`, `=` and hear "Display
   is 36"; drag a finger over the keypad (explore by touch) to hear the key under it. Hover
   events reach the adapter only if NativeActivity passes them on to its view: that's the one

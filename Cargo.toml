@@ -117,6 +117,9 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
+# For tests/vendor.rs, which tests the Android adapter's root bounds (vendor/accesskit_winit)
+# on every system; the version egui uses.
+accesskit = "0.24"
 # For `icon::tests::write_web_icons`, on every system.
 png = "0.18"
 

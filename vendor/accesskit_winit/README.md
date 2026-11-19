@@ -18,9 +18,11 @@ The Android implementation of this adapter currently only works with [GameActivi
 ## CalcCraft's copy
 
 This directory is a copy of the crates.io release 0.32.2 (Apache-2.0, `LICENSE-APACHE`), which
-CalcCraft's root `Cargo.toml` puts in place of the release with `[patch.crates-io]`. One file
-differs from the release: `src/platform_impl/android.rs`, whose Android adapter works with
+CalcCraft's root `Cargo.toml` puts in place of the release with `[patch.crates-io]`. Only the
+Android adapter differs from the release: `src/platform_impl/android.rs` works with
 `NativeActivity` (the activity CalcCraft's Android app uses) by hooking the activity's content
-view, and does nothing on Android versions before 8.0, where `accesskit_android` can't load its
-Java delegate. The file's header says so. Everything else is the release's code; the examples
+view, does nothing on Android versions before 8.0, where `accesskit_android` can't load its
+Java delegate, logs where the delegate went, and gives the tree's root node the window's
+bounds (the new `src/platform_impl/root_bounds.rs`, declared in `src/platform_impl/mod.rs`).
+The file's header says so. Everything else is the release's code; the examples
 and dev-dependencies aren't carried over. See `android/README.md`, "Accessibility".

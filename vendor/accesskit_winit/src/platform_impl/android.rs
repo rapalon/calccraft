@@ -15,6 +15,11 @@
 //   would panic there; this copy asks `Build.VERSION.SDK_INT` first and, below 26, logs one
 //   line and leaves the app without an accessibility tree. A JNI failure is logged the same
 //   way, never a panic.
+// - egui's root node has no bounds, so the host view's node had an empty rectangle and
+//   services that prune empty nodes dropped the whole tree (Marionet saw one empty Group):
+//   `fill_root_bounds` (root_bounds.rs) gives the root the window's rectangle. The adapter
+//   also logs (tag CalcCraft) the view the delegate went on, the first request for the tree
+//   and the first tree update.
 //
 // The rest of the crate is the release's code.
 
@@ -27,7 +32,9 @@ use accesskit_android::{
     },
     InjectingAdapter,
 };
+use super::root_bounds::fill_root_bounds;
 use winit::{
+    dpi::PhysicalSize,
     event::WindowEvent,
     event_loop::ActiveEventLoop,
     platform::android::{activity::AndroidApp, ActiveEventLoopExtAndroid},
@@ -42,6 +49,8 @@ pub struct Adapter {
     adapter: Option<InjectingAdapter>,
     /// Whether the first tree update has been logged (CalcCraft's diagnostics).
     updated: bool,
+    /// The window's size, the root node's bounds (`fill_root_bounds`).
+    size: PhysicalSize<u32>,
 }
 
 /// The activation handler, logging the first request for the tree: an accessibility service
@@ -64,7 +73,7 @@ impl<H: ActivationHandler> ActivationHandler for LoggedActivation<H> {
 impl Adapter {
     pub fn new(
         event_loop: &ActiveEventLoop,
-        _window: &Window,
+        window: &Window,
         activation_handler: impl 'static + ActivationHandler + Send,
         action_handler: impl 'static + ActionHandler + Send,
         _deactivation_handler: impl 'static + DeactivationHandler,
@@ -84,19 +93,24 @@ impl Adapter {
         Self {
             adapter,
             updated: false,
+            size: window.inner_size(),
         }
     }
 
     pub fn update_if_active(&mut self, updater: impl FnOnce() -> TreeUpdate) {
         if let Some(adapter) = &mut self.adapter {
             let updated = &mut self.updated;
+            let size = self.size;
             adapter.update_if_active(|| {
-                let update = updater();
+                let mut update = updater();
+                fill_root_bounds(&mut update, size.width.into(), size.height.into());
                 if !*updated {
                     *updated = true;
                     log::info!(
-                        "AccessKit: the first tree update, {} nodes",
-                        update.nodes.len()
+                        "AccessKit: the first tree update, {} nodes, the root in a {}x{} window",
+                        update.nodes.len(),
+                        size.width,
+                        size.height
                     );
                 }
                 update
@@ -104,7 +118,12 @@ impl Adapter {
         }
     }
 
-    pub fn process_event(&mut self, _window: &Window, _event: &WindowEvent) {}
+    pub fn process_event(&mut self, _window: &Window, event: &WindowEvent) {
+        // The root node's bounds are the window's (`fill_root_bounds`).
+        if let WindowEvent::Resized(size) = event {
+            self.size = *size;
+        }
+    }
 }
 
 /// The adapter on the activity's content view, or `None` where there can't be one: before
