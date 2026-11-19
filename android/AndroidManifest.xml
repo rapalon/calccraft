@@ -21,6 +21,7 @@
         android:hasCode="true"
         android:icon="@mipmap/ic_launcher"
         android:label="CalcCraft"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/CalcCraft">
 
         <!-- The app handles every configuration change itself: a restarted activity would

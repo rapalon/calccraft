@@ -5226,11 +5226,13 @@ impl TitleBar {
     fn apply(&self, _theme: egui::Theme) {}
 }
 
-/// The window icon, drawn by `icon.rs` (the executable embeds the same picture).
+/// The window icon, from `icon.rs` (the executable embeds the same picture).
 pub fn window_icon() -> egui::IconData {
     const SIZE: u32 = 64;
     egui::IconData {
-        rgba: crate::icon::rgba(SIZE),
+        rgba: crate::icon::rgba(SIZE)
+            .expect("icon.rs has the 64 px icon")
+            .to_vec(),
         width: SIZE,
         height: SIZE,
     }

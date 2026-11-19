@@ -44,7 +44,9 @@ src/lib.rs               the modules; window options and eframe::run_native, the
 index.html, Trunk.toml   the web version's page and its Trunk build (deployed by pages.yml)
 android/                 the Android app (prototype): manifest, icons, themes, build-apk.ps1
 assets/web/              the web version's icons, app manifest and service worker (sw.js): a PWA
-src/icon.rs              the app icon, drawn in code with std only (also compiled into build.rs)
+src/icon.rs              the app icon's images for the window and the .ico, std only (also compiled
+                         into build.rs); tools/app-icon.py renders them, the Android, Play and
+                         web icons from one vector redrawing of android/icon-source/'s artwork
 src/brand.rs             the company credit: "CalcCraft by Rapalon Labs", the company's name and URL
 build.rs                 embeds the icon and version info into calculator.exe (Windows only)
 src/engine.rs            calculator logic, no UI dependencies, unit tests at the bottom
@@ -912,7 +914,9 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
     files whose names change with their contents, as Trunk names the app's: a new file the
     page loads should get a hashed name too (a Trunk asset), not a fixed one.
 - `build.rs` includes `src/icon.rs` with `#[path]`, so `icon.rs` must not use egui or any other
-  dependency. The build writes a multi-size .ico file to `OUT_DIR` and embeds it with
+  dependency. Its images (`assets/icon/`) are generated: change the icon in
+  `tools/app-icon.py` (or its reference PNG) and run `uv run tools/app-icon.py`, which rewrites
+  them with the Android, Play and web icons. The build writes a multi-size .ico file to `OUT_DIR` and embeds it with
   `winresource`, which needs `rc.exe` from the Windows SDK. After rebuilding, Explorer may show
   the old icon from its icon cache for a while.
 - egui 0.36 has no `raw_scroll_delta`. The calendar reads `Event::MouseWheel` events itself

@@ -1,106 +1,31 @@
-//! The app icon: a small calculator, drawn in code.
+//! The app icon: Konst's calculator on blue (android/icon-source/calccraft-icon-512.png),
+//! as a rounded tile.
 //!
-//! The same drawing is the window icon (`app::window_icon`) and the icon embedded
-//! in the executable (`build.rs` includes this file). That's why it uses only `std`.
-//! The design sits on a 64 × 64 grid and is rendered at any size with 4 × 4
-//! supersampling, so every size of the .ico file is drawn sharp, not scaled.
+//! `tools/app-icon.py` redraws the artwork as vectors and renders these images from them, one
+//! per size, so every size is drawn sharp, not scaled: straight-alpha RGBA for the window icon
+//! (`app::window_icon`) and the small images of the executable's .ico, and a PNG for its
+//! 256 px image. `build.rs` includes this file, so it uses only `std`.
 
-// The dark palette's accent and number key colors.
-const ACCENT: [u8; 3] = [0xDB, 0x9E, 0xE5];
-const BODY: [u8; 3] = [0x44, 0x37, 0x44];
-const KEY: [u8; 3] = [0xE6, 0xE6, 0xE6];
+/// The sizes of the RGBA images, in pixels: small and large icons at 100–250 % scaling.
+#[allow(dead_code)] // build.rs's .ico; the app itself uses only the 64 px image
+pub const SIZES: [u32; 7] = [16, 20, 24, 32, 40, 48, 64];
 
-/// A rounded rectangle on the 64 × 64 grid.
-struct Shape {
-    left: f32,
-    top: f32,
-    right: f32,
-    bottom: f32,
-    radius: f32,
-}
+/// The 256 px image Explorer uses for large views, as a PNG (an .ico may hold one as it is).
+#[allow(dead_code)] // build.rs's .ico
+pub const PNG_256: &[u8] = include_bytes!("../assets/icon/icon-256.png");
 
-impl Shape {
-    const fn new(left: f32, top: f32, width: f32, height: f32, radius: f32) -> Self {
-        Shape {
-            left,
-            top,
-            right: left + width,
-            bottom: top + height,
-            radius,
-        }
-    }
-
-    fn contains(&self, x: f32, y: f32) -> bool {
-        if x < self.left || x > self.right || y < self.top || y > self.bottom {
-            return false;
-        }
-        let dx = (self.left + self.radius - x)
-            .max(x - (self.right - self.radius))
-            .max(0.0);
-        let dy = (self.top + self.radius - y)
-            .max(y - (self.bottom - self.radius))
-            .max(0.0);
-        dx * dx + dy * dy <= self.radius * self.radius
-    }
-}
-
-const BODY_SHAPE: Shape = Shape::new(10.0, 4.0, 44.0, 56.0, 7.0);
-const SCREEN: Shape = Shape::new(16.0, 10.0, 32.0, 12.0, 2.0);
-
-/// Color at a point of the 64 × 64 grid; `None` is transparent.
-fn color_at(x: f32, y: f32) -> Option<[u8; 3]> {
-    if !BODY_SHAPE.contains(x, y) {
-        return None;
-    }
-    if SCREEN.contains(x, y) {
-        return Some(ACCENT);
-    }
-    // Three columns and four rows of keys; the bottom right one is the accent "=".
-    for row in 0..4 {
-        for col in 0..3 {
-            let key = Shape::new(
-                16.0 + col as f32 * 11.5,
-                27.0 + row as f32 * 8.5,
-                9.0,
-                6.5,
-                1.5,
-            );
-            if key.contains(x, y) {
-                return Some(if (row, col) == (3, 2) { ACCENT } else { KEY });
-            }
-        }
-    }
-    Some(BODY)
-}
-
-/// The icon at `size` × `size` pixels, as RGBA with straight (not premultiplied) alpha.
-pub fn rgba(size: u32) -> Vec<u8> {
-    const SAMPLES: u32 = 4;
-    let scale = 64.0 / size as f32;
-    let mut pixels = Vec::with_capacity((size * size * 4) as usize);
-    for y in 0..size {
-        for x in 0..size {
-            let mut sum = [0u32; 3];
-            let mut covered = 0;
-            for sy in 0..SAMPLES {
-                for sx in 0..SAMPLES {
-                    let gx = (x as f32 + (sx as f32 + 0.5) / SAMPLES as f32) * scale;
-                    let gy = (y as f32 + (sy as f32 + 0.5) / SAMPLES as f32) * scale;
-                    if let Some(color) = color_at(gx, gy) {
-                        for (total, channel) in sum.iter_mut().zip(color) {
-                            *total += u32::from(channel);
-                        }
-                        covered += 1;
-                    }
-                }
-            }
-            // Average only the covered samples, so edges keep their color and fade by alpha.
-            let channel = |total: u32| total.checked_div(covered).unwrap_or(0) as u8;
-            let alpha = (covered * 255 / (SAMPLES * SAMPLES)) as u8;
-            pixels.extend([channel(sum[0]), channel(sum[1]), channel(sum[2]), alpha]);
-        }
-    }
-    pixels
+/// The icon at `size` × `size` pixels (one of `SIZES`), as RGBA with straight alpha.
+pub fn rgba(size: u32) -> Option<&'static [u8]> {
+    Some(match size {
+        16 => include_bytes!("../assets/icon/icon-16.rgba"),
+        20 => include_bytes!("../assets/icon/icon-20.rgba"),
+        24 => include_bytes!("../assets/icon/icon-24.rgba"),
+        32 => include_bytes!("../assets/icon/icon-32.rgba"),
+        40 => include_bytes!("../assets/icon/icon-40.rgba"),
+        48 => include_bytes!("../assets/icon/icon-48.rgba"),
+        64 => include_bytes!("../assets/icon/icon-64.rgba"),
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
@@ -113,96 +38,78 @@ mod tests {
     }
 
     #[test]
-    fn renders_any_size() {
-        for size in [16, 32, 64, 256] {
-            assert_eq!(rgba(size).len(), (size * size * 4) as usize);
+    fn every_size_is_there() {
+        for size in SIZES {
+            assert_eq!(
+                rgba(size).unwrap().len(),
+                (size * size * 4) as usize,
+                "{size}"
+            );
         }
+        assert!(rgba(256).is_none());
+        let png = png::Decoder::new(std::io::Cursor::new(PNG_256))
+            .read_info()
+            .unwrap();
+        assert_eq!((png.info().width, png.info().height), (256, 256));
     }
 
     #[test]
-    fn corners_are_transparent_and_screen_is_accent() {
-        let pixels = rgba(64);
-        assert_eq!(pixel(&pixels, 64, 0, 0)[3], 0);
-        assert_eq!(pixel(&pixels, 64, 32, 16), [0xDB, 0x9E, 0xE5, 0xFF]);
-        assert_eq!(pixel(&pixels, 64, 12, 40), [0x44, 0x37, 0x44, 0xFF]);
+    fn a_rounded_blue_tile_with_the_white_calculator() {
+        let pixels = rgba(64).unwrap();
+        // The corners are rounded off; the edges' middles are the tile's blue.
+        assert_eq!(pixel(pixels, 64, 0, 0)[3], 0);
+        assert_eq!(pixel(pixels, 64, 2, 32), [0x2E, 0x67, 0xEB, 0xFF]);
+        // The calculator's body between the display and the keys.
+        assert_eq!(pixel(pixels, 64, 32, 24), [0xF2, 0xF3, 0xF8, 0xFF]);
     }
 
-    fn write_png(path: &std::path::Path, size: u32, pixels: &[u8]) {
-        let file = std::fs::File::create(path).unwrap();
-        let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), size, size);
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(pixels).unwrap();
-    }
-
-    /// Writes the web version's icons into `assets/web/`, which `index.html` and the app
-    /// manifest link: the tab's icon, the icon iOS puts on the home screen, the installed
-    /// app's icons, and Android's maskable ones. Run it after changing the icon:
-    /// `cargo test write_web_icons -- --ignored`.
+    /// The Android launcher icons and the Play listing icon that `tools/app-icon.py` wrote.
     #[test]
-    #[ignore]
-    fn write_web_icons() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/web");
-        std::fs::create_dir_all(&dir).unwrap();
-        for size in [32, 180, 192, 512] {
-            write_png(&dir.join(format!("icon-{size}.png")), size, &rgba(size));
+    fn android_icons_are_complete() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let res = root.join("android/res");
+        let adaptive =
+            std::fs::read_to_string(res.join("mipmap-anydpi-v26/ic_launcher.xml")).unwrap();
+        for layer in [
+            "@color/ic_launcher_background",
+            "@drawable/ic_launcher_foreground",
+            "@drawable/ic_launcher_monochrome",
+        ] {
+            assert!(adaptive.contains(layer), "{layer}");
         }
-        // Android crops a maskable icon to the launcher's shape (a circle at the smallest),
-        // keeping only a circle of 80 % for sure: the calculator takes the middle 60 %, on the
-        // app's light background (palette.rs).
-        const BACKGROUND: [u8; 3] = [0xF3, 0xEB, 0xF3];
-        for size in [192, 512] {
-            let inner = size * 3 / 5;
-            let offset = (size - inner) / 2;
-            let icon = rgba(inner);
-            let mut pixels = Vec::with_capacity((size * size * 4) as usize);
-            for y in 0..size {
-                for x in 0..size {
-                    let (ix, iy) = (x.wrapping_sub(offset), y.wrapping_sub(offset));
-                    let front = if ix < inner && iy < inner {
-                        pixel(&icon, inner, ix, iy)
-                    } else {
-                        [0; 4]
-                    };
-                    let alpha = u32::from(front[3]);
-                    for channel in 0..3 {
-                        let blended = u32::from(front[channel]) * alpha
-                            + u32::from(BACKGROUND[channel]) * (255 - alpha);
-                        pixels.push(((blended + 127) / 255) as u8);
-                    }
-                    pixels.push(255);
-                }
-            }
-            let path = dir.join(format!("icon-maskable-{size}.png"));
-            write_png(&path, size, &pixels);
+        for drawable in ["ic_launcher_foreground", "ic_launcher_monochrome"] {
+            let xml =
+                std::fs::read_to_string(res.join(format!("drawable/{drawable}.xml"))).unwrap();
+            assert!(xml.contains("android:viewportWidth=\"108\""), "{drawable}");
         }
-    }
-
-    /// Writes the Android app's launcher icons into `android/res/`, at 4 pixels a dp
-    /// (xxxhdpi; Android scales them down): the plain icon for Android 7, and the foreground
-    /// of the adaptive icon of Android 8 and later. The launcher crops that 108 dp layer to
-    /// its shape and keeps a circle of 66 dp for sure, so the calculator takes the middle
-    /// 48 %, on the background color of `res/values/colors.xml`. Run it after changing the
-    /// icon: `cargo test write_android_icons -- --ignored`.
-    #[test]
-    #[ignore]
-    fn write_android_icons() {
-        let dir =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("android/res/mipmap-xxxhdpi");
-        std::fs::create_dir_all(&dir).unwrap();
-        write_png(&dir.join("ic_launcher.png"), 192, &rgba(192));
-        let size = 432;
-        let inner = size * 12 / 25;
-        let offset = (size - inner) / 2;
-        let icon = rgba(inner);
-        let mut pixels = vec![0; (size * size * 4) as usize];
-        for y in 0..inner {
-            for x in 0..inner {
-                let i = (((y + offset) * size + x + offset) * 4) as usize;
-                pixels[i..i + 4].copy_from_slice(&pixel(&icon, inner, x, y));
+        // Android 7's PNG icons: 48 dp at every density, square and round.
+        for (density, size) in [
+            ("mdpi", 48),
+            ("hdpi", 72),
+            ("xhdpi", 96),
+            ("xxhdpi", 144),
+            ("xxxhdpi", 192),
+        ] {
+            for name in ["ic_launcher", "ic_launcher_round"] {
+                let path = res.join(format!("mipmap-{density}/{name}.png"));
+                let file = std::fs::File::open(&path).unwrap();
+                let png = png::Decoder::new(std::io::BufReader::new(file))
+                    .read_info()
+                    .unwrap();
+                assert_eq!(
+                    (png.info().width, png.info().height),
+                    (size, size),
+                    "{path:?}"
+                );
             }
         }
-        write_png(&dir.join("ic_launcher_foreground.png"), size, &pixels);
+        // Google Play's listing icon: 512 × 512, opaque (Play adds the shape and the shadow).
+        let file = std::fs::File::open(root.join("android/store/icon-512.png")).unwrap();
+        let png = png::Decoder::new(std::io::BufReader::new(file))
+            .read_info()
+            .unwrap();
+        let info = png.info();
+        assert_eq!((info.width, info.height), (512, 512));
+        assert_eq!(info.color_type, png::ColorType::Rgb);
     }
 }

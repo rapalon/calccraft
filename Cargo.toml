@@ -125,7 +125,7 @@ accesskit = "0.24"
 accesskit_consumer = "0.38"
 # tests/vendor.rs includes the Android adapter's focus guard, which logs.
 log = "0.4"
-# For `icon::tests::write_web_icons`, on every system.
+# For the icon tests (`icon::tests`), which read the generated PNGs, on every system.
 png = "0.18"
 
 [build-dependencies]

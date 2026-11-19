@@ -297,9 +297,16 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   A phone on its side gets a landscape layout (the keys in a column of their own, see
   `FEATURES.md`, `FEAT-SHELL-002`); `cargo test layout_tests` checks every mode at phone and
   tablet sizes in both orientations.
-- `res/`: the launcher icon (adaptive from Android 8; `cargo test write_android_icons --
-  --ignored` writes the PNGs from `src/icon.rs`) and a light and a dark theme for the system
-  bars and the start-up background.
+- `res/`: the launcher icon and a light and a dark theme for the system bars and the start-up
+  background. The icon is Konst's artwork (`icon-source/calccraft-icon-512.png`, the
+  reference), redrawn as vectors by `uv run tools/app-icon.py`, which writes every icon file:
+  the adaptive icon of Android 8 and later (`mipmap-anydpi-v26`: the blue
+  `ic_launcher_background` color, the calculator as a vector drawable inside the 66 dp safe
+  circle, and the monochrome layer of Android 13's themed icons; `icon-source/` has the three
+  layers as SVG), the square and round PNG icons of Android 7 (`mipmap-*dpi`, API 24 and 25),
+  and Google Play's listing icon (`store/icon-512.png`, full-bleed and opaque: Play adds the
+  shape and the shadow). Both Play channels and every application ID use the same icon.
+  Previews in the launchers' masks go to `target/icon-previews/`.
 - `src/app/android.rs` (JNI on the NativeActivity that `android_main` gets; ndk-context's
   context is the Application, which has no window): the system bars' and camera cutout's part
   of the screen becomes egui's safe area, which the layout keeps clear (NativeActivity always
