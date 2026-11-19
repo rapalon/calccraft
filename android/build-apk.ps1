@@ -178,6 +178,17 @@ if ($Channel -ne 'default') {
         }
     }
     "Checked: no donate or Stripe address in the $Channel library"
+    # The free app's popup, locked Pro themes and "Get CalcCraft Pro" lead to the paid app's
+    # listing: its ID must be compiled in (1.4.3's free build had none, and hid the prompt).
+    if ($Channel -eq 'play-free' -and $PaidApplicationId) {
+        if (-not $text.Contains("details?id=")) {
+            throw "The play-free library has no Play listing address."
+        }
+        if (-not $text.Contains($PaidApplicationId)) {
+            throw "The play-free library doesn't contain the paid app's ID $PaidApplicationId."
+        }
+        "Checked: the play-free library leads to $PaidApplicationId"
+    }
 }
 
 # The Java code (java/: the graph share's ContentProvider) as classes.dex: javac against the

@@ -14,7 +14,9 @@ name: Release
 # test files of that branch, as an artifact of the run: the play-free App Bundle signed with
 # the upload key, the universal APK bundletool makes from it (the same code Play installs), and
 # a test APK with the application ID com.rapalon.calccraft.test, which installs next to the
-# Play app. No tag, no release, nothing published.
+# Play app; and CalcCraft Pro's (play-paid, com.rapalon.calccraft.pro unless the repository
+# variable CALCCRAFT_PAID_ID names another) App Bundle and universal APK. No tag, no release,
+# nothing published.
 on:
   push:
     tags:
@@ -335,7 +337,9 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
-          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID }}
+          # CalcCraft Pro. 1.4.3's run had no repository variable, so its free app hid the
+          # support prompt: the ID is now always there (docs/color-themes.md, section 4).
+          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID || 'com.rapalon.calccraft.pro' }}
         run: |
           $env:ANDROID_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.keystore'
           [IO.File]::WriteAllBytes($env:ANDROID_KEYSTORE,
@@ -370,7 +374,9 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID || 'com.rapalon.calccraft' }}
-          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID }}
+          # CalcCraft Pro. 1.4.3's run had no repository variable, so its free app hid the
+          # support prompt: the ID is now always there (docs/color-themes.md, section 4).
+          PAID_ID: ${{ vars.CALCCRAFT_PAID_ID || 'com.rapalon.calccraft.pro' }}
         run: |
           if (-not $env:ANDROID_KEYSTORE_BASE64) {
               '::error::No ANDROID_KEYSTORE_BASE64 secret: the Google Play test files need the upload key.'
@@ -387,6 +393,9 @@ jobs:
           android/build-apk.ps1 -Ndk $env:NDK -ApplicationId com.rapalon.calccraft.test -Channel play-free -PaidApplicationId "$env:PAID_ID"
           $apk = Get-Item target/android/CalcCraft-Play-*-arm64.apk
           Copy-Item $apk (Join-Path play ($apk.BaseName + '-test.apk'))
+          # CalcCraft Pro (play-paid): its App Bundle and the universal APK made from it.
+          android/build-apk.ps1 -Ndk $env:NDK -Channel play-paid -PaidApplicationId $env:PAID_ID -Bundle -UniversalApk
+          Copy-Item target/android/CalcCraft-Pro-*-arm64.aab, target/android/CalcCraft-Pro-*-arm64-universal.apk play/
           Push-Location play
           $files = @(Get-ChildItem -File)
           $files | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name } | Tee-Object SHA256SUMS
