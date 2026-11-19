@@ -173,6 +173,12 @@ jobs:
           # The share provider's code (android/java) is in both the APK and the bundle's APKs.
           "$tools/dexdump" target/android/universal.apk | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
           "$tools/dexdump" "target/android/CalcCraft-$version-arm64.apk" | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
+          # The library carries AccessKit's Android adapter with its Java delegate (a dex it
+          # embeds), so TalkBack gets the accessibility tree (android/README.md, "Accessibility").
+          # Without eframe's accesskit feature, or with the crates.io accesskit_winit instead of
+          # vendor/accesskit_winit, the delegate's class name wouldn't be in the library.
+          unzip -o -q target/android/universal.apk lib/arm64-v8a/libcalculator.so -d target/android/universal-lib
+          grep -a -q "dev/accesskit/android/Delegate" target/android/universal-lib/lib/arm64-v8a/libcalculator.so
           # build-apk.ps1 -UniversalApk's file (the release workflow's test build): signed, and
           # on 16 KB pages like bundletool's own.
           signed="target/android/CalcCraft-$version-arm64-universal.apk"
