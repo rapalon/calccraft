@@ -3,7 +3,11 @@
 //! (Settings → Time & language → Language & region → Regional format), separately from the
 //! display language of the strings, unless the Settings page picks another region. The
 //! environment variable `CALCCRAFT_REGION` (for example `de-DE`) stands in for the
-//! Windows setting.
+//! Windows setting. The web version reads them from the browser's `Intl`, the Android app
+//! from Java's locale classes (`java`, through JNI in `android.rs`); Linux and macOS use en-US
+//! (`docs/regional-formats.md`).
+
+pub(super) mod java;
 
 use std::sync::{Mutex, OnceLock, PoisonError, RwLock};
 
@@ -58,7 +62,15 @@ fn load(choice: Option<&str>) -> &'static Formats {
     let formats = windows::load(choice).unwrap_or_else(Formats::english);
     #[cfg(target_arch = "wasm32")]
     let formats = browser(choice).unwrap_or_else(Formats::english);
-    #[cfg(not(any(windows, target_arch = "wasm32")))]
+    // A failed JNI call (`with_activity` logged it) or odd data leaves en-US, never a crash.
+    #[cfg(target_os = "android")]
+    let formats = super::android::region_source(choice)
+        .and_then(java::formats)
+        .unwrap_or_else(|| {
+            log::warn!("Regional format {choice:?}: Java gave no formats, using en-US");
+            Formats::english()
+        });
+    #[cfg(not(any(windows, target_arch = "wasm32", target_os = "android")))]
     let formats = Formats::english();
     let formats: &'static Formats = Box::leak(Box::new(formats));
     loaded.push((choice.map(str::to_string), formats));
@@ -73,6 +85,9 @@ enum DateFormats {
     /// The browser's `Intl.DateTimeFormat` for a locale name.
     #[cfg(target_arch = "wasm32")]
     Web(String),
+    /// Java's date patterns and names (the Android app), formatted here.
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    Java(Box<java::Dates>),
 }
 
 /// The formats of a region from the browser's `Intl` (`None`: the browser's language, or the
@@ -132,6 +147,7 @@ impl Formats {
                 &[("year", "numeric"), ("month", "long"), ("day", "numeric")],
             )
             .unwrap_or_else(|| dates::format_date(date)),
+            DateFormats::Java(dates) => dates.picker(date),
         }
     }
 
@@ -156,6 +172,7 @@ impl Formats {
                 ],
             )
             .unwrap_or_else(|| dates::format_long_date(date)),
+            DateFormats::Java(dates) => dates.long(date),
         }
     }
 
@@ -172,7 +189,14 @@ impl Formats {
                 super::web::format_date(tag, date, &[("year", "numeric"), ("month", "long")])
                     .unwrap_or_else(|| date.format("%B %Y").to_string())
             }
+            DateFormats::Java(dates) => dates.year_month(date),
         }
+    }
+
+    /// The region of these formats (`DE` for `de-DE`), for the converters' default units
+    /// where the system has no setting of its own; `None` for a tag without one (`en`).
+    pub fn country(&self) -> Option<String> {
+        java::country(&self.tag)
     }
 
     /// A number and a date in these formats, for the Settings page:
@@ -194,17 +218,19 @@ pub(super) struct Region {
 }
 
 /// The regional formats to choose from, sorted by name: Windows' regional formats whose
-/// names and dates egui can draw and that use the Gregorian calendar.
+/// names and dates egui can draw and that use the Gregorian calendar; the translations'
+/// regions in the web version and the Android app; none on Linux and macOS, where the
+/// Regional format card is left out (`docs/regional-formats.md`).
 pub(super) fn regions() -> &'static [Region] {
     static REGIONS: OnceLock<Vec<Region>> = OnceLock::new();
     REGIONS.get_or_init(|| {
         #[cfg(windows)]
         let tags = windows::regions();
-        // Browsers don't list their locales: the web version offers the regions of the
-        // translations.
-        #[cfg(target_arch = "wasm32")]
+        // Browsers and Android don't list their locales: the web version and the Android app
+        // offer the regions of the translations.
+        #[cfg(any(target_arch = "wasm32", target_os = "android"))]
         let tags: Vec<String> = super::strings::languages().map(str::to_string).collect();
-        #[cfg(not(any(windows, target_arch = "wasm32")))]
+        #[cfg(not(any(windows, target_arch = "wasm32", target_os = "android")))]
         let tags: Vec<String> = Vec::new();
         let mut regions: Vec<Region> = tags
             .into_iter()
@@ -240,6 +266,10 @@ pub(super) fn native_name(tag: &str) -> String {
     }
     #[cfg(target_arch = "wasm32")]
     if let Some(name) = super::web::display_name(tag) {
+        return name;
+    }
+    #[cfg(target_os = "android")]
+    if let Some(name) = super::android::display_name(tag) {
         return name;
     }
     tag.to_string()
@@ -627,5 +657,6 @@ mod tests {
         assert_eq!(english.year_month(date), "October 2026");
         assert_eq!(english.weekdays[0], "Su");
         assert_eq!(english.example(date), "1,234,567.89 · October 15, 2026");
+        assert_eq!(english.country().as_deref(), Some("US"));
     }
 }

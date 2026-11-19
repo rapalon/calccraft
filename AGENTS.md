@@ -69,13 +69,17 @@ src/app/access.rs        keyboard focus, focus visuals and screen reader names o
 src/app/caret.rs         where the engine's caret is in the text shown (grouping, padding), pure
 src/app/icons.rs         the icons: code points of the embedded icon font, and a test that it has them
 src/app/strings.rs       the interface's text in the user's language (from locales/)
-src/app/region.rs        the user's regional formats, read from Windows (or the browser's Intl)
+src/app/region.rs        the user's regional formats, read from Windows, the browser's Intl or
+                         Java (docs/regional-formats.md); en-US on Linux and macOS
+src/app/region/java.rs   Java's locale data as `Formats` (the Android app): separators and grouping
+                         off a formatted number, first day, names, a Java date pattern formatter (pure)
 src/app/web.rs           the web version's ties to the browser: URL parameters, languages, Intl,
                          clipboard, downloads, browser shortcuts (wasm32 only)
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
-                         egui's safe area, the back button, languages, the keys' vibration
-                         (Vibrator, the touch feedback setting), whether the system
-                         keyboard is showing (`ime_visible`) (Android only)
+                         egui's safe area, the back button, languages, the regional formats
+                         (`region_source`, `display_name`), the keys' vibration (Vibrator, the
+                         touch feedback setting), whether the system keyboard is showing
+                         (`ime_visible`) (Android only)
 src/app/vibration.rs     the Android key vibration: mappings, the Auto style rule, the card rows (pure)
 src/app/orientation.rs   the Android screen orientation setting: choices, stored keys, the
                          `setRequestedOrientation` values, where Android honors them (pure)
@@ -268,8 +272,10 @@ nothing changes until the display or the line is touched. The spec and every cho
   `region::set_region` at runtime and save `CalcCraftLanguage` and `CalcCraftRegionalFormat`
   (a tag, or `Default` for the Windows setting). Their lists show names in their own scripts, so
   opening one loads `strings::LIST_FONTS` (`all_scripts`), which go again with the page.
-  The Regional format card is left out where `region::regions()` is empty (Android, Linux,
-  macOS: only "Use system setting", which changes nothing there; `show_region_card`).
+  The Regional format card is left out where `region::regions()` is empty (Linux, macOS: only
+  "Use system setting", which changes nothing there; `show_region_card`). The web version and
+  the Android app list the translations' regions; `docs/regional-formats.md` has every
+  platform's sources and the Linux and macOS proposal.
 - The Colour theme card (CalcCraft's own, right under App theme; `docs/color-themes.md`) picks a
   `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD,
   Paper, AMOLED Black and High Contrast, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
@@ -855,6 +861,14 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   starting on its first day of the week.
 - The date difference joins its units with the region's list separator and a space (`; ` in
   Germany), with the unit words in the interface language.
+- On Android they come from Java's locale classes through JNI (`android::region_source`),
+  read once per region, and `region/java.rs` turns them into `Formats` without JNI, so the
+  host tests pin them with the values Android gives: `1.234.567,89`, `15. Oktober 2026`,
+  `Donnerstag, 15. Oktober 2026` (de-DE); `1 234 567,89`, `15 октября 2026 г.`, the
+  calendar's title `октябрь 2026 г.` (the standalone month, `LLLL`) and header `Пн … Вс`
+  (ru-RU); India's `3;2;0` grouping off `12,34,56,78,90,123.5`; the era of th-TH's Gregorian
+  pattern left out. A failed JNI call or odd data gives en-US, never a panic. The list
+  separator is `;` with a decimal comma, else `,`, as in the web version.
 
 ## Conventions
 

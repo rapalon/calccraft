@@ -1246,9 +1246,14 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Settings can pick another language and regional format for CalcCraft alone
     (`FEAT-SHELL-008`); "Use system setting" follows Windows, or `CALCCRAFT_LANGUAGE` and
     `CALCCRAFT_REGION` where they're set.
-- **Not yet:** Android, Linux and macOS use en-US formats whatever the system's region (and hide
-  the Regional format card, `FEAT-SHELL-008`), until a later task reads the region's formats
-  there (through JNI and ICU on Android).
+  - Android follows the phone's format locale (`Locale.getDefault(FORMAT)`: the system region,
+    a per-app language, Android 14's regional preferences) through JNI: `java.text.NumberFormat`,
+    `Calendar.getFirstDayOfWeek`, ICU's `DateFormatSymbols` and
+    `DateFormat.getBestDateTimePattern` (`src/app/android.rs`, `src/app/region/java.rs`,
+    `docs/regional-formats.md`), with en-US when a call fails.
+- **Not yet:** Linux and macOS use en-US formats whatever the system's region (and hide the
+  Regional format card, `FEAT-SHELL-008`); `docs/regional-formats.md` proposes ICU4X and
+  CFLocale for them.
 - **Differences:** right-to-left and complex scripts are `FEAT-SHELL-011`. Numbers always use
   Western digits, and dates the Gregorian calendar. The contribute sentence in Settings stays
   English (its translations name the Windows Calculator). Pasted text loses its group separators
@@ -1267,7 +1272,7 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
     right of the text, or under it in cards narrower than 476 px. The Regional format card shows
-    only where there are regional formats to choose (Windows and the web version): on Android,
+    only where there are regional formats to choose (Windows, the web version and Android): on
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
   - Every build (CalcCraft's own; Windows has one size): an Expression size card right after the
     App theme card, with a drop-down: Small (by default), Medium, Large, Extra large. It sizes
@@ -1342,8 +1347,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     are pure functions in `app/vibration.rs`).
   - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
     that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
-    (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
-    card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
+    (`Deutsch (Schweiz)`), sorted; the web version and the Android app offer the translations'
+    regions instead, named by `Intl.DisplayNames` or `Locale.getDisplayName`. Typing the first
+    letters jumps to a name. The Regional format card shows an example in the chosen format
+    (`1’234’567.89 · 15. Oktober 2026`).
   - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat` /
     `CalcCraftScreenOrientation` / `CalcCraftKeyVibration` / `CalcCraftKeyVibrationStyle` /
     `CalcCraftKeyVibrationDuration`.
@@ -1570,3 +1577,4 @@ Windows source in `../win-calculator`.
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014`, `FEAT-SHELL-012` | CalcCraft 1.4.4: colour themes (Classic; Pro: Gold with a metallic `=`, Night, Retro LCD, Paper), unlocked in the default channel and in CalcCraft Pro (default Gold), locked with a PRO pill that opens Pro's Play listing in the free Play app; "Get CalcCraft Pro" in About (play-free); the Play builds always name `com.rapalon.calccraft.pro` (1.4.3's free build had no paid ID, so its support prompt was hidden); Pro's own launcher icon |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-012` | `play-free`: no "I already supported" button and no supporter state ("Supported by you"), not even one stored by 1.4.4: a user of the free Play app either bought CalcCraft Pro or didn't (`SupportPolicyConfig::self_declared_support`, `channel::self_declared_support`) |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014` | Two Pro colour themes, AMOLED Black (pure black everywhere, graphs included) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders, semibold labels, its own graph colours); About links the Terms of Service in every build, and CalcCraft Pro's About says "Thank you for supporting CalcCraft" |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android follows the phone's regional format: separators and grouping, the first day of the week, the calendar's month and weekday names and the date formats come from Java's locale classes through JNI (`android::region_source`, read once per region), turned into `Formats` by the pure `region/java.rs` (a Java date pattern formatter, host-tested with de-DE and ru-RU values), with en-US when a call fails; the Regional format card is back on Android with the translations' regions named by `Locale.getDisplayName`, which also names the Language list; the converters' default units follow the region's country there (`docs/regional-formats.md`, with the Linux and macOS proposal) |

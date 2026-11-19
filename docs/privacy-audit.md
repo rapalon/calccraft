@@ -74,9 +74,11 @@ when the app closes.
   `src/app/strings.rs:329`), Android's (`src/app/android.rs:178`, via JNI),
   the browser's `navigator.languages` (`src/app/web.rs:26`).
 - Regional formats: `GetUserDefaultLocaleName` and `GetLocaleInfoEx` (`src/app/region.rs:373`),
-  the browser's `Intl` (`src/app/web.rs:63-216`).
+  the browser's `Intl` (`src/app/web.rs:63-216`), Android's format locale and its number, calendar
+  and date classes via JNI (`android::region_source`, `android::display_name`).
 - Country, for the converters' default units: `GetUserDefaultGeoName`
-  (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`).
+  (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`) and
+  of the regional format elsewhere (`Formats::country`).
 - The system theme (egui/winit), the Android SDK version and the system bars' insets
   (`src/app/android.rs:52`, `:90`), the page address's `?lang=`/`?region=` (`src/app/web.rs:17`).
 - The screen's smallest width in dp (Android, `Configuration.smallestScreenWidthDp`,
