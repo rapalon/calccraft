@@ -39,6 +39,11 @@ Why High Contrast is one fixed dark palette rather than a light and a dark varia
   the text, secondary, tertiary and disabled text and the bit labels on every surface, the
   label on every key state (pressed included), links, and its 14 graph colours at least 4.5:1 on
   the graph's black.
+- Pictures: `docs/color-themes/*.png`, the Standard mode after `12 × 3 =` on a 412 × 915
+  phone, painted headless by `cargo test write_theme_shots -- --ignored` (into
+  `target/shots/theme-<key>-Standard.png`); `amoled-black.png` and `high-contrast.png` are
+  1.4.5's. The renderer is deterministic: the older themes' pictures came out byte for byte
+  the same after the new fields.
 - Palette fields for them (every other theme keeps the old look): `key_border` (the keys'
   outline width, 1 px; 2 in High Contrast, which also outlines the `=`) and `bold_keys` (key
   labels in semibold).
