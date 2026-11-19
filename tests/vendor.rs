@@ -8,17 +8,21 @@ const LOCK: &str = include_str!("../Cargo.lock");
 const MANIFEST: &str = include_str!("../vendor/accesskit_winit/Cargo.toml");
 const ANDROID: &str = include_str!("../vendor/accesskit_winit/src/platform_impl/android.rs");
 
-/// The `[[package]]` entry of `name` in the lockfile.
-fn locked_package(name: &str) -> &'static str {
-    let header = format!("name = \"{name}\"\n");
-    LOCK.split("[[package]]")
-        .find(|entry| entry.trim_start().starts_with(&header))
+/// The `[[package]]` entry of `name` in the lockfile `lock`. Lines are trimmed: a Windows
+/// checkout may have turned the line ends into CRLF.
+fn locked_package<'a>(lock: &'a str, name: &str) -> &'a str {
+    let header = format!("name = \"{name}\"");
+    lock.split("[[package]]")
+        .find(|entry| {
+            entry.lines().map(str::trim).find(|line| !line.is_empty()) == Some(header.as_str())
+        })
         .unwrap_or_else(|| panic!("Cargo.lock has no package {name}"))
 }
 
 /// The value of the first `version = "…"` line in `text`.
 fn version(text: &str) -> &str {
     text.lines()
+        .map(str::trim)
         .find_map(|line| line.strip_prefix("version = \""))
         .and_then(|rest| rest.strip_suffix('"'))
         .expect("a version line")
@@ -26,7 +30,7 @@ fn version(text: &str) -> &str {
 
 #[test]
 fn vendored_accesskit_winit_matches_the_lockfile() {
-    let locked = locked_package("accesskit_winit");
+    let locked = locked_package(LOCK, "accesskit_winit");
     // A crate taken from `[patch]` has no `source`; one from crates.io has
     // `source = "registry+…"`, and then the copy in vendor/ isn't what is built.
     assert!(
@@ -35,6 +39,16 @@ fn vendored_accesskit_winit_matches_the_lockfile() {
          re-apply the copy to the version egui-winit asks for\n{locked}"
     );
     assert_eq!(version(locked), version(MANIFEST));
+}
+
+#[test]
+fn lockfile_with_crlf_line_ends_is_read_too() {
+    // CI's Windows checkout converts the line ends (core.autocrlf).
+    let crlf = LOCK.replace('\n', "\r\n");
+    let locked = locked_package(&crlf, "accesskit_winit");
+    assert_eq!(version(locked), version(MANIFEST));
+    // A crates.io entry, for the shape of a `source` line.
+    assert!(locked_package(&crlf, "accesskit_android").contains("source = \"registry+"));
 }
 
 #[test]
