@@ -49,7 +49,7 @@ own `NOT_STARTED` entry.
 | **Phase 8: Application Shell, UX & Accessibility** | 13 | 12 | 0 | 1 | 0 |
 | **TOTAL** | **69** | **67** | **0** | **1** | **1** |
 
-*Last updated: 2026-11-18 (CalcCraft 1.4.3: Expression size, Android screen readers, new icon)*
+*Last updated: 2026-11-19 (CalcCraft 1.4.4: colour themes, CalcCraft Pro edition)*
 
 ---
 
