@@ -21,8 +21,9 @@
 
 .EXAMPLE
     pwsh -File tests/device/run.ps1 -SelfTest
-    No device: checks this script against a recorded dump (fixtures/window-dump.xml) and every
-    scenario's steps. CI runs it.
+    No device: checks this script against two recorded dumps (fixtures/window-dump.xml in
+    portrait, window-dump-landscape.xml with the phone sideways) and every scenario's steps.
+    CI runs it.
 #>
 [CmdletBinding()]
 param(
@@ -76,8 +77,8 @@ function ConvertTo-Loose([string] $Text) {
     <#   #>
 }
 
-# The app's nodes on screen now: name, center, from a uiautomator dump.
-function Get-Screen {
+# The window hierarchy now, as XML, from a uiautomator dump (the recorded one in the self-test).
+function Get-Dump {
     $text = $null
     if ($recordedDump) { $text = [IO.File]::ReadAllText($recordedDump, [Text.Encoding]::UTF8) }
     for ($i = 0; $i -lt 3 -and -not $text; $i++) {
@@ -90,14 +91,26 @@ function Get-Screen {
         if (-not $text) { Start-Sleep -Milliseconds $DelayMs }
     }
     if (-not $text) { throw 'uiautomator dump gave no window hierarchy' }
-    $xml = [xml]$text
+    [xml]$text
+}
+
+# A node's `bounds` as left, top, right, bottom; $null when it has none.
+function Get-Bounds([Xml.XmlElement] $Node) {
+    if ($Node.GetAttribute('bounds') -notmatch '\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]') { return $null }
+    [int]$Matches[1], [int]$Matches[2], [int]$Matches[3], [int]$Matches[4]
+}
+
+# The app's nodes on screen now: name, center, from a uiautomator dump.
+function Get-Screen {
+    $xml = Get-Dump
     $nodes = foreach ($node in $xml.SelectNodes('//node')) {
         if ($node.GetAttribute('package') -ne $Package) { continue }
         $name = $node.GetAttribute('content-desc')
         if (-not $name) { $name = $node.GetAttribute('text') }
         if (-not $name) { continue }
-        if ($node.GetAttribute('bounds') -notmatch '\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]') { continue }
-        $left, $top, $right, $bottom = [int]$Matches[1], [int]$Matches[2], [int]$Matches[3], [int]$Matches[4]
+        $bounds = Get-Bounds $node
+        if (-not $bounds) { continue }
+        $left, $top, $right, $bottom = $bounds
         # Marionet drops empty nodes too; a tap needs a point inside.
         if ($right -le $left -or $bottom -le $top) { continue }
         [pscustomobject]@{
@@ -109,6 +122,46 @@ function Get-Screen {
     }
     # One by one into the pipeline; nothing at all for an empty screen.
     $nodes | Where-Object { $null -ne $_ }
+}
+
+# The app's window: Left, Top, Width, Height in screen pixels, in the current orientation. It's
+# the app's outermost node in the dump (NativeActivity's FrameLayout spans the window), whose
+# bounds follow the orientation; `wm size` is the physical panel, portrait on a phone, so a
+# swipe computed from it with the phone held sideways landed off the screen. Without an app
+# node (a screen the app doesn't cover) `wm size` is swapped by the dump's `rotation`.
+function Get-Window {
+    $xml = Get-Dump
+    foreach ($node in $xml.SelectNodes('//node')) {
+        if ($node.GetAttribute('package') -ne $Package) { continue }
+        $bounds = Get-Bounds $node
+        if (-not $bounds) { continue }
+        $left, $top, $right, $bottom = $bounds
+        if ($right -le $left -or $bottom -le $top) { continue }
+        # Document order: the first node of the app is the outermost.
+        return [pscustomobject]@{ Left = $left; Top = $top; Width = $right - $left; Height = $bottom - $top }
+    }
+    $size = (Invoke-Adb shell wm size) -join ' '
+    $width, $height = ConvertTo-WindowSize $size $xml.hierarchy.GetAttribute('rotation')
+    [pscustomobject]@{ Left = 0; Top = 0; Width = $width; Height = $height }
+}
+
+# The panel's `wm size` ("Physical size: 1080x2340") turned by the dump's `rotation`
+# (Surface.ROTATION_*, 0 to 3; 1 and 3 are the panel on its side), as Width, Height.
+function ConvertTo-WindowSize([string] $WmSize, [string] $Rotation) {
+    if ($WmSize -notmatch '(\d+)x(\d+)\s*$') { throw "no screen size in `"$WmSize`"" }
+    $width, $height = [int]$Matches[1], [int]$Matches[2]
+    if ([int]$Rotation % 2 -eq 1) { $width, $height = $height, $width }
+    $width, $height
+}
+
+# The scroll_to swipe in a window: a finger drawn up its middle, from 65 % of its height to 35 %,
+# as X, FromY, ToY.
+function Get-ScrollSwipe($Window) {
+    [pscustomobject]@{
+        X     = [int]($Window.Left + $Window.Width / 2)
+        FromY = [int]($Window.Top + $Window.Height * 0.65)
+        ToY   = [int]($Window.Top + $Window.Height * 0.35)
+    }
 }
 
 # The first node for which `Test` is true, looked for up to $Retries times; $null if none.
@@ -167,15 +220,12 @@ function Invoke-Step([string] $Op, $Arg) {
         }
         'tap' { Invoke-Tap $Arg }
         'scroll_to' {
-            # A finger drawn up the middle of the screen until the node shows (Settings on a
-            # low screen).
+            # A finger drawn up the middle of the app's window until the node shows (Settings on
+            # a low screen).
             for ($i = 0; $i -lt 6; $i++) {
                 if (Find-Node { $_.Name -ceq $Arg } 2) { return }
-                $size = (Invoke-Adb shell wm size) -join ' '
-                if ($size -notmatch '(\d+)x(\d+)\s*$') { throw "no screen size in `"$size`"" }
-                $x = [int]([int]$Matches[1] / 2)
-                $height = [int]$Matches[2]
-                Invoke-Adb shell input swipe $x ([int]($height * 0.65)) $x ([int]($height * 0.35)) 400 | Out-Null
+                $swipe = Get-ScrollSwipe (Get-Window)
+                Invoke-Adb shell input swipe $swipe.X $swipe.FromY $swipe.X $swipe.ToY 400 | Out-Null
                 Start-Sleep -Milliseconds ($DelayMs * 2)
             }
             Assert-Node { $_.Name -ceq $Arg } "named `"$Arg`" after scrolling"
@@ -244,6 +294,31 @@ if ($SelfTest) {
         Test-That ((Get-Edition $id) -ceq 'free') "$id is not the free edition"
     }
 
+    # The scroll_to swipe stays inside the app's window in both orientations: the window is the
+    # dump's outermost app node, not `wm size` (the portrait panel, which sent the swipe off a
+    # phone held sideways).
+    $window = Get-Window
+    Test-That ($window.Width -eq 1080 -and $window.Height -eq 2340) "the portrait window isn't 1080 x 2340: $window"
+    $swipe = Get-ScrollSwipe $window
+    Test-That ($swipe.X -eq 540 -and $swipe.FromY -eq 1521 -and $swipe.ToY -eq 819) "the portrait swipe isn't (540, 1521 -> 819): $swipe"
+    $recordedDump = Join-Path $PSScriptRoot 'fixtures/window-dump-landscape.xml'
+    $landscape = @(Get-Screen)
+    Test-That ($landscape.Count -eq 5) "the landscape fixture gives $($landscape.Count) nodes, not 5: $(($landscape | ForEach-Object Name) -join ' | ')"
+    Test-That ([bool](Find-Node { $_.Name -ceq 'Classic' -and $_.Checked })) 'Classic is not checked in the landscape fixture'
+    $window = Get-Window
+    Test-That ($window.Left -eq 0 -and $window.Top -eq 0 -and $window.Width -eq 2340 -and $window.Height -eq 1080) "the landscape window isn't 2340 x 1080: $window"
+    $swipe = Get-ScrollSwipe $window
+    Test-That ($swipe.X -eq 1170 -and $swipe.FromY -eq 702 -and $swipe.ToY -eq 378) "the landscape swipe isn't (1170, 702 -> 378): $swipe"
+    Test-That ($swipe.X -lt $window.Width -and $swipe.FromY -lt $window.Height -and $swipe.ToY -gt 0) "the landscape swipe leaves the window: $swipe"
+    $recordedDump = Join-Path $PSScriptRoot 'fixtures/window-dump.xml'
+    # The fallback without an app node: `wm size` turned by the dump's rotation.
+    $turned = ConvertTo-WindowSize 'Physical size: 1080x2340' '1'
+    Test-That ($turned[0] -eq 2340 -and $turned[1] -eq 1080) "wm size turned by rotation 1 isn't 2340 x 1080: $turned"
+    $upright = ConvertTo-WindowSize 'Physical size: 1080x2340' '0'
+    Test-That ($upright[0] -eq 1080 -and $upright[1] -eq 2340) "wm size at rotation 0 isn't 1080 x 2340: $upright"
+    $turned = ConvertTo-WindowSize 'Physical size: 1080x2340' '3'
+    Test-That ($turned[0] -eq 2340 -and $turned[1] -eq 1080) "wm size turned by rotation 3 isn't 2340 x 1080: $turned"
+
     $files = @(Get-ChildItem $scenarioDir -Filter *.json)
     Test-That ($files.Count -ge 6) "only $($files.Count) scenarios"
     foreach ($file in $files) {
@@ -259,7 +334,7 @@ if ($SelfTest) {
         $problems | ForEach-Object { Write-Host "FAIL $_" }
         exit 1
     }
-    Write-Host "Self-test passed: the recorded dump and $($files.Count) scenarios."
+    Write-Host "Self-test passed: the two recorded dumps and $($files.Count) scenarios."
     exit 0
 }
 
