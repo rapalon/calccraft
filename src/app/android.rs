@@ -624,7 +624,7 @@ pub(super) fn region_source(choice: Option<&str>) -> Option<java::Source> {
         let first_day = env
             .call_method(&calendar, "getFirstDayOfWeek", "()I", &[])?
             .i()?;
-        // ICU's names: `java.text.DateFormatSymbols` has no standalone ones (`октябрь`).
+        // ICU's names: `java.text.DateFormatSymbols` has no standalone ones (Russian's nominative month names).
         let symbols = env
             .call_static_method(
                 "android/icu/text/DateFormatSymbols",

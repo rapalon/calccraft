@@ -3,7 +3,8 @@
 //! is pure, so the host tests cover everything but the calls themselves: how the separators
 //! and the grouping are read off a formatted number, Java's first day of the week, the
 //! calendar's names, and a formatter for the Java date patterns
-//! `getBestDateTimePattern` returns (`d. MMMM y`, `EEEE, d MMMM y 'г'.`).
+//! `getBestDateTimePattern` returns (`d. MMMM y`, or `EEEE, d MMMM y` with a quoted
+//! abbreviation for "year" after it in ru-RU).
 #![cfg_attr(not(target_os = "android"), allow(dead_code))]
 
 use chrono::{Datelike, NaiveDate, Weekday};
@@ -40,9 +41,9 @@ pub(crate) struct Source {
     /// `Calendar.getInstance(locale).getFirstDayOfWeek()`: 1 is Sunday, 7 Saturday.
     pub first_day: i32,
     /// `DateFormatSymbols.getMonths(FORMAT, WIDE)`: the names a date is written with
-    /// (`октября`).
+    /// (in Russian, the genitive case).
     pub months: Vec<String>,
-    /// `getMonths(STANDALONE, WIDE)`: the names on their own (`октябрь`).
+    /// `getMonths(STANDALONE, WIDE)`: the names on their own (in Russian, the nominative).
     pub months_standalone: Vec<String>,
     /// `getMonths(FORMAT, ABBREVIATED)` and `getMonths(STANDALONE, ABBREVIATED)`.
     pub short_months: Vec<String>,
@@ -197,7 +198,8 @@ impl Dates {
         format(&self.long, date, &self.names)
     }
 
-    /// The calendar's title (`Oktober 2026`, `октябрь 2026 г.`).
+    /// The calendar's title (`Oktober 2026`; in ru-RU the standalone month, the year and the
+    /// abbreviation for "year").
     pub fn year_month(&self, date: NaiveDate) -> String {
         format(&self.year_month, date, &self.names)
     }
@@ -297,7 +299,7 @@ fn seven(mut names: Vec<String>) -> Option<[String; 7]> {
 }
 
 /// A calendar header's name from a short weekday name: without a closing period (`So.`),
-/// at most two characters, the first in uppercase (`Пн`, `Lu`, as Windows' shortest names).
+/// at most two characters, the first in uppercase (`Lu`, as Windows' shortest names).
 fn shortest(name: &str) -> String {
     let mut chars = name.trim_end_matches('.').chars().take(2);
     let mut out: String = chars
@@ -439,8 +441,8 @@ mod tests {
         }
     }
 
-    /// What Android's ICU gives for ru-RU: the format names are genitive (`октября`), the
-    /// standalone ones nominative (`октябрь`), the short weekday names lowercase.
+    /// What Android's ICU gives for ru-RU: the format names are genitive, the standalone ones
+    /// nominative, the short weekday names lowercase.
     fn russian() -> Source {
         let strings = |names: &[&str]| names.iter().map(|name| name.to_string()).collect();
         Source {

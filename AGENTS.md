@@ -864,9 +864,10 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
 - On Android they come from Java's locale classes through JNI (`android::region_source`),
   read once per region, and `region/java.rs` turns them into `Formats` without JNI, so the
   host tests pin them with the values Android gives: `1.234.567,89`, `15. Oktober 2026`,
-  `Donnerstag, 15. Oktober 2026` (de-DE); `1 234 567,89`, `15 октября 2026 г.`, the
-  calendar's title `октябрь 2026 г.` (the standalone month, `LLLL`) and header `Пн … Вс`
-  (ru-RU); India's `3;2;0` grouping off `12,34,56,78,90,123.5`; the era of th-TH's Gregorian
+  `Donnerstag, 15. Oktober 2026` (de-DE); for ru-RU `1 234 567,89`, the day, the month's
+  genitive name and the year with the abbreviation for "year", the calendar's title with the
+  month's nominative name (the standalone month, `LLLL`) and a header of two-letter weekday
+  names from Monday; India's `3;2;0` grouping off `12,34,56,78,90,123.5`; the era of th-TH's Gregorian
   pattern left out. A failed JNI call or odd data gives en-US, never a panic. The list
   separator is `;` with a decimal comma, else `,`, as in the web version.
 

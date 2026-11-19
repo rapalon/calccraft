@@ -57,10 +57,10 @@ The locale the classes are asked with is the tag plus `-u-ca-gregory-nu-latn`
   wide and abbreviated (`EEEE`, `EEE`) and the standalone short ones (`Su`, `Mo`). ICU's arrays
   of weekdays have 8 entries, the first empty.
 - `android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)` for the three
-  skeletons above: Java date patterns such as `d. MMMM y`, `EEEE, d MMMM y 'г'.` and
-  `LLLL y 'г'.`.
+  skeletons above: Java date patterns such as `d. MMMM y`, and for ru-RU `EEEE, d MMMM y`
+  and `LLLL y`, each followed by a quoted abbreviation for "year".
 - `Locale.forLanguageTag(tag).getDisplayName(locale)` for the names of the Regional format and
-  Language lists (`Deutsch (Deutschland)`, `русский (Россия)`); a name equal to the tag means
+  Language lists (`Deutsch (Deutschland)`, and ru-RU's in Russian); a name equal to the tag means
   the locale is unknown, and the tag is shown.
 
 ### What is pure, and tested on the host
@@ -79,8 +79,9 @@ en-US, de-DE, ru-RU, ja-JP, hi-IN and th-TH:
   letter (`G`, the era, in th-TH's Gregorian pattern) left out, with runs of spaces collapsed.
   Unlike `SimpleDateFormat`, it never throws: an odd pattern gives odd text, not a crash.
 - The calendar's names: the standalone short weekday names without a period, cut to two
-  characters, with the first letter in uppercase (`Пн`, `Lu`, as Windows' shortest names are);
-  the standalone abbreviated month names without a period (`Jan`, `янв`).
+  characters, with the first letter in uppercase (`Lu`, and ru-RU's lowercase two-letter
+  Monday capitalized, as Windows' shortest names are); the standalone abbreviated month names
+  without a period (`Jan`, and ru-RU's three-letter January).
 - `country`: the region of a tag for the converters' default units (`DE` for `de-DE`,
   `IN` for `hi-IN-u-fw-mon`; an extension's two-letter keys don't count).
 
@@ -104,8 +105,10 @@ everywhere else.
 Settings → Regional format: the list shows the regions by their own names and the card's
 example changes with the choice. With the phone set to de-DE: `1.234.567,89`, `15. Oktober
 2026`, `Donnerstag, 15. Oktober 2026`, the calendar starting on `Mo`, a date difference joined
-with `; `. With ru-RU: `1 234 567,89`, `15 октября 2026 г.`, `четверг, 15 октября 2026 г.`,
-the calendar's title `октябрь 2026 г.`, its header `Пн … Вс`. The device scenarios
+with `; `. With ru-RU: `1 234 567,89`; the date as the day, October's genitive name and the
+year with the abbreviation for "year", the long date with Thursday's name in front; the
+calendar's title with October's nominative name and the year; its header two-letter weekday
+names from Monday to Sunday (the exact strings are in `src/app/region/java.rs`'s tests). The device scenarios
 (`tests/device/run.ps1`) already read numbers in the phone's format.
 
 ## Linux and macOS (proposal)
