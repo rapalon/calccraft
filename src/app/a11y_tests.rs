@@ -180,9 +180,9 @@ fn find<'a>(nodes: &[Node<'a>], name_of: &str) -> Option<Node<'a>> {
 fn check_nodes(page: &str, tree: &Tree) {
     let mut nodes = Vec::new();
     shown(&tree.state().root(), &mut nodes);
-    // A few nodes at least: the Settings page of a phone on its side shows only four where the
-    // Regional format card is left out (Linux, macOS, Android; `show_region_card`).
-    assert!(nodes.len() >= 3, "{page}: only {} nodes", nodes.len());
+    // The fewest measured: 4, the Settings page of the 780 × 360 phone where the Regional
+    // format card is left out (Linux, macOS, Android; `show_region_card`; CI run 44462040358).
+    assert!(nodes.len() >= 4, "{page}: only {} nodes", nodes.len());
     assert!(nodes.len() <= MAX_NODES, "{page}: {} nodes", nodes.len());
     let root = tree.state().root();
     for node in std::iter::once(&root).chain(&nodes) {
