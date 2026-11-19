@@ -109,6 +109,10 @@ vendor/accesskit_winit   a copy of accesskit_winit 0.32.2 (Apache-2.0) that `[pa
                          NativeActivity's content view, from Android 8.0 (android/README.md,
                          "Accessibility"; re-apply it when eframe moves to a new accesskit_winit)
 tools/icon-font.py       builds assets/fonts/CalcCraftIcons.ttf from Fluent System Icons
+PRIVACY.md, TERMS.md     the privacy policy and the Terms of Service (rapalon.com/calccraft/privacy/
+                         and /terms/)
+website/                 CalcCraft's page on rapalon.com (calccraft.md, screenshots) and sync.mjs,
+                         which copies it and the two legal texts into rapalon/website (README.md)
 ```
 
 ### `engine.rs`
@@ -844,6 +848,12 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   `docs/privacy-audit.md`; `docs/play-data-safety.md` holds Google Play's Data safety answers.
   A change that stores something new, adds a permission, a network request, an SDK, a link or
   a link parameter updates all three, and the policy's effective date, in the same pull request.
+- **Website pages:** CalcCraft's product page (`website/calccraft.md` and its images), the
+  privacy policy (`PRIVACY.md`) and the Terms of Service (`TERMS.md`, with its "Last updated"
+  date) are edited here, never directly in rapalon/website: `website/sync.mjs` copies them there
+  and overwrites any edit made there (`website/README.md`). Write the legal texts for phones:
+  short sections, lists rather than tables, links named in words rather than long bare URLs.
+  A change to what CalcCraft Pro or the paid app offers, or to how it's sold, checks `TERMS.md`.
 
 ## Pitfalls
 

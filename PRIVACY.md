@@ -1,10 +1,12 @@
 # CalcCraft Privacy Policy
 
-**Effective date:** November 18, 2026
+**Effective date:** November 19, 2026
 
 This Privacy Policy explains how the CalcCraft app handles your information. It covers
-CalcCraft on every platform we publish it for: Android (Google Play, GitHub Releases and other
-stores we list), Windows, macOS, Linux and the web version in your browser.
+CalcCraft on every platform we publish it for: Android (the free CalcCraft and the paid
+CalcCraft Pro on Google Play, F-Droid, GitHub Releases and other stores we list), Windows,
+macOS, Linux and the web version in your browser. Our
+[Terms of Service](https://rapalon.com/calccraft/terms/) apply to the app as well.
 
 ## Who we are
 
@@ -28,6 +30,7 @@ Questions or requests about privacy: **[privacy@rapalon.com](mailto:privacy@rapa
   yourself, and then only what is described below.
 - The Google Play versions have no Donate link and put no parameters into any link they open
   or share (see "Google Play versions").
+- If you buy CalcCraft Pro, Google Play handles the payment. We never see your payment details.
 
 ## What the app uses on your device
 
@@ -47,10 +50,11 @@ This information is used on your device only and is never sent anywhere:
 
 CalcCraft saves a small settings file on your device:
 
-- your choices: app theme, expression size, language, regional format, the screen
-  orientation and the key vibration strength (Android),
-  the last calculator mode, the last converter category and units, the graph theme, the size of the keep-on-top window, and the
-  app's own interface state (such as scroll positions);
+- your choices: app theme (and colour theme, in versions that offer a choice of them),
+  expression size, language, regional format, the screen orientation and the key vibration
+  (Android), the last calculator mode, the last converter category and units, the graph
+  theme, the size of the keep-on-top window, and the app's own interface state (such as
+  scroll positions);
 - the counters behind the occasional "Please support us" reminder (kept by every version,
   including those that never show the reminder):
   how many times the app was started, the number of calculations and of days with a
@@ -64,13 +68,14 @@ Your calculations, history, memory, equations and dates are kept only while the 
 
 We have no copy of this file and cannot see it. You can delete it at any time:
 
-| Platform | Where it is | How to delete it |
-| --- | --- | --- |
-| Android | The app's private storage | Settings → Apps → CalcCraft → Storage → Clear storage, or uninstall the app |
-| Windows | `%APPDATA%\CalcCraft\data\app.ron` | Delete the file or the `CalcCraft` folder |
-| macOS | `~/Library/Application Support/CalcCraft/app.ron` | Delete the file or the folder |
-| Linux | `~/.local/share/calccraft/app.ron` (or under `$XDG_DATA_HOME`) | Delete the file or the folder |
-| Web | Your browser's local storage for the site | Clear the site's data in your browser's settings |
+- **Android:** it is in the app's private storage. Go to Settings → Apps → CalcCraft →
+  Storage → Clear storage, or uninstall the app.
+- **Windows:** delete `%APPDATA%\CalcCraft\data\app.ron`, or the whole `CalcCraft` folder.
+- **macOS:** delete `~/Library/Application Support/CalcCraft/app.ron`, or its folder.
+- **Linux:** delete `~/.local/share/calccraft/app.ron` (or the same file under
+  `$XDG_DATA_HOME`), or its folder.
+- **Web:** it is in your browser's local storage for the site. Clear the site's data in your
+  browser's settings.
 
 On Android, if you have turned on backup for your Google account, Android may include this
 settings file in your device backup. That backup is made and kept by Google under your
@@ -83,17 +88,26 @@ The app opens links in your browser (or your browser's tab) only when you tap th
 browser then loads the page like any other: the website and the services that deliver it see
 your IP address and your browser's usual information (see "Third-party services").
 
-| Link | Opens | What the address adds |
-| --- | --- | --- |
-| Rapalon Labs (About card, support window) | <https://rapalon.com> | nothing |
-| Privacy policy (Settings) | <https://rapalon.com/calccraft/privacy> | nothing |
-| Send feedback (Settings) | <https://github.com/rapalon/calccraft/issues> | nothing |
-| GitHub (Settings) | <https://github.com/rapalon/calccraft> | nothing |
-| Donate (support window; GitHub, F-Droid, desktop and web versions only) | <https://rapalon.com/calccraft/donate>, which forwards you to Stripe's payment page | the parameters below |
-| Get CalcCraft Pro (support window, free Google Play version, once CalcCraft Pro is published) | CalcCraft Pro's page in the Google Play Store app, or on <https://play.google.com> | nothing but the app's ID |
+These are the links in the app, where they are, and what they add to the address:
 
-**Donate.** Only the GitHub, F-Droid, desktop and web versions have it. The donate address carries these parameters, for example
-`?utm_source=calccraft&utm_medium=popup&utm_campaign=support&utm_content=android_1-3-2&client_reference_id=cc_android_1-3-2_popup_c3_d30-90`:
+- **Rapalon Labs** (About card, support window) opens [rapalon.com](https://rapalon.com).
+  Nothing is added.
+- **Privacy policy** (Settings) opens this policy at
+  [rapalon.com/calccraft/privacy](https://rapalon.com/calccraft/privacy). Nothing is added.
+- **Send feedback** (Settings) opens
+  [CalcCraft's issues on GitHub](https://github.com/rapalon/calccraft/issues). Nothing is
+  added.
+- **GitHub** (Settings) opens
+  [CalcCraft's repository on GitHub](https://github.com/rapalon/calccraft). Nothing is added.
+- **Donate** (support window; GitHub, F-Droid, desktop and web versions only) opens
+  [rapalon.com/calccraft/donate](https://rapalon.com/calccraft/donate), which forwards you to
+  Stripe's payment page. The address carries the parameters described below.
+- **Get CalcCraft Pro** (support window of the free Google Play app) opens CalcCraft Pro's page
+  in the Google Play Store app, or on [play.google.com](https://play.google.com). Nothing is
+  added but that app's ID.
+
+**Donate.** Only the GitHub, F-Droid, desktop and web versions have it. The donate address
+carries these parameters:
 
 - `utm_source=calccraft` and `utm_campaign=support`: always the same;
 - `utm_medium`: `popup` if the reminder opened by itself, `menu` if you opened it from the menu;
@@ -102,13 +116,17 @@ your IP address and your browser's usual information (see "Third-party services"
   reminders you have seen (`c0` to `c10`, where `c10` means ten or more) and a coarse range of
   days since you first started the app (`d0-7`, `d7-30`, `d30-90`, `d90-365` or `d365p`).
 
+For example, version 1.3.2 on Android, opened by the reminder for the third time, 30 to 90
+days after the first start, adds `utm_medium=popup`, `utm_content=android_1-3-2`, and `client_reference_id` with the
+value `cc_android_1-3-2_popup_c3_d30-90`.
+
 These values contain no name, no identifier of you or your device, and nothing you calculated.
 We use them only in aggregate, to see which reminders and platforms lead to donations. Stripe
 keeps `client_reference_id` with a donation made from that page.
 
-**Tell a friend.** This puts a short message with the link
-`https://rapalon.com/calccraft?utm_source=calccraft&utm_medium=share&utm_content=<platform>_<version>`
-on your clipboard, or opens your system's share sheet, where you choose the app and the person
+**Tell a friend.** This puts a short message with the link `https://rapalon.com/calccraft` on
+your clipboard, with the parameters `utm_source=calccraft`, `utm_medium=share` and
+`utm_content=<platform>_<version>` added, or opens your system's share sheet, where you choose the app and the person
 to send it to. Nothing is sent until you do so, and then it goes through the app you chose.
 The Google Play versions share the plain link `https://rapalon.com/calccraft`, without
 parameters.
@@ -126,12 +144,16 @@ Clear cache in the app's settings deletes it.
 CalcCraft on Google Play comes as a free app and a paid app, CalcCraft Pro. Neither has a Donate
 link or sends the donate parameters above, and no link they open or share carries parameters:
 
-- The free app either shows no "Please support us" reminder at all, or, once CalcCraft Pro is
-  published, its reminder offers "Get CalcCraft Pro", which opens CalcCraft Pro's Google Play
-  page with nothing added but that app's ID. Buying it happens in Google Play, under Google's
-  terms and privacy policy; we receive from Google only what it reports to developers about
-  sales, not your payment details.
+- The free app's occasional reminder offers "Get CalcCraft Pro", which opens CalcCraft Pro's
+  Google Play page with nothing added but that app's ID. (Free versions built before CalcCraft
+  Pro was published show no reminder at all.)
 - CalcCraft Pro shows no reminder.
+- Buying CalcCraft Pro happens entirely in Google Play, under Google's terms and privacy
+  policy. Google Play takes the payment, handles refunds and taxes, and keeps your payment
+  details. The app itself handles no purchase data: it has no in-app purchases and no
+  purchase or licence check of its own. We receive from Google only the order and sales
+  reports it gives developers, never your card or other payment details. We use them only to
+  keep the records the law requires and to answer you if you contact us about an order.
 
 ## Donations
 
