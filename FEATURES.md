@@ -1361,8 +1361,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Rust:** `src/icon.rs`, `build.rs`, `src/main.rs`, `src/app.rs` (`TitleBar`), `tools/app-icon.py`
 - **Description:** Window title "CalcCraft by Rapalon Labs" (`brand::TITLE`, not translated; also
   the web page's title and the installed web app's full name); one icon on every platform (since
-  1.4.3 a white calculator with "12,345" on blue, Konst's artwork in
-  `android/icon-source/`, redrawn as vectors): the window icon, embedded in `calculator.exe`
+  1.4.3 a calculator with "42" on its display on blue, Konst's artwork in
+  `android/icon-source/`): the window icon, embedded in `calculator.exe`
   (16–256 px) with version information, the web version's and the PWA's icons, and Android's
   adaptive icon with its themed (monochrome) layer, Android 7's PNG icons and Google Play's
   listing icon; title bar tinted with

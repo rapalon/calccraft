@@ -1,10 +1,9 @@
 //! The app icon: Konst's calculator on blue (android/icon-source/calccraft-icon-512.png),
 //! as a rounded tile.
 //!
-//! `tools/app-icon.py` redraws the artwork as vectors and renders these images from them, one
-//! per size, so every size is drawn sharp, not scaled: straight-alpha RGBA for the window icon
-//! (`app::window_icon`) and the small images of the executable's .ico, and a PNG for its
-//! 256 px image. `build.rs` includes this file, so it uses only `std`.
+//! `tools/app-icon.py` scales the artwork down to each size: straight-alpha RGBA for the
+//! window icon (`app::window_icon`) and the small images of the executable's .ico, and a PNG
+//! for its 256 px image. `build.rs` includes this file, so it uses only `std`.
 
 /// The sizes of the RGBA images, in pixels: small and large icons at 100–250 % scaling.
 #[allow(dead_code)] // build.rs's .ico; the app itself uses only the 64 px image
@@ -54,13 +53,15 @@ mod tests {
     }
 
     #[test]
-    fn a_rounded_blue_tile_with_the_white_calculator() {
+    fn a_rounded_blue_tile_with_the_calculator() {
         let pixels = rgba(64).unwrap();
-        // The corners are rounded off; the edges' middles are the tile's blue.
+        // The corners are rounded off; the left edge's middle is the tile's blue.
         assert_eq!(pixel(pixels, 64, 0, 0)[3], 0);
         assert_eq!(pixel(pixels, 64, 2, 32), [0x2E, 0x67, 0xEB, 0xFF]);
-        // The calculator's body between the display and the keys.
-        assert_eq!(pixel(pixels, 64, 32, 24), [0xF2, 0xF3, 0xF8, 0xFF]);
+        // The middle is the calculator, opaque and not blue.
+        let middle = pixel(pixels, 64, 32, 40);
+        assert_eq!(middle[3], 0xFF);
+        assert!(middle[2] < 0xC0, "{middle:?}");
     }
 
     /// The Android launcher icons and the Play listing icon that `tools/app-icon.py` wrote.
@@ -77,39 +78,45 @@ mod tests {
         ] {
             assert!(adaptive.contains(layer), "{layer}");
         }
-        for drawable in ["ic_launcher_foreground", "ic_launcher_monochrome"] {
-            let xml =
-                std::fs::read_to_string(res.join(format!("drawable/{drawable}.xml"))).unwrap();
-            assert!(xml.contains("android:viewportWidth=\"108\""), "{drawable}");
-        }
-        // Android 7's PNG icons: 48 dp at every density, square and round.
-        for (density, size) in [
-            ("mdpi", 48),
-            ("hdpi", 72),
-            ("xhdpi", 96),
-            ("xxhdpi", 144),
-            ("xxxhdpi", 192),
+        let size_of = |path: &std::path::Path| {
+            let file = std::fs::File::open(path).unwrap();
+            let png = png::Decoder::new(std::io::BufReader::new(file))
+                .read_info()
+                .unwrap();
+            let info = png.info();
+            ((info.width, info.height), info.color_type)
+        };
+        for (density, dp) in [
+            ("mdpi", 1.0),
+            ("hdpi", 1.5),
+            ("xhdpi", 2.0),
+            ("xxhdpi", 3.0),
+            ("xxxhdpi", 4.0),
         ] {
-            for name in ["ic_launcher", "ic_launcher_round"] {
-                let path = res.join(format!("mipmap-{density}/{name}.png"));
-                let file = std::fs::File::open(&path).unwrap();
-                let png = png::Decoder::new(std::io::BufReader::new(file))
-                    .read_info()
-                    .unwrap();
+            // The adaptive icon's layers: the 108 dp canvas, with transparency.
+            let layer = (108.0 * dp) as u32;
+            for name in ["ic_launcher_foreground", "ic_launcher_monochrome"] {
+                let path = res.join(format!("drawable-{density}/{name}.png"));
                 assert_eq!(
-                    (png.info().width, png.info().height),
-                    (size, size),
+                    size_of(&path),
+                    ((layer, layer), png::ColorType::Rgba),
                     "{path:?}"
                 );
             }
+            // Android 7's PNG icons: 48 dp, square and round.
+            let icon = (48.0 * dp) as u32;
+            for name in ["ic_launcher", "ic_launcher_round"] {
+                let path = res.join(format!("mipmap-{density}/{name}.png"));
+                assert_eq!(size_of(&path).0, (icon, icon), "{path:?}");
+            }
         }
-        // Google Play's listing icon: 512 × 512, opaque (Play adds the shape and the shadow).
-        let file = std::fs::File::open(root.join("android/store/icon-512.png")).unwrap();
-        let png = png::Decoder::new(std::io::BufReader::new(file))
-            .read_info()
-            .unwrap();
-        let info = png.info();
-        assert_eq!((info.width, info.height), (512, 512));
-        assert_eq!(info.color_type, png::ColorType::Rgb);
+        // Google Play's listing icon is Konst's square icon as it is: 512 × 512, opaque (Play
+        // adds the shape and the shadow).
+        let store = root.join("android/store/icon-512.png");
+        assert_eq!(size_of(&store), ((512, 512), png::ColorType::Rgb));
+        assert_eq!(
+            std::fs::read(&store).unwrap(),
+            std::fs::read(root.join("android/icon-source/calccraft-icon-512.png")).unwrap()
+        );
     }
 }

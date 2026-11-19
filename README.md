@@ -512,7 +512,7 @@ no release ([`android/README.md`](android/README.md), "Version codes, and the re
 | `src/app/android.rs` | The Android app's ties to the system (JNI): the system bars' insets, the back button, languages |
 | `assets/web/` | The web version's icons (rendered by `uv run tools/app-icon.py`), its app manifest and its service worker |
 | `src/icon.rs` | The app icon's images (`assets/icon/`, rendered by `tools/app-icon.py`): the window icon and the icon embedded in the executable |
-| `tools/app-icon.py` | Redraws the app icon (`android/icon-source/calccraft-icon-512.png`) as vectors and writes every icon: desktop, web, Android (adaptive, themed, Android 7) and Google Play's |
+| `tools/app-icon.py` | Writes every app icon from the artwork in `android/icon-source/` (the square icon and its transparent foreground): desktop, web, Android (adaptive, themed, Android 7) and Google Play's |
 | `build.rs` | Embeds the icon and the version information (CalcCraft, version from `Cargo.toml`) into `calculator.exe` |
 | `src/engine.rs` | Calculator logic: a port of the Windows engine (immediate execution, plus operator precedence and parentheses for the Scientific and Programmer modes), exact arithmetic, number formatting, exponent entry, paste, memory, history, unit tests. No UI code. |
 | `src/engine/math.rs` | The Scientific mode's functions: powers, roots, logarithms, trigonometry, hyperbolic functions, the gamma function, computed with a few hundred bits and Windows' domain rules; unit tests. No UI code. |

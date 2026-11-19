@@ -298,15 +298,17 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   `FEATURES.md`, `FEAT-SHELL-002`); `cargo test layout_tests` checks every mode at phone and
   tablet sizes in both orientations.
 - `res/`: the launcher icon and a light and a dark theme for the system bars and the start-up
-  background. The icon is Konst's artwork (`icon-source/calccraft-icon-512.png`, the
-  reference), redrawn as vectors by `uv run tools/app-icon.py`, which writes every icon file:
+  background. The icon is Konst's raster artwork in `icon-source/`: the square icon
+  (`calccraft-icon-512.png`) and the same calculator on a transparent background
+  (`calccraft-foreground.png`). `uv run tools/app-icon.py` scales them into every icon file:
   the adaptive icon of Android 8 and later (`mipmap-anydpi-v26`: the blue
-  `ic_launcher_background` color, the calculator as a vector drawable inside the 66 dp safe
-  circle, and the monochrome layer of Android 13's themed icons; `icon-source/` has the three
-  layers as SVG), the square and round PNG icons of Android 7 (`mipmap-*dpi`, API 24 and 25),
-  and Google Play's listing icon (`store/icon-512.png`, full-bleed and opaque: Play adds the
-  shape and the shadow). Both Play channels and every application ID use the same icon.
-  Previews in the launchers' masks go to `target/icon-previews/`.
+  `ic_launcher_background` color sampled from the square icon, the foreground PNG placed as in
+  the square icon, its display and top keys inside the 66 dp safe circle, and a one-colour
+  silhouette of it for Android 13's themed icons; `drawable-*dpi`), the square and round PNG
+  icons of Android 7 (`mipmap-*dpi`, API 24 and 25), and Google Play's listing icon
+  (`store/icon-512.png`, the square icon as it is: Play adds the shape and the shadow). Both
+  Play channels and every application ID use the same icon. Previews in the launchers' masks
+  go to `target/icon-preview/`.
 - `src/app/android.rs` (JNI on the NativeActivity that `android_main` gets; ndk-context's
   context is the Application, which has no window): the system bars' and camera cutout's part
   of the screen becomes egui's safe area, which the layout keeps clear (NativeActivity always
