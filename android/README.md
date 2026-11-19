@@ -275,9 +275,11 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
 
 ## How it works
 
-- `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`), glow,
-  as in egui's `hello_android` example, and the screen reader support (`accesskit`, see
-  "Accessibility" below), without wgpu and `arboard`.
+- `Cargo.toml` gives Android its own eframe: glow, as in egui's `hello_android` example, and
+  the screen reader support (`accesskit`, see "Accessibility" below), without wgpu and
+  `arboard`. NativeActivity is winit's `android-native-activity` feature, named on the `winit`
+  dependency rather than on eframe, whose feature of that name only passes through to winit
+  and makes eframe refuse `accesskit`.
 - `AndroidManifest.xml`: the app handles every configuration change itself, since winit allows
   one event loop per process (so a rotation only resizes the window, and the input, history and
   mode stay); it fixes no screen orientation (Settings → Screen orientation picks it, see
@@ -372,9 +374,12 @@ the device: the accessibility services run on the phone.
   creates the adapter unconditionally; the patched copy asks `Build.VERSION.SDK_INT` first
   and, below 26, logs one line (`adb logcat -s CalcCraft`) and leaves the app without an
   accessibility tree instead of crashing. That's why the minimum SDK stays 24.
-- **The direct dependency.** eframe's `accesskit` feature alone gives Android a no-op adapter:
+- **The direct dependencies.** eframe's `accesskit` feature alone gives Android a no-op adapter:
   the real one is behind `accesskit_winit`'s own `accesskit_android` feature, which egui-winit
-  doesn't pass on, so `Cargo.toml` names `accesskit_winit` with that feature for Android.
+  doesn't pass on, so `Cargo.toml` names `accesskit_winit` with that feature for Android. And
+  eframe won't compile `accesskit` together with its `android-native-activity` feature (a
+  `compile_error!` for upstream's GameActivity-only adapter), so that feature is set on
+  `winit` directly, which is all eframe's does.
 - **Upgrading eframe.** A new eframe (egui-winit) wants a new `accesskit_winit`, and Cargo then
   warns that the patch is unused (`cargo test` has a test, `vendored_accesskit_winit_matches_the_lockfile`,
   that fails too). Re-apply the patch: copy the new release from

@@ -30,6 +30,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "accesskit_android"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e27dedd5e1932e1f52fedcde681bc2ae4213df53bad5b295103aa36b1d0ffb6"
+dependencies = [
+ "accesskit",
+ "accesskit_consumer 0.38.0",
+ "jni 0.21.1",
+ "log",
+]
+
+[[package]]
 name = "accesskit_atspi_common"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,13 +134,13 @@ dependencies = [
 [[package]]
 name = "accesskit_winit"
 version = "0.32.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fe9a94394896352cc4660ca2288bd4ef883d83238853c038b44070c8f134313"
 dependencies = [
  "accesskit",
+ "accesskit_android",
  "accesskit_macos",
  "accesskit_unix",
  "accesskit_windows",
+ "log",
  "raw-window-handle",
  "winit",
 ]
@@ -549,6 +561,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 name = "calculator"
 version = "1.4.2"
 dependencies = [
+ "accesskit_winit",
  "android_logger",
  "arboard",
  "chrono",

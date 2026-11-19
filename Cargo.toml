@@ -39,12 +39,20 @@ eframe = { version = "0.36.2", features = ["persistence"] }
 
 # The Android app (see android/README.md): a NativeActivity drawn with OpenGL ES through glow,
 # as in egui's hello_android, and JNI for what only Java can tell (insets, languages).
-# eframe's screen reader support (`accesskit`) needs GameActivity on Android, so TalkBack
-# can't read the app yet.
+# eframe's screen reader support (`accesskit`) reaches TalkBack and the other accessibility
+# services through accesskit_winit's Android adapter, which upstream wrote for GameActivity:
+# the copy in vendor/accesskit_winit (see [patch.crates-io] below) hooks NativeActivity's
+# content view instead, from Android 8.0 (android/README.md, "Accessibility").
 [target.'cfg(target_os = "android")'.dependencies]
+# The Android adapter is behind accesskit_winit's own `accesskit_android` feature, which
+# egui-winit doesn't pass on: without this line eframe's `accesskit` is a no-op on Android.
+accesskit_winit = { version = "0.32.2", features = ["accesskit_android"] }
 android_logger = "0.15"
+# Not eframe's `android-native-activity`: eframe refuses `accesskit` with it (its adapter
+# knows only GameActivity, which this build doesn't use). The feature only passes through
+# egui-winit to winit, so winit gets it below, straight from here.
 eframe = { version = "0.36.2", default-features = false, features = [
-    "android-native-activity",
+    "accesskit",
     "default_fonts",
     "glow",
     "persistence",
@@ -54,7 +62,9 @@ log = "0.4"
 # The graph's Share writes a PNG for the share sheet (src/app/share.rs).
 png = "0.18"
 # eframe's `NativeOptions::android_app` is winit's `AndroidApp`; the version eframe uses.
-winit = { version = "0.30", default-features = false }
+# `android-native-activity` picks NativeActivity (android/AndroidManifest.xml) for winit and
+# android-activity, in eframe's place (see above).
+winit = { version = "0.30", default-features = false, features = ["android-native-activity"] }
 
 # The web version (see docs/web-version-plan.md): WebGL through glow, which every current
 # browser has, and the browser's own APIs for the language, formats, clipboard and downloads.
@@ -112,3 +122,11 @@ png = "0.18"
 
 [build-dependencies]
 winresource = "0.1.34"
+
+# accesskit_winit (eframe's screen reader bridge) with one change: its Android adapter hooks
+# NativeActivity's content view, the release's only GameActivity's (vendor/accesskit_winit,
+# android/README.md "Accessibility"). The copy must stay at the version egui-winit asks for,
+# or Cargo only warns that the patch is unused and Android loses its accessibility tree:
+# tests/vendor.rs fails then, and the copy has to be re-applied to the new release.
+[patch.crates-io]
+accesskit_winit = { path = "vendor/accesskit_winit" }
