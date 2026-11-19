@@ -47,8 +47,8 @@ This information is used on your device only and is never sent anywhere:
 
 CalcCraft saves a small settings file on your device:
 
-- your choices: app theme, language, regional format, the screen orientation and the key
-  vibration strength (Android),
+- your choices: app theme, expression size, language, regional format, the screen
+  orientation and the key vibration strength (Android),
   the last calculator mode, the last converter category and units, the graph theme, the size of the keep-on-top window, and the
   app's own interface state (such as scroll positions);
 - the counters behind the occasional "Please support us" reminder (kept by every version,

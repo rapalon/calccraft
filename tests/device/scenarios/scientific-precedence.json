@@ -1,0 +1,12 @@
+{
+  "name": "scientific-precedence",
+  "description": "The Scientific mode multiplies before it adds: 12 + 7 × 3 = 33, with the whole calculation in the expression line.",
+  "steps": [
+    { "launch": true },
+    { "open": "Scientific Calculator" },
+    { "tap": "Clear" },
+    { "taps": ["One", "Two", "Plus", "Seven", "Multiply by", "Three", "Equals"] },
+    { "display": "33" },
+    { "expression": "12 + 7 × 3 =" }
+  ]
+}

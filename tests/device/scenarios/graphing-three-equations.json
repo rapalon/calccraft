@@ -1,0 +1,15 @@
+{
+  "name": "graphing-three-equations",
+  "description": "Three equations typed on the Graphing keypad (x^2, sin(x), 2x+1), each submitted; the graph's node then counts them. Its keys, Submit and the Trigonometry menu's items must all be in the tree.",
+  "steps": [
+    { "launch": true },
+    { "open": "Graphing Calculator" },
+    { "tap_if_present": "Switch to equation mode" },
+    { "tap": "Enter an expression" },
+    { "taps": ["X", "'X' to the exponent", "Two", "Submit"] },
+    { "taps": ["Trigonometry", "Sine", "X", "Submit"] },
+    { "taps": ["Two", "X", "Plus", "One", "Submit"] },
+    { "tap_if_present": "Switch to graph mode" },
+    { "expect_contains": "displaying 3 equations" }
+  ]
+}

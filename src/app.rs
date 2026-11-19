@@ -6,6 +6,7 @@ pub(crate) mod android;
 mod caret;
 mod converter_view;
 mod date_view;
+mod expression_size;
 mod graph_canvas;
 mod graphing_keypad;
 mod graphing_view;
@@ -38,6 +39,7 @@ use crate::converter::Category;
 use crate::engine::{
     Angle, Calculator, CaretMove, Command, Func, HistoryEntry, Op, PartKind, Radix,
 };
+use expression_size::ExpressionSize;
 use icons::{
     ICON_BACK, ICON_BACK_TO_FULL, ICON_BACKSPACE, ICON_CALCULATOR, ICON_CALENDAR,
     ICON_CHEVRON_DOWN, ICON_CHEVRON_UP, ICON_CODE, ICON_COPY, ICON_DELETE, ICON_DIVIDE,
@@ -137,6 +139,8 @@ enum SettingsList {
     VibrationStyle,
     /// The Screen orientation card (the Android app).
     Orientation,
+    /// The Expression size card.
+    ExpressionSize,
 }
 
 impl SettingsList {
@@ -152,7 +156,16 @@ impl SettingsList {
             SettingsList::Region => app.region_choice.as_deref(),
             SettingsList::VibrationStyle => Some(vibration::style().key()),
             SettingsList::Orientation => Some(orientation::current().key()),
+            SettingsList::ExpressionSize => Some(app.expression_size.key()),
         }
+    }
+
+    /// Whether its entries are in the interface's language (not each in its own script).
+    fn in_interface_language(self) -> bool {
+        matches!(
+            self,
+            SettingsList::VibrationStyle | SettingsList::Orientation | SettingsList::ExpressionSize
+        )
     }
 }
 
@@ -171,6 +184,12 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
         return orientation::Orientation::ALL
             .into_iter()
             .map(|o| (Some(o.key()), tr(o.label_key())))
+            .collect();
+    }
+    if list == SettingsList::ExpressionSize {
+        return ExpressionSize::ALL
+            .into_iter()
+            .map(|size| (Some(size.key()), tr(size.label_key())))
             .collect();
     }
     let mut entries = vec![(None, tr("SystemThemeRadioButton.Content"))];
@@ -194,7 +213,8 @@ fn settings_entries(list: SettingsList) -> Vec<(Option<&'static str>, &'static s
                 .iter()
                 .map(|region| (Some(region.tag.as_str()), region.name.as_str())),
         ),
-        SettingsList::VibrationStyle | SettingsList::Orientation => {}
+        SettingsList::VibrationStyle | SettingsList::Orientation | SettingsList::ExpressionSize => {
+        }
     }
     entries
 }
@@ -285,6 +305,8 @@ impl ComboCard {
 /// The cards of the Settings page's Appearance group under the App theme card.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingsCard {
+    /// The expression line's size, in every build.
+    ExpressionSize,
     Language,
     /// The Android app's Screen orientation drop-down.
     Orientation,
@@ -293,14 +315,15 @@ enum SettingsCard {
     Region,
 }
 
-/// The cards under App theme, in order: Language, Screen orientation where the app can choose
+/// The cards under App theme, in order: Expression size (a display option, next to the
+/// theme), Language, Screen orientation where the app can choose
 /// it (the Android app, where Android honors it: `orientation::honored`), Key vibration where
 /// keys vibrate (the Android app), and Regional format where there are formats to choose. Where
 /// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
 /// setting", which changes nothing there: the formats are en-US until those systems' own are
 /// read.
 fn settings_cards(orientation: bool, key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
-    let mut cards = vec![SettingsCard::Language];
+    let mut cards = vec![SettingsCard::ExpressionSize, SettingsCard::Language];
     if orientation {
         cards.push(SettingsCard::Orientation);
     }
@@ -514,6 +537,26 @@ fn paint_orientation_icon(painter: &Painter, center: Pos2, color: Color32) {
 enum CardIcon {
     Glyph(char),
     Orientation,
+    ExpressionSize,
+}
+
+/// The Expression size card's icon: a small and a large A side by side (the icon font has no
+/// text size glyph).
+fn paint_expression_size_icon(painter: &Painter, center: Pos2, color: Color32) {
+    painter.text(
+        center + vec2(-4.5, 3.5),
+        Align2::CENTER_BOTTOM,
+        "A",
+        FontId::proportional(10.0),
+        color,
+    );
+    painter.text(
+        center + vec2(3.5, 6.5),
+        Align2::CENTER_BOTTOM,
+        "A",
+        FontId::proportional(17.0),
+        color,
+    );
 }
 
 /// An open Settings drop-down: which, and the box it opened from.
@@ -934,6 +977,8 @@ pub struct CalculatorApp {
     settings_popup: Option<SettingsPopup>,
     /// What was typed into an open Settings drop-down to find an item, and when.
     type_ahead: (String, f64),
+    /// The Expression size setting (CalcCraft's own): the expression line's size.
+    expression_size: ExpressionSize,
     #[cfg(feature = "support-prompt")]
     pub(crate) support: crate::support::SupportState,
 }
@@ -1060,6 +1105,11 @@ impl CalculatorApp {
             all_scripts: false,
             settings_popup: None,
             type_ahead: (String::new(), 0.0),
+            expression_size: ExpressionSize::parse(
+                cc.storage
+                    .and_then(|s| s.get_string(expression_size::STORAGE_KEY))
+                    .as_deref(),
+            ),
             #[cfg(feature = "support-prompt")]
             support: crate::support::SupportState::new(cc.storage),
         };
@@ -1692,11 +1742,31 @@ impl CalculatorApp {
         let right = rect.right() - 12.0;
         let max_width = rect.width() - 24.0;
 
+        // A larger Expression size (CalcCraft's own) makes the line taller than Windows'
+        // (`grow`): it moves up into the room above it first, and the rest pushes the result
+        // down. Measured at the size of an edit, so nothing moves when one starts. Small
+        // grows nothing: the layout stays Windows'.
+        let line_height = |size: f32| {
+            ui.painter()
+                .layout_no_wrap("0".into(), FontId::proportional(size), p.text)
+                .size()
+                .y
+        };
+        let edit_size = self.expression_size.edit_font_size();
+        let grow = if self.compact {
+            0.0
+        } else {
+            (line_height(edit_size) - line_height(ExpressionSize::Small.edit_font_size())).max(0.0)
+        };
+        let expression_top = expression_top - grow.min((expression_top - rect.top()).max(0.0));
+        let result_top = (grow > 0.0).then(|| expression_top + line_height(edit_size) + 2.0);
         // Keep on top shows only the result (`DisplayModeAlwaysOnTop` sets the expression
         // row's height to 0).
-        if !self.compact {
-            self.draw_expression_line(ui, rect, expression_top, max_width);
-        }
+        let line = if self.compact {
+            None
+        } else {
+            self.draw_expression_line(ui, rect, expression_top, max_width)
+        };
         let calc = self.engine();
         let painter = ui.painter();
 
@@ -1720,11 +1790,25 @@ impl CalculatorApp {
         access::text(ui, rect, Id::new("display-value"), &name, true);
 
         // Long numbers shrink to fit the width.
+        let mut size = base_size;
         let mut galley =
-            painter.layout_no_wrap(display.clone(), FontId::new(base_size, semibold()), p.text);
+            painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
         if galley.size().x > max_width {
-            let size = (base_size * max_width / galley.size().x).max(10.0);
+            size = (base_size * max_width / galley.size().x).max(10.0);
             galley = painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
+        }
+        // Below a taller expression line, and shrunk to stay in the display if it must.
+        let mut center_y = center_y;
+        if let Some(top) = result_top
+            && center_y - galley.size().y / 2.0 < top
+        {
+            let room = rect.bottom() - top;
+            if galley.size().y > room {
+                size = (size * room / galley.size().y).max(10.0);
+                galley =
+                    painter.layout_no_wrap(display.clone(), FontId::new(size, semibold()), p.text);
+            }
+            center_y = top + galley.size().y / 2.0;
         }
         let pos = pos2(right - galley.size().x, center_y - galley.size().y / 2.0);
         let number = Rect::from_min_size(pos, galley.size());
@@ -1747,8 +1831,13 @@ impl CalculatorApp {
                 Stroke::new(2.0, p.text),
             );
         }
-        let tap_area =
+        let mut tap_area =
             Rect::from_x_y_ranges(rect.left()..=right + 12.0, number.expand(8.0).y_range());
+        // A large result's box can reach over the expression line, and egui gives a tap to
+        // the widget made last: a tap on one of the line's numbers edited the result instead.
+        if let Some(line) = line {
+            tap_area.min.y = tap_area.min.y.max(line.bottom()).min(tap_area.max.y);
+        }
         let tap = ui.interact(tap_area, Id::new("display-caret"), Sense::CLICK);
         painter.galley(pos, galley.clone(), p.text);
         if tap.clicked()
@@ -1769,12 +1858,19 @@ impl CalculatorApp {
     /// typed numbers edits it (CalcCraft's own, docs/research/editable-expression.md); the
     /// number being edited is drawn in the text color with its caret, and the line, a little
     /// larger then, scrolls to keep the caret in view instead of cutting the line's start.
-    fn draw_expression_line(&mut self, ui: &Ui, rect: Rect, top: f32, max_width: f32) {
+    /// Returns where it takes taps, if it's shown.
+    fn draw_expression_line(
+        &mut self,
+        ui: &Ui,
+        rect: Rect,
+        top: f32,
+        max_width: f32,
+    ) -> Option<Rect> {
         let p = self.palette;
         let calc = self.engine();
         let (line, parts) = calc.expression_parts();
         if line.is_empty() {
-            return;
+            return None;
         }
         let edit = calc.number_edit();
         let operator = calc.selected_operator();
@@ -1785,10 +1881,11 @@ impl CalculatorApp {
         let (text, ranges) = caret::localize_line(&line, &parts, &decimal);
         let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
         let right = rect.right() - 12.0;
+        // Windows' 14 px at the default Expression size (16 px while a part is edited).
         let size = if edit.is_some() || operator.is_some() {
-            16.0
+            self.expression_size.edit_font_size()
         } else {
-            14.0
+            self.expression_size.font_size()
         };
         let font = FontId::proportional(size);
         // The edited number or the selected operator in the text color, the rest in the
@@ -1857,7 +1954,11 @@ impl CalculatorApp {
             };
             name = format!("{name}, {}", tr_format(key, &[part]));
         }
-        access::text(ui, line_rect, Id::new("expression"), &name, part.is_some());
+        let line_id = Id::new("expression");
+        access::text(ui, line_rect, line_id, &name, part.is_some());
+        let clicked = self.expression_part_nodes(
+            ui, line_id, rect, &galley, pos, shift, &text, &ranges, &parts,
+        );
         if let Some(range) = &edited {
             // A light background marks the number being edited.
             let start = galley.pos_from_cursor(egui::text::CCursor::new(range.start));
@@ -1879,54 +1980,154 @@ impl CalculatorApp {
 
         // A tap or click: on a number, the caret goes there; elsewhere on the line, an edit
         // ends.
-        let tap_area = Rect::from_x_y_ranges(
-            rect.left()..=rect.right(),
-            (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0),
-        );
-        let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
-        if !tap.clicked() || access::is_covered(ui) {
-            return;
+        let mut taps = (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0);
+        // At the sizes for fingers, at least a touch target high, inside the display (the
+        // header above keeps its buttons; the result's own tap area wins where they meet).
+        let height = taps.end() - taps.start();
+        let short = self.expression_size.min_tap_height() - height;
+        if short > 0.0 {
+            let top = (taps.start() - short / 2.0).max(rect.top());
+            taps = top..=top + height + short;
         }
-        let Some(pointer) = tap.interact_pointer_pos() else {
-            return;
-        };
-        let index = galley.cursor_from_pos(pointer - pos).index.0;
-        let index = if shift > 0 && index > 0 {
-            index - 1 + shift
+        let tap_area = Rect::from_x_y_ranges(rect.left()..=rect.right(), taps);
+        let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
+        // A screen reader's or an accessibility service's click on a part's node puts the caret
+        // at the number's end (docs/research/editable-expression.md, "Where a tap puts the
+        // caret").
+        let by_click = clicked.is_some();
+        let (hit, index) = if let Some((range, at)) = clicked {
+            let end = range.end;
+            (Some((range, at)), end)
         } else {
-            index
-        };
-        // A number first, then an operator, which is one character wide: a tap on the spaces
-        // next to it hits it too.
-        let hit = ranges
-            .iter()
-            .find(|(range, _)| range.start <= index && index <= range.end)
-            .or_else(|| {
-                ranges.iter().find(|(range, at)| {
-                    parts[*at].kind == PartKind::Operator
-                        && range.start <= index + 1
-                        && index <= range.end + 1
+            if !tap.clicked() || access::is_covered(ui) {
+                return Some(tap_area);
+            }
+            let Some(pointer) = tap.interact_pointer_pos() else {
+                return Some(tap_area);
+            };
+            let index = galley.cursor_from_pos(pointer - pos).index.0;
+            let index = if shift > 0 && index > 0 {
+                index - 1 + shift
+            } else {
+                index
+            };
+            // A number first, then an operator, which is one character wide: a tap on the
+            // spaces next to it hits it too.
+            let hit = ranges
+                .iter()
+                .find(|(range, _)| range.start <= index && index <= range.end)
+                .or_else(|| {
+                    ranges.iter().find(|(range, at)| {
+                        parts[*at].kind == PartKind::Operator
+                            && range.start <= index + 1
+                            && index <= range.end + 1
+                    })
                 })
-            })
-            .cloned();
+                .cloned();
+            (hit, index)
+        };
         let calc = self.engine_mut();
         let Some((range, at)) = hit else {
             calc.commit_edit();
-            return;
+            return Some(tap_area);
         };
         if !calc.edit_part(&parts[at], None) {
-            return;
+            return Some(tap_area);
         }
         if let Some(edit) = calc.number_edit() {
             let number: String = text.chars().skip(range.start).take(range.len()).collect();
-            let stops =
-                caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
-            let caret = stops.nearest(index.saturating_sub(range.start));
+            // A one-digit number (`7`, `-7`) has only its start and its end, and a tap at its
+            // centre (an accessibility service's gesture on the node, or a finger) is a tie
+            // that the font and the pixel rounding decide: anywhere on it puts the caret after.
+            let one_digit = edit.mantissa.chars().count() == 1 && edit.exponent.is_none();
+            let caret = if by_click || one_digit {
+                caret::end(&edit.mantissa, edit.exponent.as_deref())
+            } else {
+                let stops =
+                    caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
+                stops.nearest(index.saturating_sub(range.start))
+            };
             calc.edit_operand(edit.item, Some(caret));
         }
         if let Some(id) = access::focused(ui.ctx()) {
             ui.memory_mut(|memory| memory.surrender_focus(id));
         }
+        Some(tap_area)
+    }
+
+    /// The expression line's parts that a tap edits (numbers and binary operators) as children
+    /// of the line's node `line_id`, each with its bounds, a name (`Number 7`, `Operator +`)
+    /// and a click action, so that screen readers and accessibility services (Marionet,
+    /// uiautomator) can pick one without a screenshot (android/README.md). `galley` is the
+    /// line at `pos` in `rect`, its first `shift` characters elided. Returns the part that
+    /// such a click chose in this frame: its characters in `text` and its index in `parts`.
+    #[allow(clippy::too_many_arguments)]
+    fn expression_part_nodes(
+        &self,
+        ui: &Ui,
+        line_id: Id,
+        rect: Rect,
+        galley: &egui::Galley,
+        pos: Pos2,
+        shift: usize,
+        text: &str,
+        ranges: &[(std::ops::Range<usize>, usize)],
+        parts: &[crate::engine::ExpressionPart],
+    ) -> Option<(std::ops::Range<usize>, usize)> {
+        // Covered by a popup or a flyout, the line takes no clicks, not even a screen reader's.
+        if access::is_covered(ui) {
+            return None;
+        }
+        let calc = self.engine();
+        let edited = calc.number_edit().map(|edit| edit.item);
+        let operator = calc.selected_operator();
+        let children = access::children_of(ui, line_id);
+        let visible = rect.intersect(ui.clip_rect());
+        let mut clicked = None;
+        for (i, (range, at)) in ranges.iter().enumerate() {
+            // An elided line shows `…` in place of its first `shift` characters (and the
+            // galley's index 0 is the `…`): a part under it has no node.
+            let (start, end) = if shift > 0 {
+                if range.start < shift {
+                    continue;
+                }
+                (range.start + 1 - shift, range.end + 1 - shift)
+            } else {
+                (range.start, range.end)
+            };
+            let from = galley.pos_from_cursor(egui::text::CCursor::new(start));
+            let to = galley.pos_from_cursor(egui::text::CCursor::new(end));
+            let part_rect = Rect::from_x_y_ranges(from.left()..=to.left(), from.y_range())
+                .translate(pos.to_vec2())
+                .intersect(visible);
+            if !(part_rect.width() > 0.0 && part_rect.height() > 0.0) {
+                continue;
+            }
+            let part = &parts[*at];
+            let shown: String = text.chars().skip(range.start).take(range.len()).collect();
+            let (key, selected) = match part.kind {
+                PartKind::Operator => ("CalcCraft.ExpressionOperator", operator == Some(part.item)),
+                _ => ("CalcCraft.ExpressionNumber", edited == Some(part.item)),
+            };
+            let name = tr_format(key, &[shown.trim()]);
+            let id = Id::new("expression-part").with(i);
+            children.interact(part_rect, id, Sense::hover());
+            ui.ctx().accesskit_node_builder(id, |node| {
+                node.set_role(egui::accesskit::Role::Button);
+                node.set_label(name);
+                node.set_bounds(access::bounds(part_rect));
+                node.add_action(egui::accesskit::Action::Click);
+                if selected {
+                    node.set_selected(true);
+                }
+            });
+            if ui.input(|input| {
+                input.has_accesskit_action_request(id, egui::accesskit::Action::Click)
+            }) {
+                clicked = Some((range.clone(), *at));
+            }
+        }
+        clicked
     }
 
     /// The caret's keys (CalcCraft's own): Left, Right, Home, End, Ctrl+Left and Ctrl+Right
@@ -2097,6 +2298,8 @@ impl CalculatorApp {
             Digit(1), Digit(2), Digit(3), Operator(Op::Add),
             Function(Func::Negate), Digit(0), Decimal, Equals,
         ];
+        let group = access::group(ui, Id::new("keypad"), rect, tr("fullKeypad.AutomationName"));
+        let ui = &group;
         let width = (rect.width() - 3.0 * GAP) / 4.0;
         let height = (rect.height() - 5.0 * GAP) / 6.0;
         for (i, command) in KEYS.into_iter().enumerate() {
@@ -2885,10 +3088,7 @@ impl CalculatorApp {
                 });
                 self.type_ahead.0.clear();
                 self.opened_from(&ctx, list.box_id());
-                if !matches!(
-                    list,
-                    SettingsList::VibrationStyle | SettingsList::Orientation
-                ) {
+                if !list.in_interface_language() {
                     // The entries are in their own scripts.
                     self.all_scripts = true;
                     self.update_fonts(&ctx);
@@ -2933,6 +3133,9 @@ impl CalculatorApp {
                     // At once: the screen turns while Settings is open.
                     #[cfg(target_os = "android")]
                     android::set_orientation(choice);
+                }
+                SettingsList::ExpressionSize => {
+                    self.expression_size = ExpressionSize::parse(choice.as_deref());
                 }
             }
         }
@@ -3008,6 +3211,15 @@ impl CalculatorApp {
                 &chosen(SettingsList::Orientation),
             )
         });
+        let expression_size_card = ComboCard::new(
+            &painter,
+            p,
+            width - 2.0 * SIDE,
+            SettingsList::ExpressionSize,
+            tr("CalcCraft.ExpressionSize"),
+            tr("CalcCraft.ExpressionSizeDescription"),
+            &chosen(SettingsList::ExpressionSize),
+        );
         let language_card = ComboCard::new(
             &painter,
             p,
@@ -3073,6 +3285,7 @@ impl CalculatorApp {
             card_tops.push(card_top);
             cards_bottom = card_top
                 + match card {
+                    SettingsCard::ExpressionSize => expression_size_card.height,
                     SettingsCard::Language => language_card.height,
                     SettingsCard::Orientation => {
                         orientation_card.as_ref().map_or(0.0, |c| c.height)
@@ -3192,6 +3405,9 @@ impl CalculatorApp {
         // Windows follows its settings).
         for (kind, card_top) in cards.iter().zip(card_tops) {
             let combo = match kind {
+                SettingsCard::ExpressionSize => {
+                    Some((&expression_size_card, CardIcon::ExpressionSize))
+                }
                 SettingsCard::Language => Some((&language_card, CardIcon::Glyph(ICON_LANGUAGE))),
                 SettingsCard::Orientation => orientation_card
                     .as_ref()
@@ -3358,6 +3574,7 @@ impl CalculatorApp {
                 painter.galley(icon_center - icon.size() / 2.0, icon, p.text);
             }
             CardIcon::Orientation => paint_orientation_icon(painter, icon_center, p.text),
+            CardIcon::ExpressionSize => paint_expression_size_icon(painter, icon_center, p.text),
         }
         let text_left = rect.left() + ComboCard::TEXT_X;
         painter.galley(pos2(text_left, text_top), card.title.clone(), p.text);
@@ -3816,6 +4033,10 @@ impl eframe::App for CalculatorApp {
             let value = choice.as_deref().unwrap_or(SYSTEM_CHOICE);
             storage.set_string(key, value.to_owned());
         }
+        storage.set_string(
+            expression_size::STORAGE_KEY,
+            self.expression_size.key().to_owned(),
+        );
         if orientation::AVAILABLE {
             storage.set_string(
                 orientation::STORAGE_KEY,
@@ -3873,10 +4094,13 @@ impl eframe::App for CalculatorApp {
             self.focus_popup = false;
         }
 
+        access::begin_frame(&ctx);
         self.draw_frame(ui, &ctx);
         #[cfg(feature = "support-prompt")]
         self.support.draw_toast(&ctx, self.palette);
         self.last_focus = access::focused(&ctx);
+        // After `last_focus`, which keeps the widget the focus was asked for.
+        access::settle_focus(&ctx);
         // The Settings lists load every script font (some 70 MB of CJK fonts); they go
         // again with the page.
         if self.page != Page::Settings && self.all_scripts {
@@ -5002,11 +5226,13 @@ impl TitleBar {
     fn apply(&self, _theme: egui::Theme) {}
 }
 
-/// The window icon, drawn by `icon.rs` (the executable embeds the same picture).
+/// The window icon, from `icon.rs` (the executable embeds the same picture).
 pub fn window_icon() -> egui::IconData {
     const SIZE: u32 = 64;
     egui::IconData {
-        rgba: crate::icon::rgba(SIZE),
+        rgba: crate::icon::rgba(SIZE)
+            .expect("icon.rs has the 64 px icon")
+            .to_vec(),
         width: SIZE,
         height: SIZE,
     }
@@ -5014,6 +5240,9 @@ pub fn window_icon() -> egui::IconData {
 
 #[cfg(test)]
 mod layout_tests;
+
+#[cfg(test)]
+mod a11y_tests;
 
 #[cfg(test)]
 mod tests {
@@ -5027,20 +5256,29 @@ mod tests {
         use SettingsCard::*;
         // Windows and the web version: regional formats to choose, no screen orientation and
         // no key vibration.
-        assert_eq!(settings_cards(false, false, true), [Language, Region]);
+        assert_eq!(
+            settings_cards(false, false, true),
+            [ExpressionSize, Language, Region]
+        );
         // The Android app: no regional formats yet, Screen orientation and Key vibration
         // right after Language.
         assert_eq!(
             settings_cards(true, true, false),
-            [Language, Orientation, KeyVibration]
+            [ExpressionSize, Language, Orientation, KeyVibration]
         );
         // On Android 16's large screens, which ignore the app's orientation.
-        assert_eq!(settings_cards(false, true, false), [Language, KeyVibration]);
+        assert_eq!(
+            settings_cards(false, true, false),
+            [ExpressionSize, Language, KeyVibration]
+        );
         // Linux and macOS: the Regional format card would only offer "Use system setting".
-        assert_eq!(settings_cards(false, false, false), [Language]);
+        assert_eq!(
+            settings_cards(false, false, false),
+            [ExpressionSize, Language]
+        );
         assert_eq!(
             settings_cards(true, true, true),
-            [Language, Orientation, KeyVibration, Region]
+            [ExpressionSize, Language, Orientation, KeyVibration, Region]
         );
         // This build's own cards.
         let cards = settings_cards(
@@ -6096,9 +6334,88 @@ mod tests {
 
     #[test]
     fn a_click_edits_a_carried_result_and_selects_an_operator() {
+        // At every Expression size: the taps follow the glyphs at the size drawn.
+        for size in ExpressionSize::ALL {
+            click_edits_a_carried_result_and_selects_an_operator(size);
+        }
+    }
+
+    #[test]
+    fn expression_size_is_saved() {
+        let ctx = Context::default();
+        // A new install has Windows' size, and saves it.
+        let mut app = start_in(&ctx);
+        assert_eq!(app.expression_size, ExpressionSize::Small);
+        let mut storage = MemoryStorage::default();
+        eframe::App::save(&mut app, &mut storage);
+        assert_eq!(
+            storage
+                .0
+                .get(expression_size::STORAGE_KEY)
+                .map(String::as_str),
+            Some("Small")
+        );
+        // A choice comes back at the next start.
+        app.expression_size = ExpressionSize::ExtraLarge;
+        eframe::App::save(&mut app, &mut storage);
+        let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+        cc.storage = Some(&storage);
+        let app = CalculatorApp::new(&cc);
+        assert_eq!(app.expression_size, ExpressionSize::ExtraLarge);
+        // The Settings drop-down lists the four sizes, smallest first.
+        let entries = settings_entries(SettingsList::ExpressionSize);
+        let keys: Vec<_> = entries.iter().map(|(key, _)| *key).collect();
+        assert_eq!(
+            keys,
+            [
+                Some("Small"),
+                Some("Medium"),
+                Some("Large"),
+                Some("ExtraLarge")
+            ]
+        );
+        assert_eq!(
+            SettingsList::ExpressionSize.choice(&app),
+            Some("ExtraLarge")
+        );
+    }
+
+    #[test]
+    fn the_default_expression_size_keeps_the_layout() {
+        // Small draws the line at Windows' 14 px where it always was: 6 px under the
+        // display's top in the Standard mode, and the result where it was.
+        let ctx = Context::default();
+        let mut app = start_in(&ctx);
+        app.engine_mut().execute(Command::Digit(7));
+        app.engine_mut().execute(Command::Operator(Op::Add));
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        let line = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let number = ctx.read_response(Id::new("display-caret")).unwrap().rect;
+        let mut fourteen = 0.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            fourteen = ui
+                .painter()
+                .layout_no_wrap("7 +".into(), FontId::proportional(14.0), Color32::WHITE)
+                .size()
+                .y;
+        });
+        output.textures_delta.clear();
+        assert_eq!(line.height(), fourteen);
+        // At Large the line is taller and the result no higher than before.
+        app.expression_size = ExpressionSize::Large;
+        run(&ctx, &mut app, MIN_SIZE, vec![]);
+        let large = ctx.read_response(Id::new("expression")).unwrap().rect;
+        let large_number = ctx.read_response(Id::new("display-caret")).unwrap().rect;
+        assert!(large.height() > line.height());
+        assert!(large_number.top() >= number.top());
+        assert_eq!(large.right(), line.right());
+    }
+
+    fn click_edits_a_carried_result_and_selects_an_operator(size: ExpressionSize) {
         // Konst's chain: 10 + 2 = 12 + 4 = 16 ÷ 4 = 4, the line `16 ÷ 4 =`.
         let ctx = Context::default();
         let mut app = start_in(&ctx);
+        app.expression_size = size;
         let keys = [
             Command::Digit(1),
             Command::Digit(0),

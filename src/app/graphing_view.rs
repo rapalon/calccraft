@@ -1460,6 +1460,12 @@ impl CalculatorApp {
             .show(&mut child);
         normalize(&mut row.text);
         let response = output.response.response;
+        // egui names a text box by nothing but its text, so an empty one had no name at all:
+        // it's named by its placeholder, which accessibility services find it by (Android's
+        // `content-desc`; the text stays its value).
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_label(tr("mathRichEditBox.PlaceholderText"));
+        });
         if response.gained_focus() || response.has_focus() {
             self.graphing.active = Some(id);
         }

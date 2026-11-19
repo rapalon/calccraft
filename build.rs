@@ -1,26 +1,24 @@
 //! Embeds the app icon and version information in the Windows executable, so
 //! Explorer, the taskbar and Task Manager show the calculator icon and the company's credit.
 //!
-//! The icon is rendered from `src/icon.rs`, the same drawing as the window icon,
-//! into an .ico file with one image per size Windows asks for.
+//! The .ico file is put together from `src/icon.rs`'s images, the same as the window
+//! icon's: one image per size Windows asks for, and the 256 px "jumbo" image that Explorer
+//! uses for large views.
 
 #[path = "src/icon.rs"]
 #[allow(dead_code)]
 mod icon;
 
-/// Sizes in the .ico file: small and large icons at 100–250 % scaling, and the
-/// 256 px "jumbo" icon that Explorer uses for large views.
-const ICON_SIZES: [u32; 8] = [16, 20, 24, 32, 40, 48, 64, 256];
-
 fn main() {
     println!("cargo:rerun-if-changed=src/icon.rs");
+    println!("cargo:rerun-if-changed=assets/icon");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
     }
 
     let out_dir = std::env::var("OUT_DIR").expect("cargo sets OUT_DIR");
     let ico_path = std::path::Path::new(&out_dir).join("calculator.ico");
-    std::fs::write(&ico_path, ico(&ICON_SIZES)).expect("writing the .ico file");
+    std::fs::write(&ico_path, ico()).expect("writing the .ico file");
 
     let mut resource = winresource::WindowsResource::new();
     resource
@@ -34,9 +32,13 @@ fn main() {
         .expect("embedding the icon needs rc.exe from the Windows SDK");
 }
 
-/// An .ico file with a 32-bit BMP image for each size.
-fn ico(sizes: &[u32]) -> Vec<u8> {
-    let images: Vec<Vec<u8>> = sizes.iter().map(|&size| bmp(size)).collect();
+/// An .ico file with a 32-bit BMP image for each of `icon::SIZES` and the 256 px PNG, which
+/// Windows (since Vista) reads as it is.
+fn ico() -> Vec<u8> {
+    let mut sizes: Vec<u32> = icon::SIZES.to_vec();
+    let mut images: Vec<Vec<u8>> = sizes.iter().map(|&size| bmp(size)).collect();
+    sizes.push(256);
+    images.push(icon::PNG_256.to_vec());
 
     let mut file = Vec::new();
     // ICONDIR: reserved, type 1 (icon), image count.
@@ -64,7 +66,7 @@ fn ico(sizes: &[u32]) -> Vec<u8> {
 /// One icon image: a BITMAPINFOHEADER, BGRA pixels bottom-up, then the 1-bit
 /// AND mask (set where the pixel is fully transparent, for old renderers).
 fn bmp(size: u32) -> Vec<u8> {
-    let rgba = icon::rgba(size);
+    let rgba = icon::rgba(size).expect("one of icon::SIZES");
     let mask_row = size.div_ceil(32) * 4;
     let pixels_len = size * size * 4;
     let mask_len = mask_row * size;

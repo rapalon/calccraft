@@ -851,6 +851,10 @@ impl CalculatorApp {
         negate_size: f32,
     ) {
         use ConverterCommand::*;
+        // Windows' converter names its keys' panel so (`access::group`).
+        let id = Id::new("converter-keypad");
+        let group = access::group(ui, id, rect, tr("NumberPad.AutomationName"));
+        let ui = &group;
         #[rustfmt::skip]
         const KEYS: [Option<ConverterCommand>; 15] = [
             None, Some(Clear), Some(Backspace),

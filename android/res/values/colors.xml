@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The app's light background (palette.rs), as on the web version's maskable icons. -->
-    <color name="ic_launcher_background">#F3EBF3</color>
+    <!-- The launcher icon's blue, sampled from android/icon-source/calccraft-icon-512.png by
+         tools/app-icon.py, which rewrites this value. -->
+    <color name="ic_launcher_background">#2E67EB</color>
 </resources>

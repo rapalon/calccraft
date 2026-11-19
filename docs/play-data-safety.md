@@ -31,7 +31,8 @@ Notes for the form's fine print:
   every share replaces (a non-exported `ContentProvider` of the app's own, audit: "Android
   manifest"). A transfer the user starts in the system's share sheet isn't collection or
   sharing by the developer, and nothing goes to the developer: the answers stay **No**.
-- **Settings added since the audit** (1.4.1: Screen orientation, `CalcCraftScreenOrientation`)
+- **Settings added since the audit** (1.4.1: Screen orientation, `CalcCraftScreenOrientation`;
+  later: Expression size, `CalcCraftExpressionSize`)
   stay in that settings file on the device, need no permission and change none of the answers.
 
 ### Link parameters in the Play builds

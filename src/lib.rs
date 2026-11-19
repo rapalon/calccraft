@@ -91,10 +91,17 @@ pub fn start_web() {
 #[unsafe(no_mangle)]
 fn android_main(android_app: winit::platform::android::activity::AndroidApp) {
     // Warnings and panics go to `adb logcat` (a panic's message would go to stderr, which
-    // Android drops).
+    // Android drops). The accessibility hook (vendor/accesskit_winit) also logs, once each,
+    // where its delegate went and when a service first asked for the tree and got it.
     android_logger::init_once(
         android_logger::Config::default()
-            .with_max_level(log::LevelFilter::Warn)
+            .with_max_level(log::LevelFilter::Info)
+            .with_filter(
+                android_logger::FilterBuilder::new()
+                    .filter_level(log::LevelFilter::Warn)
+                    .filter_module("accesskit_winit", log::LevelFilter::Info)
+                    .build(),
+            )
             .with_tag("CalcCraft"),
     );
     std::panic::set_hook(Box::new(|info| log::error!("{info}")));
@@ -106,15 +113,28 @@ fn android_main(android_app: winit::platform::android::activity::AndroidApp) {
         android_app: Some(android_app),
         ..Default::default()
     };
-    if let Err(error) = eframe::run_native(
-        "CalcCraft",
-        options,
-        Box::new(|cc| Ok(Box::new(app::CalculatorApp::new(cc)))),
-    ) {
-        log::error!("CalcCraft couldn't start: {error}");
-    }
+    // A panic is caught here, not by android-activity: it would end only this thread and
+    // leave the process running, and the next start would then fail for the reason below
+    // ("EventLoop can't be recreated"). The hook above has logged it.
+    let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        eframe::run_native(
+            "CalcCraft",
+            options,
+            Box::new(|cc| Ok(Box::new(app::CalculatorApp::new(cc)))),
+        )
+    }));
     // winit allows one event loop per process, so an activity that Android starts again in
     // this process (after destroying the last one) can't run the app: it ends the process,
-    // and the next start gets a new one.
-    std::process::exit(0);
+    // after a panic too, and the next start gets a new one.
+    match run {
+        Ok(Ok(())) => std::process::exit(0),
+        Ok(Err(error)) => {
+            log::error!("CalcCraft couldn't start: {error}");
+            std::process::exit(0);
+        }
+        Err(_) => {
+            log::error!("CalcCraft ends after the panic above");
+            std::process::exit(1);
+        }
+    }
 }

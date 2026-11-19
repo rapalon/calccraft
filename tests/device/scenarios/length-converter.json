@@ -1,0 +1,14 @@
+{
+  "name": "length-converter",
+  "description": "The Length converter takes a typed value (12.5 in its first field) and converts it; the units are the region's defaults, so only the typed value is checked.",
+  "steps": [
+    { "launch": true },
+    { "open": "Length Converter" },
+    { "tap": "Clear entry" },
+    { "taps": ["One", "Two", "Decimal separator", "Five"] },
+    { "expect_prefix": "Convert from 12.5 " },
+    { "expect_prefix": "Converts into " },
+    { "tap": "Backspace" },
+    { "expect_prefix": "Convert from 12. " }
+  ]
+}

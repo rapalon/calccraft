@@ -288,6 +288,19 @@ while building them, each the simplest one and the closest to typing the number 
   the others can't be selected or replaced in this version; the numbers inside them can be
   edited. Neither can `(`, `)` or `=`, nor an operator a key other than an operator put in the
   line (the `+` of `8 + 3 =` that a repeated `=` writes after `5 + 3 =`, the `×` of `2(3)`).
+- **Where a tap puts the caret** (2026-11-18, found through Marionet on the Pixel: a tap at the
+  centre of `Number 7` in `12 + 7 × 3 =`, then ⌫ and 9, gave `97`, not `9`). A tap on a number
+  of the line goes to the nearest digit boundary, but a number of one digit (`7`, `-7`) has only
+  its start and its end, and its centre is a tie that the font and the rounding to the screen's
+  pixels decide. So a tap anywhere on a one-digit number puts the caret after it: a finger
+  can't aim at one side of a digit, and after it is where typing goes on, as at the end of the
+  number being typed. A longer number keeps the nearest boundary, so a finger can still go
+  between its digits. A screen reader's or an accessibility service's click on a number's node
+  (`ACTION_CLICK`, AccessKit's `Click`) puts the caret at the number's end, whatever its length:
+  that is what "edit this number" means there. The parts' nodes keep `clickable=false` on
+  Android (decision #e4bec910: no second vendored crate), so Marionet taps their centre, which
+  the rule above covers for one-digit numbers. For a longer number an agent should use the
+  click action, or tap at the right edge of the node's bounds.
 - **Keys.** Ctrl+Left and Ctrl+Right stop on the line's operators and computed numbers too, in
   the order of the line; on a selected operator, Left and Right go on to the number before or
   after it. Esc cancels.

@@ -46,6 +46,13 @@ jobs:
       - name: Test
         run: cargo test
 
+      # The device scenarios' adb runner (tests/device/README.md), without a device: against a
+      # recorded uiautomator dump, and every scenario's steps. The scenarios themselves ran on
+      # the host in `cargo test` (device_scenarios_pass_on_the_host).
+      - name: Self-test the device test runner
+        shell: pwsh
+        run: tests/device/run.ps1 -SelfTest
+
       # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
       # differently: their own tests, with and without the paid app's ID.
       - name: Test the Google Play channels
@@ -170,9 +177,23 @@ jobs:
           "$tools/aapt2" dump badging target/android/universal.apk | tee target/android/badging.txt
           grep -q "^native-code: 'arm64-v8a'" target/android/badging.txt
           "$tools/zipalign" -c -P 16 4 target/android/universal.apk
+          # The launcher icon (tools/app-icon.py): the adaptive icon with its foreground layer,
+          # the themed icon's monochrome layer, and Android 7's PNG icons, square and round.
+          unzip -l target/android/universal.apk > target/android/files.txt
+          for file in res/mipmap-anydpi-v26/ic_launcher.xml res/mipmap-anydpi-v26/ic_launcher_round.xml \
+              res/drawable-xxxhdpi-v4/ic_launcher_foreground.png res/drawable-xxxhdpi-v4/ic_launcher_monochrome.png \
+              res/mipmap-xxxhdpi-v4/ic_launcher.png res/mipmap-xxxhdpi-v4/ic_launcher_round.png; do
+            grep -q " $file\$" target/android/files.txt || { echo "missing $file"; grep res/ target/android/files.txt; exit 1; }
+          done
           # The share provider's code (android/java) is in both the APK and the bundle's APKs.
           "$tools/dexdump" target/android/universal.apk | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
           "$tools/dexdump" "target/android/CalcCraft-$version-arm64.apk" | grep -q "Lcom/rapalon/calccraft/ShareProvider;"
+          # The library carries AccessKit's Android adapter with its Java delegate (a dex it
+          # embeds), so TalkBack gets the accessibility tree (android/README.md, "Accessibility").
+          # Without eframe's accesskit feature, or with the crates.io accesskit_winit instead of
+          # vendor/accesskit_winit, the delegate's class name wouldn't be in the library.
+          unzip -o -q target/android/universal.apk lib/arm64-v8a/libcalculator.so -d target/android/universal-lib
+          grep -a -q "dev/accesskit/android/Delegate" target/android/universal-lib/lib/arm64-v8a/libcalculator.so
           # build-apk.ps1 -UniversalApk's file (the release workflow's test build): signed, and
           # on 16 KB pages like bundletool's own.
           signed="target/android/CalcCraft-$version-arm64-universal.apk"

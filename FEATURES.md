@@ -49,7 +49,7 @@ own `NOT_STARTED` entry.
 | **Phase 8: Application Shell, UX & Accessibility** | 13 | 12 | 0 | 1 | 0 |
 | **TOTAL** | **69** | **67** | **0** | **1** | **1** |
 
-*Last updated: 2026-11-18 (CalcCraft 1.4.2, editable entry and expression)*
+*Last updated: 2026-11-18 (CalcCraft 1.4.3: Expression size, Android screen readers, new icon)*
 
 ---
 
@@ -1214,6 +1214,11 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Narrator can't press or focus the controls under an open popup (the menu, a context menu,
     a drop-down or the calendar), just as the mouse can't, except the Graphing mode's text
     boxes, which it can still focus.
+  - Android (8.0 and later): TalkBack and other accessibility services get the same tree
+    through AccessKit's Android adapter on the NativeActivity's view (`vendor/accesskit_winit`,
+    see `android/README.md`, "Accessibility"): the keys by name, the display's value as text,
+    the menu's entries; `adb shell uiautomator dump` lists them, and an automation agent can
+    press a key by its name. On Android 7 the app runs without the tree.
 - **Differences:** Windows announces results with UI Automation notifications (and some events,
   like "Memory cleared", have their own); CalcCraft uses live regions through AccessKit and has
   no event announcements. The expression line is read as it's shown, not as Windows' spoken
@@ -1264,6 +1269,21 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     right of the text, or under it in cards narrower than 476 px. The Regional format card shows
     only where there are regional formats to choose (Windows and the web version): on Android,
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
+  - Every build (CalcCraft's own; Windows has one size): an Expression size card right after the
+    App theme card, with a drop-down: Small (by default), Medium, Large, Extra large. It sizes
+    the expression line above the result in the Standard, Scientific and Programmer modes:
+    14, 18, 24 and 30 px, and 8/7 of that while a part of the line is edited or selected (16 px
+    at Small, as before). Small is exactly the earlier look. Saved as `CalcCraftExpressionSize`
+    (`Small`, `Medium`, `Large`, `ExtraLarge`; anything else loads as Small;
+    `src/app/expression_size.rs`).
+    - At Large and Extra large the line's tap area is at least 48 px (48 dp on Android, a
+      finger's touch target) high; the number under it keeps its own tap area where they meet.
+    - A taller line grows up into the room above it first, then pushes the result down; the
+      result shrinks if it would otherwise run out of the display. Nothing overlaps the result
+      or the rows under the display.
+    - A line too long for the display is cut at its start with `…`, and while a part is edited
+      it scrolls to keep the caret in view, at every size. Taps map onto the glyphs at the size
+      drawn.
   - Android only: a Screen orientation card right after the Language card, with a drop-down:
     Auto (by default), Portrait, Landscape. Saved as `CalcCraftScreenOrientation` (`Auto`,
     `Portrait`, `Landscape`) and applied at once and at start-up, before the first frame,
@@ -1338,10 +1358,14 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Priority:** `P2`
 - **Depends On:** None
 - **Windows ref:** `src/Calculator/Package.appxmanifest`, `src/Calculator/Views/TitleBar.xaml.cs`
-- **Rust:** `src/icon.rs`, `build.rs`, `src/main.rs`, `src/app.rs` (`TitleBar`)
+- **Rust:** `src/icon.rs`, `build.rs`, `src/main.rs`, `src/app.rs` (`TitleBar`), `tools/app-icon.py`
 - **Description:** Window title "CalcCraft by Rapalon Labs" (`brand::TITLE`, not translated; also
-  the web page's title and the installed web app's full name); one icon drawing used as the window
-  icon and embedded in `calculator.exe` (16–256 px) with version information; title bar tinted with
+  the web page's title and the installed web app's full name); one icon on every platform (since
+  1.4.3 a calculator with "42" on its display on blue, Konst's artwork in
+  `android/icon-source/`): the window icon, embedded in `calculator.exe`
+  (16–256 px) with version information, the web version's and the PWA's icons, and Android's
+  adaptive icon with its themed (monochrome) layer, Android 7's PNG icons and Google Play's
+  listing icon; title bar tinted with
   the theme background. The About card credits "by Rapalon Labs", with the name linking to
   rapalon.com. Where only a short label fits (Android and web app launchers, the macOS menu bar),
   the name stays "CalcCraft".
@@ -1509,3 +1533,4 @@ Windows source in `../win-calculator`.
 | 2026-11-18 | Claude Code | `FEAT-SHELL-002`, `FEAT-SHELL-008` | Android 1.4.1: a Screen orientation card (Auto = `USER`, Portrait = `SENSOR_PORTRAIT`, Landscape = `SENSOR_LANDSCAPE`, `CalcCraftScreenOrientation`, left out on Android 16's large screens) and no fixed orientation in the manifest; a landscape layout for phones on their side (`Landscape`: keys in their own column for Standard, Scientific, Programmer and the Graphing keypad), a wider Graphing equation panel at 800 px, and `layout_tests` with a software rasterizer for the Android screen sizes |
 | 2026-11-18 | Claude Code | `FEAT-SHELL-013` | Editable entry and expression (`docs/research/editable-expression.md`, A + B + C): a caret in the number being typed (`engine/caret.rs`, `app/caret.rs`); a tape of the keys since `C` that replays an edited number of the expression line through the same engine, with the live result and a new history entry for an edited finished calculation (`engine/tape.rs`, property tests); Edit in the history's context menu; "Edit" and "Editing %1" in all 50 languages |
 | 2026-11-18 | Claude Code | `FEAT-SHELL-013` | The expression line's computed numbers (carried-over results, `%`'s value, MR) are editable as literals in place of the steps that computed them, and its binary operators can be selected and replaced by the next operator key, replayed with each mode's precedence; no cascade into later history entries; "Selected operator %1" in all 50 languages (Konst's `10 + 2 = 12 + 4 = 16 ÷ 4` test) |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-006` | Android accessibility: the AccessKit tree reaches TalkBack and accessibility services (Marionet, `uiautomator`) through eframe's `accesskit` feature and `accesskit_android`, on NativeActivity's content view via a patched copy of `accesskit_winit` 0.32.2 (`vendor/accesskit_winit`, `[patch.crates-io]`; upstream only hooks GameActivity, whose AppCompat chain the Gradle-less build can't carry); below Android 8.0 the adapter is skipped with a log line, so minSdk stays 24 |

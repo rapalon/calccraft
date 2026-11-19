@@ -36,6 +36,21 @@ pub(super) fn localize_line(
     (text, ranges)
 }
 
+/// The caret at the end of a number whose typed characters are `mantissa` and `exponent`: after
+/// the exponent's last digit if it has one, else after the mantissa's last character.
+pub(super) fn end(mantissa: &str, exponent: Option<&str>) -> Caret {
+    match exponent {
+        Some(digits) => Caret {
+            exponent: true,
+            index: digits.chars().count(),
+        },
+        None => Caret {
+            exponent: false,
+            index: mantissa.chars().count(),
+        },
+    }
+}
+
 /// The caret stops of a number shown as `shown`: the character index in `shown` before each
 /// character of `mantissa` (the typed digits with the decimal point) and after the last one,
 /// then the same for the exponent's digits.
@@ -139,6 +154,19 @@ mod tests {
             exponent: false,
             index,
         }
+    }
+
+    #[test]
+    fn the_end_caret_is_after_the_last_typed_character() {
+        assert_eq!(end("7", None), at(1));
+        assert_eq!(end("12.5", None), at(4));
+        assert_eq!(
+            end("1.5", Some("12")),
+            Caret {
+                exponent: true,
+                index: 2
+            }
+        );
     }
 
     #[test]

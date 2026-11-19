@@ -3,7 +3,9 @@
 CalcCraft as a native Android app: Android's `NativeActivity` loads the Rust library
 (`libcalculator.so`, see `src/lib.rs`), and eframe draws the same egui interface as on the
 desktop with OpenGL ES. The only Java code is the graph share's small `ContentProvider` (see
-"How it works"). `docs/mobile-apps-research.md` (on
+"How it works"). TalkBack and other accessibility services (and the automation agents built on
+them) get every control's name and the display's value from the same AccessKit tree as Narrator
+does on Windows (see "Accessibility"). `docs/mobile-apps-research.md` (on
 the `research/mobile-apps` branch) explains the choices and what a store release still needs.
 
 **Status:** builds for 64-bit ARM (`arm64-v8a`), Android 7.0 (API 24) and later, targeting
@@ -273,8 +275,11 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
 
 ## How it works
 
-- `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`) and
-  glow, as in egui's `hello_android` example, without wgpu and `arboard`.
+- `Cargo.toml` gives Android its own eframe: glow, as in egui's `hello_android` example, and
+  the screen reader support (`accesskit`, see "Accessibility" below), without wgpu and
+  `arboard`. NativeActivity is winit's `android-native-activity` feature, named on the `winit`
+  dependency rather than on eframe, whose feature of that name only passes through to winit
+  and makes eframe refuse `accesskit`.
 - `AndroidManifest.xml`: the app handles every configuration change itself, since winit allows
   one event loop per process (so a rotation only resizes the window, and the input, history and
   mode stay); it fixes no screen orientation (Settings → Screen orientation picks it, see
@@ -292,9 +297,18 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   A phone on its side gets a landscape layout (the keys in a column of their own, see
   `FEATURES.md`, `FEAT-SHELL-002`); `cargo test layout_tests` checks every mode at phone and
   tablet sizes in both orientations.
-- `res/`: the launcher icon (adaptive from Android 8; `cargo test write_android_icons --
-  --ignored` writes the PNGs from `src/icon.rs`) and a light and a dark theme for the system
-  bars and the start-up background.
+- `res/`: the launcher icon and a light and a dark theme for the system bars and the start-up
+  background. The icon is Konst's raster artwork in `icon-source/`: the square icon
+  (`calccraft-icon-512.png`) and the same calculator on a transparent background
+  (`calccraft-foreground.png`). `uv run tools/app-icon.py` scales them into every icon file:
+  the adaptive icon of Android 8 and later (`mipmap-anydpi-v26`: the blue
+  `ic_launcher_background` color sampled from the square icon, the foreground PNG placed as in
+  the square icon, its display and top keys inside the 66 dp safe circle, and a one-colour
+  silhouette of it for Android 13's themed icons; `drawable-*dpi`), the square and round PNG
+  icons of Android 7 (`mipmap-*dpi`, API 24 and 25), and Google Play's listing icon
+  (`store/icon-512.png`, the square icon as it is: Play adds the shape and the shadow). Both
+  Play channels and every application ID use the same icon. Previews in the launchers' masks
+  go to `target/icon-preview/`.
 - `src/app/android.rs` (JNI on the NativeActivity that `android_main` gets; ndk-context's
   context is the Application, which has no window): the system bars' and camera cutout's part
   of the screen becomes egui's safe area, which the layout keeps clear (NativeActivity always
@@ -340,12 +354,133 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   says `android:hasCode="true"`. No library, no download: both tools come with the JDK and
   the SDK the build already needs.
 
+## Accessibility: TalkBack and accessibility services
+
+The app's controls are described to screen readers through AccessKit on every platform
+(`src/app/access.rs`: Windows' `AutomationProperties.Name` for every key, the display as a live
+region, and so on). On Android, eframe's `accesskit` feature hands that tree to
+`accesskit_winit`, whose Android adapter (`accesskit_android`) installs a
+`View.AccessibilityDelegate` with an `AccessibilityNodeProvider` on the activity's view: TalkBack
+reads the display and the keys by name, swipes between them and double-taps to press, and any
+accessibility service (an automation agent such as Marionet, `uiautomator dump`) sees the
+same tree and can click a control by its name. Nothing is drawn differently, and nothing leaves
+the device: the accessibility services run on the phone.
+
+- **Why a patched `accesskit_winit`.** Upstream's Android adapter only knows
+  [GameActivity](https://developer.android.com/games/agdk/game-activity): it reads the activity's
+  `mSurfaceView` field. GameActivity itself extends `AppCompatActivity`, so an APK built on it
+  needs the whole AppCompat and Jetpack chain (about 25 libraries, their resources, a
+  `Theme.AppCompat` theme), which this Gradle-less build doesn't have. CalcCraft keeps
+  `NativeActivity` and ships a copy of `accesskit_winit` 0.32.2 in `vendor/accesskit_winit`
+  (Apache-2.0, its `LICENSE-APACHE` kept), which `[patch.crates-io]` in `Cargo.toml` puts in
+  place of the crates.io release for every platform. The changes are in
+  `src/platform_impl/android.rs`, whose header names the upstream version and the changes: the
+  adapter's host is NativeActivity's content view (the window's decor view →
+  `android.R.id.content` → its one child), found through JNI; and the tree's root node gets the
+  window's rectangle (`src/platform_impl/root_bounds.rs`, tested in `tests/vendor.rs`). egui's
+  root has none, so the content view's node was 0 × 0 (`bounds="[0,0][0,0]"` in a uiautomator
+  dump), and a service that drops empty nodes with their children (Marionet did) saw one
+  empty Group instead of the keys. And every tree update passes a focus guard
+  (`src/platform_impl/focus_guard.rs`, tested in `tests/vendor.rs`) before `accesskit_consumer`
+  gets it: the consumer panics on an update whose focus isn't a node of the tree ("Focused ID …
+  is not in the node list"), so the guard gives such a focus to the root and logs one warning,
+  and a panic in the adapter all the same turns the adapter off (no tree any more) instead of
+  ending the app. Everything else, and the desktop builds, are the unchanged upstream code.
+- **The focus in the tree.** egui names the widget that has the keyboard focus as the tree's
+  focus even in the frame before the widget is drawn (a `request_focus` keeps it for a frame),
+  and that widget has no node yet. The Graphing keypad's ↵ (Submit) does that: it adds a box and
+  focuses it, as Windows does, and the box is drawn in the next frame. With a service reading the
+  tree, the consumer panicked on that frame and the app ended (`Focused ID #812028608375119981`,
+  the new box's text edit). The app keeps its focus in the tree itself: at the end of a frame, a
+  focus on a widget that wasn't drawn waits for the next frame (`access::settle_focus` in
+  `src/app/access.rs`; `src/app/a11y_tests.rs` taps Submit and feeds every frame's tree to the
+  consumer). The guard above is for whatever else would do the same.
+- **A panic ends the process.** android-activity runs `android_main` on its own thread and
+  catches a panic there, which ended that thread but left the process running, and Android's
+  next start of the activity in the same process then failed (`EventLoop can't be recreated`:
+  winit allows one event loop per process). `android_main` catches the panic itself, logs
+  `CalcCraft ends after the panic above` and ends the process, as it does when the event loop
+  ends, so the next start gets a new process.
+- **Bounds for every node.** egui gives bounds only to the nodes of interactive widgets, so the
+  display and the expression line (`access::text`) set their own rectangles: without them
+  Android showed them at `[0,0][0,0]` and services that drop empty nodes lost the result. The
+  graph is a canvas node named as in Windows (`Graph viewing window, … displaying 2
+  equations`), with the graphed equations, one a line, as its value (Android's `text`).
+  `src/app/a11y_tests.rs` checks that every node an adapter shows in the Graphing mode has
+  finite bounds that aren't empty, on the Android screen sizes.
+- **At most 50 children a node.** egui's tree is flat: every control is a child of the root.
+  Marionet keeps the first 50 children of a node (`MAX_CHILDREN` in its compactor) and counts
+  the rest as `dropped`, so with the Scientific mode's Trigonometry menu open (56 nodes) the
+  menu's items, drawn last, were lost, and in the Graphing mode's equations view the lower
+  keypad rows and Submit. The keypads are therefore groups of their own (`access::group`, a
+  `Group` node named as Windows' keypad, `Full keypad` or `Bit toggling keypad`, with the keys as
+  its children), and so is every open popup menu (named as the button that opens it:
+  `Trigonometry`, `Functions`, `Inequalities`, `Bitwise`, `Bit shift`). `src/app/a11y_tests.rs`
+  checks every mode, with every popup menu open, on the Android screen sizes: no node an adapter
+  shows has more than 50 children, every one has finite, non-empty bounds and a name, and an
+  open popup's items are there.
+- **The expression line's parts.** The expression line is a text node (`Expression is 12 + 7 ×
+  3 =`) with a child for each part that a tap edits (CalcCraft's own,
+  docs/research/editable-expression.md): a number (typed or computed), `Number 7`, and a binary
+  operator, `Operator +`, each with its own bounds and `ACTION_CLICK`. A click puts the caret at
+  the end of the number, or selects the operator, and the line's name then says so (`…, Editing
+  7`, `…, Selected operator +`). The nodes say `clickable="false"` like the keys, so Marionet
+  taps their centre instead: a tap anywhere on a one-digit number puts the caret after it
+  too, while a tap on a longer one goes to the nearest digit boundary (so tap its right edge, or
+  use the click). Functions and
+  parentheses have no node: a tap doesn't edit them. A part hidden by the line's `…` has none
+  either.
+- **What's out of view.** egui gives a control its whole rectangle even where its scroll area
+  cuts it off, so a navigation item scrolled out of view lay over the Settings button, and a tap
+  at its center opened Settings. A control shown in part keeps only that part as its bounds, and
+  one not shown at all leaves the tree unless it has the focus (`access::interact`). And the
+  Scientific and Programmer menus open above their button when there's no room under it (a
+  phone's landscape layout), as the Graphing keypad's do: they had opened below the screen.
+- **Device tests.** `tests/device/` describes flows by these names (no coordinates) and runs
+  them on a phone, through Marionet or through adb and uiautomator (`tests/device/README.md`).
+  The host test `device_scenarios_pass_on_the_host` runs the same files in every `cargo test`.
+- **Its log lines.** `adb logcat -s CalcCraft` shows, once each, where the delegate went
+  (`AccessKit: the accessibility delegate goes on android.app.NativeActivity$NativeContentView{…}`),
+  when a service first asked for the tree, and the first tree update (`… N nodes, the root in a
+  W×H window`). No request line means no service queried the app; a request without an
+  update means egui never sent its tree.
+- **Android 8.0 and later.** `accesskit_android` loads its Java delegate class from a dex it
+  embeds, through `dalvik.system.InMemoryDexClassLoader`, which exists from API 26. Upstream
+  creates the adapter unconditionally; the patched copy asks `Build.VERSION.SDK_INT` first
+  and, below 26, logs one line (`adb logcat -s CalcCraft`) and leaves the app without an
+  accessibility tree instead of crashing. That's why the minimum SDK stays 24.
+- **The direct dependencies.** eframe's `accesskit` feature alone gives Android a no-op adapter:
+  the real one is behind `accesskit_winit`'s own `accesskit_android` feature, which egui-winit
+  doesn't pass on, so `Cargo.toml` names `accesskit_winit` with that feature for Android. And
+  eframe won't compile `accesskit` together with its `android-native-activity` feature (a
+  `compile_error!` for upstream's GameActivity-only adapter), so that feature is set on
+  `winit` directly, which is all eframe's does.
+- **Upgrading eframe.** A new eframe (egui-winit) wants a new `accesskit_winit`, and Cargo then
+  warns that the patch is unused (`cargo test` has a test, `vendored_accesskit_winit_matches_the_lockfile`,
+  that fails too). Re-apply the patch: copy the new release from
+  `~/.cargo/registry/src/*/accesskit_winit-<version>/` over `vendor/accesskit_winit` (its
+  `Cargo.toml` without the examples and dev-dependencies, which the copy doesn't carry), put
+  the same changes into `src/platform_impl/android.rs` (and `mod.rs`'s `root_bounds` and
+  `focus_guard` lines) again, keep `root_bounds.rs` and `focus_guard.rs`, and update the
+  version in the file's header.
+- **Checking it on a phone.** `adb shell uiautomator dump` writes the tree Android sees
+  (`/sdcard/window_dump.xml`): under NativeContentView, which has the window's bounds, the keys
+  appear as `android.widget.Button` nodes with their names as `content-desc`, the display as a
+  `TextView` with its value as `text` (`Display is 0`). The keys offer `ACTION_CLICK`, which is
+  what TalkBack and services click them by, but say `clickable="false"`: `accesskit_android`
+  0.7.5 never sets the clickable flag (it lives in that crate, not in the vendored one). With
+  TalkBack on, swipe right through the keys, double-tap `1`, `2`, `×`, `3`, `=` and hear "Display
+  is 36"; drag a finger over the keypad (explore by touch) to hear the key under it. Hover
+  events reach the adapter only if NativeActivity passes them on to its view: that's the one
+  part of TalkBack that wasn't verified on a device when the patch was written.
+
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
 - Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
   no Regional format card (its list would be empty).
-- TalkBack: eframe's screen reader support needs GameActivity on Android.
+- TalkBack on Android 7 (API 24 and 25): the accessibility tree needs Android 8.0's
+  `InMemoryDexClassLoader` (see "Accessibility"); the app runs there without it.
 - The status bar's icons follow the phone's dark mode, not the app's own theme setting.
 - The graph's hover-only features (its buttons, tracing) have no touch alternative yet.
 - Google Play: the bundle builds (`-Bundle`), but the upload key, the Play Console listing
