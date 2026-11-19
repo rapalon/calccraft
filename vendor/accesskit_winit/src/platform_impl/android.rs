@@ -20,6 +20,9 @@
 //   `fill_root_bounds` (root_bounds.rs) gives the root the window's rectangle. The adapter
 //   also logs (tag CalcCraft) the view the delegate went on, the first request for the tree
 //   and the first tree update.
+// - accesskit_consumer panics on an update whose focus isn't in the tree, which ended the app:
+//   `FocusGuard` (focus_guard.rs) gives such a focus to the root, with one warning, and a
+//   panic in the adapter all the same turns the adapter off instead of ending the app.
 //
 // The rest of the crate is the release's code.
 
@@ -32,6 +35,7 @@ use accesskit_android::{
     },
     InjectingAdapter,
 };
+use super::focus_guard::FocusGuard;
 use super::root_bounds::fill_root_bounds;
 use winit::{
     dpi::PhysicalSize,
@@ -47,6 +51,8 @@ const FIRST_SDK: i32 = 26;
 
 pub struct Adapter {
     adapter: Option<InjectingAdapter>,
+    /// Keeps every update's focus in the tree (`FocusGuard::check`).
+    guard: FocusGuard,
     /// Whether the first tree update has been logged (CalcCraft's diagnostics).
     updated: bool,
     /// The window's size, the root node's bounds (`fill_root_bounds`).
@@ -92,18 +98,26 @@ impl Adapter {
         };
         Self {
             adapter,
+            guard: FocusGuard::default(),
             updated: false,
             size: window.inner_size(),
         }
     }
 
     pub fn update_if_active(&mut self, updater: impl FnOnce() -> TreeUpdate) {
-        if let Some(adapter) = &mut self.adapter {
-            let updated = &mut self.updated;
-            let size = self.size;
+        let Some(adapter) = &mut self.adapter else {
+            return;
+        };
+        let updated = &mut self.updated;
+        let guard = &mut self.guard;
+        let size = self.size;
+        // The app must never end because of its accessibility tree: a panic in the adapter
+        // (accesskit_consumer checks every update with panics) turns the adapter off instead.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             adapter.update_if_active(|| {
                 let mut update = updater();
                 fill_root_bounds(&mut update, size.width.into(), size.height.into());
+                guard.check(&mut update);
                 if !*updated {
                     *updated = true;
                     log::info!(
@@ -115,6 +129,12 @@ impl Adapter {
                 }
                 update
             });
+        }));
+        if result.is_err() {
+            // Dropping the adapter puts the view's old delegate back, and the Java side's calls
+            // find no adapter any more (no tree) instead of its poisoned lock.
+            log::error!("AccessKit: no accessibility tree any more, the adapter panicked");
+            self.adapter = None;
         }
     }
 

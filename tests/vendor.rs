@@ -10,6 +10,10 @@ use accesskit::{Affine, Node, NodeId, Rect, Role, Tree, TreeId, TreeUpdate};
 #[path = "../vendor/accesskit_winit/src/platform_impl/root_bounds.rs"]
 mod root_bounds;
 
+// The Android adapter's focus guard, likewise.
+#[path = "../vendor/accesskit_winit/src/platform_impl/focus_guard.rs"]
+mod focus_guard;
+
 const LOCK: &str = include_str!("../Cargo.lock");
 const MANIFEST: &str = include_str!("../vendor/accesskit_winit/Cargo.toml");
 const ANDROID: &str = include_str!("../vendor/accesskit_winit/src/platform_impl/android.rs");
@@ -78,6 +82,112 @@ fn vendored_android_adapter_names_its_upstream_version() {
         ANDROID.contains("the accessibility delegate goes on"),
         "logs the view the delegate goes on"
     );
+    assert!(
+        ANDROID.contains("guard.check(&mut update)"),
+        "checks every update's focus"
+    );
+    assert!(
+        ANDROID.contains("catch_unwind"),
+        "turns the adapter off on a panic"
+    );
+}
+
+/// A full update like egui's: the root window (1) with the keys `keys`, focus on `focus`.
+fn full_update(keys: &[u64], focus: u64) -> TreeUpdate {
+    let mut root = Node::new(Role::Window);
+    for key in keys {
+        root.push_child(NodeId(*key));
+    }
+    let mut nodes = vec![(NodeId(1), root)];
+    nodes.extend(
+        keys.iter()
+            .map(|key| (NodeId(*key), Node::new(Role::Button))),
+    );
+    TreeUpdate {
+        nodes,
+        tree: Some(Tree::new(NodeId(1))),
+        tree_id: TreeId::ROOT,
+        focus: NodeId(focus),
+    }
+}
+
+/// Whether accesskit_consumer takes `update` after `first` without panicking.
+fn consumer_takes(first: TreeUpdate, update: TreeUpdate) -> bool {
+    std::panic::catch_unwind(move || {
+        let mut tree = accesskit_consumer::Tree::new(first, true);
+        tree.update_and_process_changes(update, &mut NoChanges);
+    })
+    .is_ok()
+}
+
+struct NoChanges;
+
+impl accesskit_consumer::TreeChangeHandler for NoChanges {
+    fn node_added(&mut self, _: &accesskit_consumer::Node) {}
+    fn node_updated(&mut self, _: &accesskit_consumer::Node, _: &accesskit_consumer::Node) {}
+    fn focus_moved(
+        &mut self,
+        _: Option<&accesskit_consumer::Node>,
+        _: Option<&accesskit_consumer::Node>,
+    ) {
+    }
+    fn node_removed(&mut self, _: &accesskit_consumer::Node) {}
+}
+
+#[test]
+fn a_focus_missing_from_the_update_goes_to_the_root() {
+    // The Graphing keypad's Submit: egui named the new equation box (9) as the focus in the
+    // frame before it drew it. accesskit_consumer panics on that ("Focused ID … is not in the
+    // node list"), which ended the Android app.
+    let first = full_update(&[2, 3], 2);
+    let missing = full_update(&[2, 3], 9);
+    assert!(!consumer_takes(
+        full_update(&[2, 3], 2),
+        full_update(&[2, 3], 9)
+    ));
+    // Through the guard the root has the focus, and the consumer takes the update.
+    let mut guard = focus_guard::FocusGuard::default();
+    let mut checked_first = first;
+    assert_eq!(guard.check(&mut checked_first), None);
+    let mut checked = missing;
+    assert_eq!(guard.check(&mut checked), Some(NodeId(9)));
+    assert_eq!(checked.focus, NodeId(1));
+    assert!(consumer_takes(checked_first, checked));
+    // The next frame draws the box and focuses it: that's kept.
+    let mut next = full_update(&[2, 3, 9], 9);
+    assert_eq!(guard.check(&mut next), None);
+    assert_eq!(next.focus, NodeId(9));
+}
+
+#[test]
+fn a_focus_kept_in_the_tree_is_left_alone() {
+    let mut guard = focus_guard::FocusGuard::default();
+    let mut first = full_update(&[2, 3], 1);
+    guard.check(&mut first);
+    // An update with only the root's changes: the focused key (3) is still in the tree.
+    let mut root = Node::new(Role::Window);
+    root.push_child(NodeId(2));
+    root.push_child(NodeId(3));
+    root.set_label("changed");
+    let mut partial = TreeUpdate {
+        nodes: vec![(NodeId(1), root)],
+        tree: None,
+        tree_id: TreeId::ROOT,
+        focus: NodeId(3),
+    };
+    assert_eq!(guard.check(&mut partial), None);
+    assert_eq!(partial.focus, NodeId(3));
+    // A key that the update removes from the tree can't keep the focus.
+    let mut root = Node::new(Role::Window);
+    root.push_child(NodeId(2));
+    let mut removing = TreeUpdate {
+        nodes: vec![(NodeId(1), root)],
+        tree: None,
+        tree_id: TreeId::ROOT,
+        focus: NodeId(3),
+    };
+    assert_eq!(guard.check(&mut removing), Some(NodeId(3)));
+    assert_eq!(removing.focus, NodeId(1));
 }
 
 /// An update like egui's: a root window scaled by `pixels_per_point`, with a key in points.

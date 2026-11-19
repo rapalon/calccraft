@@ -35,6 +35,9 @@ mod platform;
 #[cfg(all(feature = "accesskit_android", target_os = "android"))]
 mod root_bounds;
 
+#[cfg(all(feature = "accesskit_android", target_os = "android"))]
+mod focus_guard;
+
 #[cfg(not(any(
     target_os = "windows",
     target_os = "macos",
