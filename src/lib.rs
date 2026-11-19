@@ -91,10 +91,17 @@ pub fn start_web() {
 #[unsafe(no_mangle)]
 fn android_main(android_app: winit::platform::android::activity::AndroidApp) {
     // Warnings and panics go to `adb logcat` (a panic's message would go to stderr, which
-    // Android drops).
+    // Android drops). The accessibility hook (vendor/accesskit_winit) also logs, once each,
+    // where its delegate went and when a service first asked for the tree and got it.
     android_logger::init_once(
         android_logger::Config::default()
-            .with_max_level(log::LevelFilter::Warn)
+            .with_max_level(log::LevelFilter::Info)
+            .with_filter(
+                android_logger::FilterBuilder::new()
+                    .filter_level(log::LevelFilter::Warn)
+                    .filter_module("accesskit_winit", log::LevelFilter::Info)
+                    .build(),
+            )
             .with_tag("CalcCraft"),
     );
     std::panic::set_hook(Box::new(|info| log::error!("{info}")));

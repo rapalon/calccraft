@@ -22,7 +22,7 @@ use accesskit::{ActionHandler, ActivationHandler, DeactivationHandler, TreeUpdat
 use accesskit_android::{
     jni::{
         errors::Result,
-        objects::{JObject, JValue},
+        objects::{JObject, JString, JValue},
         JNIEnv, JavaVM,
     },
     InjectingAdapter,
@@ -40,6 +40,25 @@ const FIRST_SDK: i32 = 26;
 
 pub struct Adapter {
     adapter: Option<InjectingAdapter>,
+    /// Whether the first tree update has been logged (CalcCraft's diagnostics).
+    updated: bool,
+}
+
+/// The activation handler, logging the first request for the tree: an accessibility service
+/// asked the delegate for a node (CalcCraft's diagnostics, `adb logcat -s CalcCraft`).
+struct LoggedActivation<H> {
+    inner: H,
+    requested: bool,
+}
+
+impl<H: ActivationHandler> ActivationHandler for LoggedActivation<H> {
+    fn request_initial_tree(&mut self) -> Option<TreeUpdate> {
+        if !self.requested {
+            self.requested = true;
+            log::info!("AccessKit: an accessibility service asked for the tree");
+        }
+        self.inner.request_initial_tree()
+    }
 }
 
 impl Adapter {
@@ -51,6 +70,10 @@ impl Adapter {
         _deactivation_handler: impl 'static + DeactivationHandler,
     ) -> Self {
         let app = event_loop.android_app();
+        let activation_handler = LoggedActivation {
+            inner: activation_handler,
+            requested: false,
+        };
         let adapter = match new_adapter(app, activation_handler, action_handler) {
             Ok(adapter) => adapter,
             Err(error) => {
@@ -58,12 +81,26 @@ impl Adapter {
                 None
             }
         };
-        Self { adapter }
+        Self {
+            adapter,
+            updated: false,
+        }
     }
 
     pub fn update_if_active(&mut self, updater: impl FnOnce() -> TreeUpdate) {
         if let Some(adapter) = &mut self.adapter {
-            adapter.update_if_active(updater);
+            let updated = &mut self.updated;
+            adapter.update_if_active(|| {
+                let update = updater();
+                if !*updated {
+                    *updated = true;
+                    log::info!(
+                        "AccessKit: the first tree update, {} nodes",
+                        update.nodes.len()
+                    );
+                }
+                update
+            });
         }
     }
 
@@ -96,6 +133,12 @@ fn new_adapter(
             log::warn!("AccessKit: no accessibility tree, the activity has no content view");
             return Ok(None);
         };
+        let name = JString::from(
+            env.call_method(&view, "toString", "()Ljava/lang/String;", &[])?
+                .l()?,
+        );
+        let name: String = env.get_string(&name)?.into();
+        log::info!("AccessKit: the accessibility delegate goes on {name}");
         Ok(Some(InjectingAdapter::new(
             &mut env,
             &view,
