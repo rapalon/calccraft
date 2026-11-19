@@ -399,6 +399,27 @@ the device: the accessibility services run on the phone.
   equations`), with the graphed equations, one a line, as its value (Android's `text`).
   `src/app/a11y_tests.rs` checks that every node an adapter shows in the Graphing mode has
   finite bounds that aren't empty, on the Android screen sizes.
+- **At most 50 children a node.** egui's tree is flat: every control is a child of the root.
+  Marionet keeps the first 50 children of a node (`MAX_CHILDREN` in its compactor) and counts
+  the rest as `dropped`, so with the Scientific mode's Trigonometry menu open (56 nodes) the
+  menu's items, drawn last, were lost, and in the Graphing mode's equations view the lower
+  keypad rows and Submit. The keypads are therefore groups of their own (`access::group`, a
+  `Group` node named as Windows' keypad, `Full keypad` or `Bit toggling keypad`, with the keys as
+  its children), and so is every open popup menu (named as the button that opens it:
+  `Trigonometry`, `Functions`, `Inequalities`, `Bitwise`, `Bit shift`). `src/app/a11y_tests.rs`
+  checks every mode, with every popup menu open, on the Android screen sizes: no node an adapter
+  shows has more than 50 children, every one has finite, non-empty bounds and a name, and an
+  open popup's items are there.
+- **The expression line's parts.** The expression line is a text node (`Expression is 12 + 7 ×
+  3 =`) with a child for each part that a tap edits (CalcCraft's own,
+  docs/research/editable-expression.md): a number (typed or computed), `Number 7`, and a binary
+  operator, `Operator +`, each with its own bounds and `ACTION_CLICK`. A click does what a tap on
+  the part does: it puts the caret at the end of the number, or selects the operator, and the
+  line's name then says so (`…, Editing 7`, `…, Selected operator +`). Functions and
+  parentheses have no node: a tap doesn't edit them. A part hidden by the line's `…` has none
+  either.
+- **Device tests.** `tests/device/` describes flows by these names (no coordinates) and runs
+  them on a phone, through Marionet or through adb and uiautomator (`tests/device/README.md`).
 - **Its log lines.** `adb logcat -s CalcCraft` shows, once each, where the delegate went
   (`AccessKit: the accessibility delegate goes on android.app.NativeActivity$NativeContentView{…}`),
   when a service first asked for the tree, and the first tree update (`… N nodes, the root in a
