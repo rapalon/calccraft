@@ -54,11 +54,12 @@ $recordedDump = $null
 $knownSteps = 'launch', 'open', 'tap', 'taps', 'tap_if_present', 'expect', 'expect_prefix',
     'expect_contains', 'expect_absent', 'display', 'expression'
 
+# adb with the device's serial. A simple function, not an advanced one: its arguments go to adb
+# as they are, `-W` and `-n` of `am start` included.
 function Invoke-Adb {
-    param([Parameter(ValueFromRemainingArguments)] [string[]] $Arguments)
-    $output = & $Adb -s $Serial @Arguments 2>&1
+    $output = & $Adb -s $Serial @args 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "adb $($Arguments -join ' ') failed ($LASTEXITCODE): $($output -join ' ')"
+        throw "adb $($args -join ' ') failed ($LASTEXITCODE): $($output -join ' ')"
     }
     $output
 }
@@ -99,7 +100,8 @@ function Get-Screen {
             Y    = [int](($top + $bottom) / 2)
         }
     }
-    @($nodes)
+    # One by one into the pipeline; nothing at all for an empty screen.
+    $nodes | Where-Object { $null -ne $_ }
 }
 
 # The first node for which `Test` is true, looked for up to $Retries times; $null if none.
@@ -194,7 +196,7 @@ if ($SelfTest) {
     $problems = [Collections.Generic.List[string]]::new()
     function Test-That([bool] $Condition, [string] $What) { if (-not $Condition) { $problems.Add($What) } }
 
-    $nodes = Get-Screen
+    $nodes = @(Get-Screen)
     # The fixture's empty node ([0,0][0,0]), its nameless one and the other app's are left out.
     Test-That ($nodes.Count -eq 8) "the fixture gives $($nodes.Count) nodes, not 8: $(($nodes | ForEach-Object Name) -join ' | ')"
     $seven = Find-Node { $_.Name -ceq 'Number 7' }

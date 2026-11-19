@@ -69,6 +69,8 @@ bounded by … displaying 3 equations`, its text the equations, one a line).
 
 ## Runner: adb and uiautomator
 
+PowerShell 7.2 or later (`pwsh`) and adb on the `PATH` (or `-Adb <path>`).
+
 ```powershell
 adb devices                                    # the serial
 pwsh -File tests/device/run.ps1 -Serial <serial> -Package com.rapalon.calccraft.a11ytest `
