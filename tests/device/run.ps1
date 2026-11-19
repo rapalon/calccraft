@@ -52,7 +52,11 @@ $dumpHere = Join-Path ([IO.Path]::GetTempPath()) "calccraft-window-dump-$PID.xml
 # The self-test reads this recorded dump instead of the phone's.
 $recordedDump = $null
 $knownSteps = 'launch', 'open', 'tap', 'taps', 'tap_if_present', 'expect', 'expect_prefix',
-    'expect_contains', 'expect_absent', 'display', 'expression'
+    'expect_contains', 'expect_absent', 'display', 'expression', 'edition', 'scroll_to',
+    'expect_checked'
+# The app's edition for `edition` steps: CalcCraft Pro (an application ID ending in .pro) has
+# every colour theme unlocked; the other Play builds are the free app.
+function Get-Edition([string] $Id) { if ($Id -clike '*.pro') { 'pro' } else { 'free' } }
 
 # adb with the device's serial. A simple function, not an advanced one: its arguments go to adb
 # as they are, `-W` and `-n` of `am start` included.
@@ -97,9 +101,10 @@ function Get-Screen {
         # Marionet drops empty nodes too; a tap needs a point inside.
         if ($right -le $left -or $bottom -le $top) { continue }
         [pscustomobject]@{
-            Name = $name
-            X    = [int](($left + $right) / 2)
-            Y    = [int](($top + $bottom) / 2)
+            Name    = $name
+            X       = [int](($left + $right) / 2)
+            Y       = [int](($top + $bottom) / 2)
+            Checked = $node.GetAttribute('checked') -ceq 'true'
         }
     }
     # One by one into the pipeline; nothing at all for an empty screen.
@@ -161,6 +166,21 @@ function Invoke-Step([string] $Op, $Arg) {
             Invoke-Tap $Arg
         }
         'tap' { Invoke-Tap $Arg }
+        'scroll_to' {
+            # A finger drawn up the middle of the screen until the node shows (Settings on a
+            # low screen).
+            for ($i = 0; $i -lt 6; $i++) {
+                if (Find-Node { $_.Name -ceq $Arg } 2) { return }
+                $size = (Invoke-Adb shell wm size) -join ' '
+                if ($size -notmatch '(\d+)x(\d+)\s*$') { throw "no screen size in `"$size`"" }
+                $x = [int]([int]$Matches[1] / 2)
+                $height = [int]$Matches[2]
+                Invoke-Adb shell input swipe $x ([int]($height * 0.65)) $x ([int]($height * 0.35)) 400 | Out-Null
+                Start-Sleep -Milliseconds ($DelayMs * 2)
+            }
+            Assert-Node { $_.Name -ceq $Arg } "named `"$Arg`" after scrolling"
+        }
+        'expect_checked' { Assert-Node { $_.Name -ceq $Arg -and $_.Checked } "named `"$Arg`" that is checked" }
         'taps' { foreach ($name in $Arg) { Invoke-Tap $name } }
         'tap_if_present' {
             $node = Find-Node { $_.Name -ceq $Arg } 2
@@ -184,6 +204,7 @@ function Invoke-Step([string] $Op, $Arg) {
             $wanted = ConvertTo-Loose "Expression is $Arg"
             Assert-Node { (ConvertTo-Loose $_.Name).StartsWith($wanted, [StringComparison]::Ordinal) } "`"Expression is $Arg`""
         }
+        'edition' { }
         default { throw "unknown step `"$Op`"" }
     }
 }
@@ -213,6 +234,15 @@ if ($SelfTest) {
     $absent = $false
     try { Invoke-Step 'expect' 'Sine' } catch { $absent = $true }
     Test-That $absent 'expect Sine passed on a screen without it'
+    # The fixture has no checked node (its `checked` attributes are all "false").
+    Test-That (-not ($nodes | Where-Object Checked)) 'a node of the fixture reads as checked'
+    $unchecked = $false
+    try { Invoke-Step 'expect_checked' 'Plus' } catch { $unchecked = $true }
+    Test-That $unchecked 'expect_checked Plus passed on an unchecked node'
+    Test-That ((Get-Edition 'com.rapalon.calccraft.pro') -ceq 'pro') 'the Pro app is not the pro edition'
+    foreach ($id in 'com.rapalon.calccraft', 'com.rapalon.calccraft.test', 'com.rapalon.calccraft.a11ytest') {
+        Test-That ((Get-Edition $id) -ceq 'free') "$id is not the free edition"
+    }
 
     $files = @(Get-ChildItem $scenarioDir -Filter *.json)
     Test-That ($files.Count -ge 6) "only $($files.Count) scenarios"
@@ -250,11 +280,19 @@ foreach ($file in $files) {
     $json = Get-Content $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
     $failed = $false
     $number = 0
+    $skipping = $false
     foreach ($step in $json.steps) {
         $number++
         $property = @($step.PSObject.Properties)[0]
         $op = $property.Name
         $arg = $property.Value
+        # `edition`: the steps up to the next one are only for that edition ("any": for all);
+        # the others' steps leave no row.
+        if ($op -ceq 'edition') {
+            $skipping = $arg -cne 'any' -and $arg -cne (Get-Edition $Package)
+            continue
+        }
+        if ($skipping) { continue }
         $shown = if ($arg -is [array]) { $arg -join ', ' } else { "$arg" }
         $row = [pscustomobject]@{
             Scenario = $json.name

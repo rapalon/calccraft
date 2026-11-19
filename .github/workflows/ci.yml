@@ -60,8 +60,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cargo test --lib --features play-free -- support color_theme palette
-          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free -- support color_theme palette
-          cargo test --lib --features play-paid -- support color_theme palette
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free -- support color_theme palette device_scenarios
+          cargo test --lib --features play-paid -- support color_theme palette device_scenarios
 
   licenses:
     name: licenses (cargo-deny)

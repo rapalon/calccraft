@@ -1,0 +1,30 @@
+{
+  "name": "themes",
+  "description": "Settings → Color theme (docs/color-themes.md). The free app: Classic is checked and the Pro themes show locked, with their 'Pro theme, locked' names (never tapped: that opens Google Play). CalcCraft Pro (and the open-source build): Night can be picked, the calculator still reads its display under it, and Gold, Pro's default, is picked back.",
+  "steps": [
+    { "launch": true },
+    { "open": "Settings" },
+    { "tap": "Color theme" },
+    { "edition": "free" },
+    { "expect_checked": "Classic" },
+    { "scroll_to": "Gold, Pro theme, locked, opens CalcCraft Pro on Google Play" },
+    { "expect_absent": "Gold" },
+    { "scroll_to": "Night, Pro theme, locked, opens CalcCraft Pro on Google Play" },
+    { "scroll_to": "Paper, Pro theme, locked, opens CalcCraft Pro on Google Play" },
+    { "edition": "pro" },
+    { "scroll_to": "Night" },
+    { "tap": "Night" },
+    { "expect_checked": "Night" },
+    { "tap": "Back" },
+    { "taps": ["Clear", "Seven", "Multiply by", "Six", "Equals"] },
+    { "display": "42" },
+    { "expression": "7 × 6 =" },
+    { "open": "Settings" },
+    { "scroll_to": "Gold" },
+    { "tap": "Gold" },
+    { "expect_checked": "Gold" },
+    { "edition": "any" },
+    { "tap": "Back" },
+    { "expect": "Open Navigation" }
+  ]
+}
