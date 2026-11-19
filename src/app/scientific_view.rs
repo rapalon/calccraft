@@ -736,7 +736,13 @@ impl CalculatorApp {
             .left()
             .min(full.right() - 4.0 - outer.x)
             .max(full.left() + 4.0);
-        let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 1.0), outer);
+        // Above the button where there's no room under it: in a phone's landscape layout the
+        // menu row is at the bottom of the screen (as the Graphing keypad's menus do).
+        let mut top = popup.anchor.bottom() + 1.0;
+        if top + outer.y > full.bottom() {
+            top = (popup.anchor.top() - 1.0 - outer.y).max(full.top());
+        }
+        let rect = Rect::from_min_size(pos2(left, top), outer);
         popup_frame(p, ui.painter(), rect, p.popup);
         ui.interact(rect, Id::new("scientific-menu-panel"), Sense::CLICK);
         // The menu's items are a group named as its button (`access::group`).

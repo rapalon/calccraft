@@ -98,6 +98,7 @@ pub(super) fn interact(
     let id = if covered { id.with("covered") } else { id };
     let response = ui.interact(rect, id, sense);
     response.widget_info(info);
+    clip_bounds(ui, &response);
     // egui doesn't scroll to the focused widget itself: a list item reached with the
     // arrow keys has to come into view.
     if response.has_focus() && !ui.clip_rect().contains_rect(rect) {
@@ -105,6 +106,27 @@ pub(super) fn interact(
     }
     focus_ring(ui, p, &response, radius);
     response
+}
+
+/// A control that its scroll area shows only in part keeps only that part as its bounds, and
+/// one it doesn't show at all leaves the tree (unless it has the focus). egui gives every
+/// node its whole rectangle, so a list item scrolled out of view lay over the controls beside
+/// the list: an accessibility service that taps a node's center (Marionet, a uiautomator
+/// script) tapped the Settings button for a navigation item hidden under it.
+fn clip_bounds(ui: &Ui, response: &Response) {
+    let rect = response.rect;
+    let visible = rect.intersect(ui.clip_rect());
+    if visible == rect {
+        return;
+    }
+    let has_focus = response.has_focus();
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        if visible.width() > 0.0 && visible.height() > 0.0 {
+            node.set_bounds(bounds(visible));
+        } else if !has_focus {
+            node.set_hidden();
+        }
+    });
 }
 
 /// How a scroll area drawn now scrolls: with `source`, but not at all under a popup, as egui

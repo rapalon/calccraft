@@ -1,0 +1,23 @@
+{
+  "name": "token-edit",
+  "description": "The expression line's parts are nodes of their own: 12 + 7 × 3 = 33, the 7 edited into a 9 gives 39, then the + changed into − gives −15.",
+  "steps": [
+    { "launch": true },
+    { "open": "Scientific Calculator" },
+    { "tap": "Clear" },
+    { "taps": ["One", "Two", "Plus", "Seven", "Multiply by", "Three", "Equals"] },
+    { "display": "33" },
+    { "expect": "Number 12" },
+    { "expect": "Operator +" },
+    { "expect": "Number 3" },
+    { "tap": "Number 7" },
+    { "expect_contains": "Editing 7" },
+    { "taps": ["Backspace", "Nine", "Equals"] },
+    { "display": "39" },
+    { "expression": "12 + 9 × 3 =" },
+    { "tap": "Operator +" },
+    { "expect_contains": "Selected operator +" },
+    { "taps": ["Minus", "Equals"] },
+    { "display": "-15" }
+  ]
+}

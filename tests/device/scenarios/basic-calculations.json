@@ -1,0 +1,30 @@
+{
+  "name": "basic-calculations",
+  "description": "Ten Standard calculations, typed on the keys by their names; each result is read from the display's node.",
+  "steps": [
+    { "launch": true },
+    { "open": "Standard Calculator" },
+    { "tap": "Clear" },
+    { "taps": ["Seven", "Plus", "Eight", "Equals"] },
+    { "display": "15" },
+    { "expression": "7 + 8 =" },
+    { "taps": ["Clear", "Nine", "Multiply by", "Six", "Equals"] },
+    { "display": "54" },
+    { "taps": ["Clear", "One", "Zero", "Zero", "Minus", "Three", "Seven", "Equals"] },
+    { "display": "63" },
+    { "taps": ["Clear", "One", "Four", "Four", "Square root"] },
+    { "display": "12" },
+    { "taps": ["Clear", "Two", "Five", "Square"] },
+    { "display": "625" },
+    { "taps": ["Clear", "Eight", "One", "Divide by", "Nine", "Equals"] },
+    { "display": "9" },
+    { "taps": ["Clear", "Three", "Decimal separator", "Five", "Multiply by", "Four", "Equals"] },
+    { "display": "14" },
+    { "taps": ["Clear", "Nine", "Nine", "Nine", "Plus", "One", "Equals"] },
+    { "display": "1000" },
+    { "taps": ["Clear", "Five", "Zero", "Divide by", "Eight", "Equals"] },
+    { "display": "6.25" },
+    { "taps": ["Clear", "One", "Two", "Multiply by", "One", "Two", "Equals"] },
+    { "display": "144" }
+  ]
+}

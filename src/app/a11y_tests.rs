@@ -206,10 +206,10 @@ fn check_nodes(page: &str, tree: &Tree) {
             node.role(),
             name(node)
         );
-        // A text box may be empty: it's named by what it holds.
-        let text_box = matches!(node.role(), Role::TextInput | Role::MultilineTextInput);
+        // egui's own scroll bars have no name; nothing taps them by one.
+        let scroll_bar = node.role() == Role::ScrollBar;
         assert!(
-            text_box || !name(node).trim().is_empty(),
+            scroll_bar || !name(node).trim().is_empty(),
             "{page}: a {:?} node at {bounds:?} has no name",
             node.role()
         );
@@ -291,6 +291,19 @@ fn every_mode_fits_an_accessibility_service() {
             let page = format!("{}: Graphing, equations {equations}", screen.name);
             check_nodes(&page, &tree(&ctx, &mut app, screen));
         }
+        // The navigation menu, and the Settings page it opens.
+        let ctx = Context::default();
+        let mut app = settled(&ctx, Mode::Standard, screen);
+        tap(&ctx, &mut app, screen, "Open Navigation");
+        check_nodes(
+            &format!("{}: navigation", screen.name),
+            &tree(&ctx, &mut app, screen),
+        );
+        tap(&ctx, &mut app, screen, tr("SettingsHeader.Text"));
+        check_nodes(
+            &format!("{}: Settings", screen.name),
+            &tree(&ctx, &mut app, screen),
+        );
     }
 }
 
@@ -435,6 +448,375 @@ fn expression_parts_are_nodes_that_a_click_edits() {
     click(&ctx, &mut app, screen, "Minus");
     click(&ctx, &mut app, screen, "Equals");
     assert_eq!(app.scientific.calc.display(), "-15");
+}
+
+// ------------------------------------------------------------------ device scenarios
+
+/// A JSON value, as far as the device scenarios (`tests/device/scenarios/*.json`) need one.
+#[derive(Debug, Clone, PartialEq)]
+enum Json {
+    Null,
+    Bool(bool),
+    Number(f64),
+    Text(String),
+    List(Vec<Json>),
+    Object(Vec<(String, Json)>),
+}
+
+/// Reads JSON: the scenarios' little of it, without a dependency for the tests.
+struct JsonReader<'a> {
+    chars: std::iter::Peekable<std::str::Chars<'a>>,
+}
+
+impl JsonReader<'_> {
+    fn parse(text: &str) -> Result<Json, String> {
+        let mut reader = JsonReader {
+            chars: text.chars().peekable(),
+        };
+        let value = reader.value()?;
+        reader.space();
+        match reader.chars.next() {
+            None => Ok(value),
+            Some(c) => Err(format!("unexpected {c:?} after the value")),
+        }
+    }
+
+    fn space(&mut self) {
+        while self.chars.next_if(|c| c.is_whitespace()).is_some() {}
+    }
+
+    fn expect(&mut self, wanted: char) -> Result<(), String> {
+        self.space();
+        match self.chars.next() {
+            Some(c) if c == wanted => Ok(()),
+            other => Err(format!("expected {wanted:?}, found {other:?}")),
+        }
+    }
+
+    fn value(&mut self) -> Result<Json, String> {
+        self.space();
+        match self.chars.peek().copied() {
+            Some('{') => {
+                self.chars.next();
+                let mut fields = Vec::new();
+                self.space();
+                if self.chars.next_if_eq(&'}').is_some() {
+                    return Ok(Json::Object(fields));
+                }
+                loop {
+                    self.space();
+                    let Json::Text(key) = self.value()? else {
+                        return Err("an object key isn't a string".into());
+                    };
+                    self.expect(':')?;
+                    fields.push((key, self.value()?));
+                    self.space();
+                    match self.chars.next() {
+                        Some(',') => continue,
+                        Some('}') => return Ok(Json::Object(fields)),
+                        other => {
+                            return Err(format!("expected , or }} in an object, found {other:?}"));
+                        }
+                    }
+                }
+            }
+            Some('[') => {
+                self.chars.next();
+                let mut items = Vec::new();
+                self.space();
+                if self.chars.next_if_eq(&']').is_some() {
+                    return Ok(Json::List(items));
+                }
+                loop {
+                    items.push(self.value()?);
+                    self.space();
+                    match self.chars.next() {
+                        Some(',') => continue,
+                        Some(']') => return Ok(Json::List(items)),
+                        other => return Err(format!("expected , or ] in a list, found {other:?}")),
+                    }
+                }
+            }
+            Some('"') => {
+                self.chars.next();
+                let mut text = String::new();
+                loop {
+                    match self.chars.next().ok_or("an unterminated string")? {
+                        '"' => return Ok(Json::Text(text)),
+                        '\\' => match self.chars.next().ok_or("an unterminated escape")? {
+                            'n' => text.push('\n'),
+                            't' => text.push('\t'),
+                            'u' => {
+                                let hex: String =
+                                    (0..4).filter_map(|_| self.chars.next()).collect();
+                                let code =
+                                    u32::from_str_radix(&hex, 16).map_err(|e| e.to_string())?;
+                                text.push(char::from_u32(code).ok_or("a surrogate escape")?);
+                            }
+                            c => text.push(c),
+                        },
+                        c => text.push(c),
+                    }
+                }
+            }
+            Some(c) if c == '-' || c.is_ascii_digit() => {
+                let mut number = String::new();
+                while let Some(c) = self
+                    .chars
+                    .next_if(|c| "+-.eE".contains(*c) || c.is_ascii_digit())
+                {
+                    number.push(c);
+                }
+                number
+                    .parse()
+                    .map(Json::Number)
+                    .map_err(|e| format!("{number}: {e}"))
+            }
+            Some(_) => {
+                let mut word = String::new();
+                while let Some(c) = self.chars.next_if(|c| c.is_ascii_alphabetic()) {
+                    word.push(c);
+                }
+                match word.as_str() {
+                    "true" => Ok(Json::Bool(true)),
+                    "false" => Ok(Json::Bool(false)),
+                    "null" => Ok(Json::Null),
+                    _ => Err(format!("unexpected {word:?}")),
+                }
+            }
+            None => Err("the text ends before the value".into()),
+        }
+    }
+}
+
+impl Json {
+    fn get(&self, key: &str) -> Option<&Json> {
+        match self {
+            Json::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            _ => None,
+        }
+    }
+
+    fn text(&self) -> Option<&str> {
+        match self {
+            Json::Text(text) => Some(text),
+            _ => None,
+        }
+    }
+}
+
+/// A displayed number or expression without its digit groups and decimal separator, so that
+/// the scenarios' en-US numbers match the phone's regional format (`1,000`, `1’000`, `6,25`):
+/// what `tests/device/run.ps1` and the README's agent compare too.
+fn loose(text: &str) -> String {
+    text.chars()
+        .filter(|c| !",.'’ \u{a0}\u{202f}".contains(*c))
+        .collect()
+}
+
+/// The names of the shown nodes.
+fn names(ctx: &Context, app: &mut CalculatorApp, screen: &Screen) -> Vec<String> {
+    let tree = tree(ctx, app, screen);
+    let mut nodes = Vec::new();
+    shown(&tree.state().root(), &mut nodes);
+    nodes.iter().map(name).collect()
+}
+
+/// The navigation list's swipe of an `open` step whose item isn't shown: a finger drawn up from
+/// the center of the lowest item shown (named `… Calculator` or `… Converter`) to the center of
+/// the highest, as the device runners do. Returns whether there was a list to swipe.
+fn swipe_navigation(ctx: &Context, app: &mut CalculatorApp, screen: &Screen) -> bool {
+    let tree = tree(ctx, app, screen);
+    let mut nodes = Vec::new();
+    shown(&tree.state().root(), &mut nodes);
+    let centers: Vec<Pos2> = nodes
+        .iter()
+        .filter(|n| {
+            let name = name(n);
+            name.ends_with(" Calculator") || name.ends_with(" Converter")
+        })
+        .filter_map(|n| n.bounding_box())
+        .map(|b| pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32))
+        .collect();
+    let (Some(from), Some(to)) = (
+        centers.iter().copied().max_by(|a, b| a.y.total_cmp(&b.y)),
+        centers.iter().copied().min_by(|a, b| a.y.total_cmp(&b.y)),
+    ) else {
+        return false;
+    };
+    // The phone gets a finger's drag; here the wheel scrolls the list as far, over the list
+    // (egui's drag-to-scroll needs a pointer's timing that these frames don't have).
+    let wheel = egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: vec2(0.0, to.y - from.y),
+        phase: egui::TouchPhase::Move,
+        modifiers: Default::default(),
+    };
+    frame_with(
+        ctx,
+        app,
+        screen,
+        vec![egui::Event::PointerMoved(from), wheel],
+    );
+    for _ in 0..3 {
+        frame(ctx, app, screen, None);
+    }
+    true
+}
+
+/// Runs one scenario on `screen` as the device runners do: by the nodes' names, with pointer
+/// taps at their centers. Returns the first failed step.
+fn run_scenario(scenario: &Json, screen: &Screen) -> Result<(), String> {
+    let steps = match scenario.get("steps") {
+        Some(Json::List(steps)) => steps,
+        _ => return Err("no steps".into()),
+    };
+    let ctx = Context::default();
+    let mut app = settled(&ctx, Mode::Standard, screen);
+    for (number, step) in steps.iter().enumerate() {
+        let Json::Object(fields) = step else {
+            return Err(format!("step {}: not an object", number + 1));
+        };
+        let [(op, arg)] = fields.as_slice() else {
+            return Err(format!("step {}: not one key", number + 1));
+        };
+        let fail = |what: String| Err(format!("step {} ({op}): {what}", number + 1));
+        let present = |ctx: &Context, app: &mut CalculatorApp, name: &str| {
+            names(ctx, app, screen).iter().any(|n| n == name)
+        };
+        let tap_named = |ctx: &Context, app: &mut CalculatorApp, name: &str| {
+            if present(ctx, app, name) {
+                tap(ctx, app, screen, name);
+                Ok(())
+            } else {
+                Err(format!("no node named {name:?}"))
+            }
+        };
+        let text = arg.text().unwrap_or_default();
+        let shown = names(&ctx, &mut app, screen);
+        let result = match op.as_str() {
+            // A fresh start (the device runners stop the app and start it again).
+            "launch" => {
+                app = settled(&ctx, Mode::Standard, screen);
+                Ok(())
+            }
+            "open" => tap_named(&ctx, &mut app, "Open Navigation").and_then(|()| {
+                for _ in 0..4 {
+                    if present(&ctx, &mut app, text) || !swipe_navigation(&ctx, &mut app, screen) {
+                        break;
+                    }
+                }
+                tap_named(&ctx, &mut app, text)
+            }),
+            "tap" => tap_named(&ctx, &mut app, text),
+            "taps" => match arg {
+                Json::List(keys) => keys
+                    .iter()
+                    .try_for_each(|key| tap_named(&ctx, &mut app, key.text().unwrap_or_default())),
+                _ => Err("not a list".into()),
+            },
+            "tap_if_present" => {
+                if present(&ctx, &mut app, text) {
+                    tap(&ctx, &mut app, screen, text);
+                }
+                Ok(())
+            }
+            "expect" => shown
+                .iter()
+                .any(|n| n == text)
+                .then_some(())
+                .ok_or_else(|| format!("no node named {text:?}")),
+            "expect_absent" => (!shown.iter().any(|n| n == text))
+                .then_some(())
+                .ok_or_else(|| format!("a node named {text:?}")),
+            "expect_prefix" => shown
+                .iter()
+                .any(|n| n.starts_with(text))
+                .then_some(())
+                .ok_or_else(|| format!("no node named {text:?}…")),
+            "expect_contains" => shown
+                .iter()
+                .any(|n| n.contains(text))
+                .then_some(())
+                .ok_or_else(|| format!("no node named …{text:?}…")),
+            "display" => {
+                let wanted = loose(&format!("Display is {text}"));
+                shown
+                    .iter()
+                    .any(|n| loose(n) == wanted)
+                    .then_some(())
+                    .ok_or_else(|| format!("no \"Display is {text}\""))
+            }
+            "expression" => {
+                let wanted = loose(&format!("Expression is {text}"));
+                shown
+                    .iter()
+                    .any(|n| loose(n).starts_with(&wanted))
+                    .then_some(())
+                    .ok_or_else(|| format!("no \"Expression is {text}\""))
+            }
+            _ => Err("an unknown step".into()),
+        };
+        if let Err(what) = result {
+            let shown = names(&ctx, &mut app, screen);
+            return fail(format!("{what}; the screen has {shown:?}"));
+        }
+    }
+    Ok(())
+}
+
+/// The device scenarios (`tests/device/scenarios/*.json`) pass on the host, on every Android
+/// screen size, through the same accessibility tree the phone gets: their names and expected
+/// values are right before anyone takes them to a phone.
+#[test]
+fn device_scenarios_pass_on_the_host() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/device/scenarios");
+    let mut files: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|e| e == "json"))
+        .collect();
+    files.sort();
+    assert!(files.len() >= 6, "{files:?}");
+    for file in files {
+        let text = std::fs::read_to_string(&file).unwrap();
+        let scenario =
+            JsonReader::parse(&text).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
+        let stem = file.file_stem().unwrap().to_string_lossy().into_owned();
+        assert_eq!(
+            scenario.get("name").and_then(Json::text),
+            Some(stem.as_str())
+        );
+        for screen in &SCREENS {
+            if let Err(what) = run_scenario(&scenario, screen) {
+                panic!("{stem} on {}: {what}", screen.name);
+            }
+        }
+    }
+}
+
+#[test]
+fn json_reader_reads_the_scenarios_json() {
+    let value = JsonReader::parse(r#" { "a": [1, -2.5e1, "x\"×", true, null], "b": {} } "#);
+    assert_eq!(
+        value,
+        Ok(Json::Object(vec![
+            (
+                "a".into(),
+                Json::List(vec![
+                    Json::Number(1.0),
+                    Json::Number(-25.0),
+                    Json::Text("x\"×".into()),
+                    Json::Bool(true),
+                    Json::Null
+                ])
+            ),
+            ("b".into(), Json::Object(vec![])),
+        ]))
+    );
+    assert!(JsonReader::parse("[1, 2").is_err());
+    assert!(JsonReader::parse("{} x").is_err());
+    assert_eq!(loose("Display is 1,000.5"), loose("Display is 1’000,5"));
 }
 
 /// Keeps nothing of the consumer's changes.

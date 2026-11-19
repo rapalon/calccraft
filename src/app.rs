@@ -1694,9 +1694,11 @@ impl CalculatorApp {
 
         // Keep on top shows only the result (`DisplayModeAlwaysOnTop` sets the expression
         // row's height to 0).
-        if !self.compact {
-            self.draw_expression_line(ui, rect, expression_top, max_width);
-        }
+        let line = if self.compact {
+            None
+        } else {
+            self.draw_expression_line(ui, rect, expression_top, max_width)
+        };
         let calc = self.engine();
         let painter = ui.painter();
 
@@ -1747,8 +1749,13 @@ impl CalculatorApp {
                 Stroke::new(2.0, p.text),
             );
         }
-        let tap_area =
+        let mut tap_area =
             Rect::from_x_y_ranges(rect.left()..=right + 12.0, number.expand(8.0).y_range());
+        // A large result's box can reach over the expression line, and egui gives a tap to
+        // the widget made last: a tap on one of the line's numbers edited the result instead.
+        if let Some(line) = line {
+            tap_area.min.y = tap_area.min.y.max(line.bottom()).min(tap_area.max.y);
+        }
         let tap = ui.interact(tap_area, Id::new("display-caret"), Sense::CLICK);
         painter.galley(pos, galley.clone(), p.text);
         if tap.clicked()
@@ -1769,12 +1776,19 @@ impl CalculatorApp {
     /// typed numbers edits it (CalcCraft's own, docs/research/editable-expression.md); the
     /// number being edited is drawn in the text color with its caret, and the line, a little
     /// larger then, scrolls to keep the caret in view instead of cutting the line's start.
-    fn draw_expression_line(&mut self, ui: &Ui, rect: Rect, top: f32, max_width: f32) {
+    /// Returns where it takes taps, if it's shown.
+    fn draw_expression_line(
+        &mut self,
+        ui: &Ui,
+        rect: Rect,
+        top: f32,
+        max_width: f32,
+    ) -> Option<Rect> {
         let p = self.palette;
         let calc = self.engine();
         let (line, parts) = calc.expression_parts();
         if line.is_empty() {
-            return;
+            return None;
         }
         let edit = calc.number_edit();
         let operator = calc.selected_operator();
@@ -1895,10 +1909,10 @@ impl CalculatorApp {
             (Some((range, at)), end)
         } else {
             if !tap.clicked() || access::is_covered(ui) {
-                return;
+                return Some(tap_area);
             }
             let Some(pointer) = tap.interact_pointer_pos() else {
-                return;
+                return Some(tap_area);
             };
             let index = galley.cursor_from_pos(pointer - pos).index.0;
             let index = if shift > 0 && index > 0 {
@@ -1924,10 +1938,10 @@ impl CalculatorApp {
         let calc = self.engine_mut();
         let Some((range, at)) = hit else {
             calc.commit_edit();
-            return;
+            return Some(tap_area);
         };
         if !calc.edit_part(&parts[at], None) {
-            return;
+            return Some(tap_area);
         }
         if let Some(edit) = calc.number_edit() {
             let number: String = text.chars().skip(range.start).take(range.len()).collect();
@@ -1939,6 +1953,7 @@ impl CalculatorApp {
         if let Some(id) = access::focused(ui.ctx()) {
             ui.memory_mut(|memory| memory.surrender_focus(id));
         }
+        Some(tap_area)
     }
 
     /// The expression line's parts that a tap edits (numbers and binary operators) as children

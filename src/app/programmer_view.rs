@@ -868,7 +868,8 @@ impl CalculatorApp {
                     .left()
                     .min(full.right() - 4.0 - outer.x)
                     .max(full.left() + 4.0);
-                let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 4.0), outer);
+                let rect =
+                    Rect::from_min_size(pos2(left, popup_top(popup.anchor, outer.y, full)), outer);
                 popup_frame(p, ui.painter(), rect, p.popup);
                 ui.interact(rect, Id::new("programmer-menu-panel"), Sense::CLICK);
                 let name = tr("bitwiseButton.AutomationName");
@@ -933,7 +934,8 @@ impl CalculatorApp {
                 let left = (popup.anchor.center().x - size.x / 2.0)
                     .min(full.right() - 4.0 - size.x)
                     .max(full.left() + 4.0);
-                let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 4.0), size);
+                let rect =
+                    Rect::from_min_size(pos2(left, popup_top(popup.anchor, size.y, full)), size);
                 popup_frame(p, ui.painter(), rect, p.popup);
                 ui.interact(rect, Id::new("programmer-menu-panel"), Sense::CLICK);
                 let name = tr("bitShiftButton.AutomationName");
@@ -981,7 +983,20 @@ impl CalculatorApp {
     }
 
     // ------------------------------------------------------------- bit panel
+}
 
+/// Where a menu `height` tall opens: 4 px under its button `anchor`, or above it where there's
+/// no room under it in `full` (a phone's landscape layout has the menu row at the bottom).
+fn popup_top(anchor: Rect, height: f32, full: Rect) -> f32 {
+    let below = anchor.bottom() + 4.0;
+    if below + height > full.bottom() {
+        (anchor.top() - 4.0 - height).max(full.top())
+    } else {
+        below
+    }
+}
+
+impl CalculatorApp {
     /// The bit toggling keypad: 64 bits in four rows of four groups, the highest first,
     /// each group labeled with the number of its lowest bit. Bits beyond the word size
     /// are disabled.

@@ -1,0 +1,26 @@
+{
+  "name": "mode-switching",
+  "description": "The navigation menu opens every kind of page: each mode shows a control only it has, and the Standard mode comes back with its keys.",
+  "steps": [
+    { "launch": true },
+    { "open": "Standard Calculator" },
+    { "expect": "Square root" },
+    { "expect_absent": "Trigonometry" },
+    { "open": "Scientific Calculator" },
+    { "expect": "Trigonometry" },
+    { "expect": "Factorial" },
+    { "open": "Programmer Calculator" },
+    { "expect": "Bit toggling keypad" },
+    { "open": "Date calculation Calculator" },
+    { "expect": "Calculation mode" },
+    { "open": "Length Converter" },
+    { "expect": "Input unit" },
+    { "open": "Graphing Calculator" },
+    { "tap_if_present": "Switch to equation mode" },
+    { "expect": "Submit" },
+    { "open": "Standard Calculator" },
+    { "expect_absent": "Trigonometry" },
+    { "taps": ["Clear", "Two", "Plus", "Two", "Equals"] },
+    { "display": "4" }
+  ]
+}
