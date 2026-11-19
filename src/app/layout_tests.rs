@@ -67,7 +67,7 @@ fn all_modes() -> Vec<Mode> {
 }
 
 /// Runs one frame on `screen` and returns its output; its textures go to `canvas`, if any.
-fn frame(
+pub(super) fn frame(
     ctx: &Context,
     app: &mut CalculatorApp,
     screen: &Screen,
@@ -94,7 +94,7 @@ fn frame(
 }
 
 /// The app in `mode` on `screen`, after a few frames (fonts and layout settle).
-fn settled(ctx: &Context, mode: Mode, screen: &Screen) -> CalculatorApp {
+pub(super) fn settled(ctx: &Context, mode: Mode, screen: &Screen) -> CalculatorApp {
     let mut app = super::tests::start_in(ctx);
     app.set_mode(mode);
     for _ in 0..3 {
@@ -174,7 +174,7 @@ fn keys_fit_every_screen() {
 }
 
 /// A software rasterizer of egui's output: enough to look at a layout without a GPU.
-struct Canvas {
+pub(super) struct Canvas {
     width: usize,
     height: usize,
     pixels: Vec<[f32; 4]>,

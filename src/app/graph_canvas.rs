@@ -145,6 +145,23 @@ impl CalculatorApp {
         } else {
             None
         };
+        if response.is_some() {
+            // The name is Windows' (`graphAutomationName`), which counts the equations; the
+            // value lists them, one a line, so that an accessibility service can read what is
+            // graphed (Android shows the value as the node's text). The node is a canvas, not
+            // egui's "unknown" role for `WidgetType::Other`.
+            let equations: Vec<&str> = self
+                .graphing
+                .rows
+                .iter()
+                .filter(|r| r.graphable().is_some())
+                .map(|r| r.submitted.as_str())
+                .collect();
+            ctx.accesskit_node_builder(id, |node| {
+                node.set_role(egui::accesskit::Role::Canvas);
+                node.set_value(equations.join("\n"));
+            });
+        }
         let mut pointer = None;
         if let Some(response) = &response {
             // A pinch on a touch screen that starts on the graph zooms around the point between

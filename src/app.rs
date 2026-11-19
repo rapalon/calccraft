@@ -3873,10 +3873,13 @@ impl eframe::App for CalculatorApp {
             self.focus_popup = false;
         }
 
+        access::begin_frame(&ctx);
         self.draw_frame(ui, &ctx);
         #[cfg(feature = "support-prompt")]
         self.support.draw_toast(&ctx, self.palette);
         self.last_focus = access::focused(&ctx);
+        // After `last_focus`, which keeps the widget the focus was asked for.
+        access::settle_focus(&ctx);
         // The Settings lists load every script font (some 70 MB of CJK fonts); they go
         // again with the page.
         if self.page != Page::Settings && self.all_scripts {
@@ -5014,6 +5017,9 @@ pub fn window_icon() -> egui::IconData {
 
 #[cfg(test)]
 mod layout_tests;
+
+#[cfg(test)]
+mod a11y_tests;
 
 #[cfg(test)]
 mod tests {

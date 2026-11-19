@@ -120,6 +120,11 @@ windows-sys = { version = "0.61", features = [
 # For tests/vendor.rs, which tests the Android adapter's root bounds (vendor/accesskit_winit)
 # on every system; the version egui uses.
 accesskit = "0.24"
+# For the accessibility tree tests (src/app/a11y_tests.rs, tests/vendor.rs): the tree as the
+# platform adapters see it, with AccessKit's own filter; the version accesskit_android uses.
+accesskit_consumer = "0.38"
+# tests/vendor.rs includes the Android adapter's focus guard, which logs.
+log = "0.4"
 # For `icon::tests::write_web_icons`, on every system.
 png = "0.18"
 

@@ -562,6 +562,7 @@ name = "calculator"
 version = "1.4.2"
 dependencies = [
  "accesskit",
+ "accesskit_consumer 0.38.0",
  "accesskit_winit",
  "android_logger",
  "arboard",
