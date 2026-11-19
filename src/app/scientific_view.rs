@@ -565,6 +565,9 @@ impl CalculatorApp {
 
     fn draw_scientific_keypad(&mut self, ui: &Ui, rect: Rect, sizes: Sizes, now: f64) {
         use Command::*;
+        let id = Id::new("scientific-keypad");
+        let group = access::group(ui, id, rect, tr("fullKeypad.AutomationName"));
+        let ui = &group;
         let calc = &self.scientific.calc;
         let shift = self.scientific.shift;
         // One key shows `C` while nothing is typed and `CE` otherwise.
@@ -736,6 +739,13 @@ impl CalculatorApp {
         let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 1.0), outer);
         popup_frame(p, ui.painter(), rect, p.popup);
         ui.interact(rect, Id::new("scientific-menu-panel"), Sense::CLICK);
+        // The menu's items are a group named as its button (`access::group`).
+        let name = match popup.menu {
+            Menu::Trigonometry => tr("trigButton.AutomationName"),
+            Menu::Function => tr("funcButton.AutomationName"),
+        };
+        let group = access::group(ui, Id::new("scientific-menu-items"), rect, name);
+        let ui = &group;
         let grid = rect.shrink(3.0);
         let (w, h) = (grid.width() / columns as f32, grid.height() / 2.0);
         let cell = |column: usize, row: usize| {

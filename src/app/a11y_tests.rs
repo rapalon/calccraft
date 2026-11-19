@@ -153,6 +153,290 @@ fn the_display_and_the_expression_line_have_bounds() {
     assert!(expression.y0 < display.y1, "{expression:?} {display:?}");
 }
 
+/// Marionet keeps a node's first 50 children (`MAX_CHILDREN` in its compactor) and 400 nodes.
+const MAX_CHILDREN: usize = 50;
+const MAX_NODES: usize = 400;
+
+/// The tree of one more frame on `screen`, as an adapter sees it.
+fn tree(ctx: &Context, app: &mut CalculatorApp, screen: &Screen) -> Tree {
+    Tree::new(update(ctx, app, screen), true)
+}
+
+/// A node's name as Android shows it: its label (`content-desc`), else its value (`text`).
+fn name(node: &Node) -> String {
+    node.label()
+        .filter(|label| !label.is_empty())
+        .or_else(|| node.value())
+        .unwrap_or_default()
+}
+
+/// The shown node named `name`, if any.
+fn find<'a>(nodes: &[Node<'a>], name_of: &str) -> Option<Node<'a>> {
+    nodes.iter().find(|node| name(node) == name_of).copied()
+}
+
+/// What Marionet and uiautomator need of every node an adapter shows on `page`: finite bounds
+/// that aren't empty, a name, at most `MAX_CHILDREN` children, and at most `MAX_NODES` nodes.
+fn check_nodes(page: &str, tree: &Tree) {
+    let mut nodes = Vec::new();
+    shown(&tree.state().root(), &mut nodes);
+    // The date calculation has the fewest: the menu, the page list, two dates and the result.
+    assert!(nodes.len() >= 5, "{page}: only {} nodes", nodes.len());
+    assert!(nodes.len() <= MAX_NODES, "{page}: {} nodes", nodes.len());
+    let root = tree.state().root();
+    for node in std::iter::once(&root).chain(&nodes) {
+        let children = node.filtered_children(common_filter).count();
+        assert!(
+            children <= MAX_CHILDREN,
+            "{page}: {:?} {:?} has {children} children",
+            node.role(),
+            name(node)
+        );
+    }
+    for node in &nodes {
+        let bounds = node.bounding_box();
+        let fine = bounds.is_some_and(|b| {
+            [b.x0, b.y0, b.x1, b.y1].iter().all(|v| v.is_finite())
+                && b.width() > 0.0
+                && b.height() > 0.0
+        });
+        assert!(
+            fine,
+            "{page}: {:?} {:?} has the bounds {bounds:?}",
+            node.role(),
+            name(node)
+        );
+        // A text box may be empty: it's named by what it holds.
+        let text_box = matches!(node.role(), Role::TextInput | Role::MultilineTextInput);
+        assert!(
+            text_box || !name(node).trim().is_empty(),
+            "{page}: a {:?} node at {bounds:?} has no name",
+            node.role()
+        );
+    }
+}
+
+/// A pointer tap at the center of the shown node named `name`.
+fn tap(ctx: &Context, app: &mut CalculatorApp, screen: &Screen, name_of: &str) {
+    let tree = tree(ctx, app, screen);
+    let mut nodes = Vec::new();
+    shown(&tree.state().root(), &mut nodes);
+    let node = find(&nodes, name_of)
+        .unwrap_or_else(|| panic!("{}: no node named {name_of:?}", screen.name));
+    let b = node.bounding_box().unwrap();
+    let at = pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32);
+    let press = |pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: Default::default(),
+    };
+    frame_with(
+        ctx,
+        app,
+        screen,
+        vec![egui::Event::PointerMoved(at), press(true)],
+    );
+    frame_with(ctx, app, screen, vec![press(false)]);
+    frame(ctx, app, screen, None);
+}
+
+/// A screen reader's or an accessibility service's click (AccessKit's `Click` action, which
+/// Android's `ACTION_CLICK` becomes) on the shown node named `name`, then a frame to settle.
+fn click(ctx: &Context, app: &mut CalculatorApp, screen: &Screen, name_of: &str) {
+    let update = update(ctx, app, screen);
+    let tree = Tree::new(update.clone(), true);
+    let mut nodes = Vec::new();
+    shown(&tree.state().root(), &mut nodes);
+    assert!(
+        find(&nodes, name_of).is_some(),
+        "{}: no node named {name_of:?} in {:?}",
+        screen.name,
+        nodes.iter().map(name).collect::<Vec<_>>()
+    );
+    let (id, _) = update
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label().filter(|l| !l.is_empty()).or(node.value()) == Some(name_of))
+        .unwrap();
+    let request = accesskit::ActionRequest {
+        action: accesskit::Action::Click,
+        target_tree: accesskit::TreeId::ROOT,
+        target_node: *id,
+        data: None,
+    };
+    frame_with(
+        ctx,
+        app,
+        screen,
+        vec![egui::Event::AccessKitActionRequest(request)],
+    );
+    frame(ctx, app, screen, None);
+}
+
+/// Every mode on every Android screen size: every node an adapter shows has bounds and a
+/// name, and no node has more children than Marionet keeps.
+#[test]
+fn every_mode_fits_an_accessibility_service() {
+    for screen in &SCREENS {
+        for mode in super::layout_tests::all_modes() {
+            let ctx = Context::default();
+            let mut app = settled(&ctx, mode, screen);
+            let page = format!("{}: {mode:?}", screen.name);
+            check_nodes(&page, &tree(&ctx, &mut app, screen));
+        }
+        for equations in [false, true] {
+            let ctx = Context::default();
+            let mut app = graphing(&ctx, screen, equations);
+            let page = format!("{}: Graphing, equations {equations}", screen.name);
+            check_nodes(&page, &tree(&ctx, &mut app, screen));
+        }
+    }
+}
+
+/// Every popup menu, opened by a tap on its button: its items are a group named as the button,
+/// all of them in the tree with their bounds, and the rest of the tree still fits.
+#[test]
+fn open_popup_menus_list_their_items() {
+    let trig = tr("trigButton.AutomationName");
+    let functions = tr("funcButton.AutomationName");
+    let inequalities = tr("inequalityButton.AutomationName");
+    let bitwise = tr("bitwiseButton.AutomationName");
+    let bit_shift = tr("bitShiftButton.AutomationName");
+    let menus = [
+        (Mode::Scientific, trig, 8, tr("sinButton.AutomationName")),
+        (
+            Mode::Scientific,
+            functions,
+            6,
+            tr("absButton.AutomationName"),
+        ),
+        (Mode::Graphing, trig, 8, tr("sinButton.AutomationName")),
+        (Mode::Graphing, inequalities, 5, ""),
+        (Mode::Graphing, functions, 3, tr("absButton.AutomationName")),
+        (Mode::Programmer, bitwise, 6, ""),
+        (Mode::Programmer, bit_shift, 4, ""),
+    ];
+    for screen in &SCREENS {
+        for (mode, menu, items, item) in menus {
+            let ctx = Context::default();
+            let mut app = if mode == Mode::Graphing {
+                graphing(&ctx, screen, true)
+            } else {
+                settled(&ctx, mode, screen)
+            };
+            tap(&ctx, &mut app, screen, menu);
+            let page = format!("{}: {mode:?} {menu}", screen.name);
+            let tree = tree(&ctx, &mut app, screen);
+            check_nodes(&page, &tree);
+            let mut nodes = Vec::new();
+            shown(&tree.state().root(), &mut nodes);
+            let group = nodes
+                .iter()
+                .find(|node| node.role() == Role::Group && name(node) == menu)
+                .unwrap_or_else(|| panic!("{page}: no group"));
+            let names: Vec<String> = group
+                .filtered_children(common_filter)
+                .map(|n| name(&n))
+                .collect();
+            assert_eq!(names.len(), items, "{page}: {names:?}");
+            assert!(
+                item.is_empty() || names.iter().any(|n| n == item),
+                "{page}: {names:?}"
+            );
+        }
+    }
+}
+
+/// The Programmer mode's bit toggling keypad: 64 bits in four groups of 16 under the keypad's
+/// group, so that no node has more than 50 children.
+#[test]
+fn the_bit_toggling_keypad_is_grouped_by_rows() {
+    for screen in &SCREENS {
+        let ctx = Context::default();
+        let mut app = settled(&ctx, Mode::Programmer, screen);
+        tap(&ctx, &mut app, screen, tr("bitFlip.AutomationName"));
+        let page = format!("{}: bit toggling keypad", screen.name);
+        let tree = tree(&ctx, &mut app, screen);
+        check_nodes(&page, &tree);
+        let mut nodes = Vec::new();
+        shown(&tree.state().root(), &mut nodes);
+        let panel = nodes
+            .iter()
+            .find(|n| n.role() == Role::Group && name(n) == tr("bitFlip.AutomationName"))
+            .unwrap_or_else(|| panic!("{page}: no group"));
+        let rows: Vec<usize> = panel
+            .filtered_children(common_filter)
+            .map(|row| row.filtered_children(common_filter).count())
+            .collect();
+        assert_eq!(rows, [16; 4], "{page}");
+    }
+}
+
+/// The expression line's numbers and operators are nodes of their own under the line's node,
+/// in order, with bounds inside the line, and a click on one edits it as a tap does: 12 + 7 × 3
+/// is 33, 7 → 9 makes it 39, and + → − then −15 (the device scenario `token-edit`).
+#[test]
+fn expression_parts_are_nodes_that_a_click_edits() {
+    let screen = &SCREENS[2];
+    let ctx = Context::default();
+    let mut app = settled(&ctx, Mode::Scientific, screen);
+    for key in [
+        "One",
+        "Two",
+        "Plus",
+        "Seven",
+        "Multiply by",
+        "Three",
+        "Equals",
+    ] {
+        click(&ctx, &mut app, screen, key);
+    }
+    assert_eq!(app.scientific.calc.display(), "33");
+    let parts = |app: &mut CalculatorApp| {
+        let tree = tree(&ctx, app, screen);
+        let mut nodes = Vec::new();
+        shown(&tree.state().root(), &mut nodes);
+        let line = nodes
+            .iter()
+            .find(|n| n.role() == Role::Label && name(n).starts_with("Expression is"))
+            .expect("the expression line");
+        let line_box = line.bounding_box().unwrap();
+        line.filtered_children(common_filter)
+            .map(|part| {
+                let b = part.bounding_box().unwrap();
+                assert!(b.width() > 0.0 && b.height() > 0.0, "{b:?}");
+                assert!(
+                    b.x0 >= line_box.x0 - 1.0 && b.x1 <= line_box.x1 + 1.0,
+                    "{b:?} outside {line_box:?}"
+                );
+                name(&part)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        parts(&mut app),
+        [
+            "Number 12",
+            "Operator +",
+            "Number 7",
+            "Operator ×",
+            "Number 3"
+        ]
+    );
+    click(&ctx, &mut app, screen, "Number 7");
+    assert!(app.scientific.calc.number_edit().is_some());
+    for key in ["Backspace", "Nine", "Equals"] {
+        click(&ctx, &mut app, screen, key);
+    }
+    assert_eq!(app.scientific.calc.display(), "39");
+    click(&ctx, &mut app, screen, "Operator +");
+    assert!(app.scientific.calc.selected_operator().is_some());
+    click(&ctx, &mut app, screen, "Minus");
+    click(&ctx, &mut app, screen, "Equals");
+    assert_eq!(app.scientific.calc.display(), "-15");
+}
+
 /// Keeps nothing of the consumer's changes.
 struct NoChanges;
 

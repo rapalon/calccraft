@@ -145,11 +145,13 @@ impl CalculatorApp {
         } else {
             None
         };
-        if response.is_some() {
+        if let Some(response) = &response {
             // The name is Windows' (`graphAutomationName`), which counts the equations; the
             // value lists them, one a line, so that an accessibility service can read what is
             // graphed (Android shows the value as the node's text). The node is a canvas, not
-            // egui's "unknown" role for `WidgetType::Other`.
+            // egui's "unknown" role for `WidgetType::Other`. Under a popup the graph only
+            // senses hovers, under another id (`access::interact`), and egui gives such a
+            // node neither bounds nor a name: they're set here.
             let equations: Vec<&str> = self
                 .graphing
                 .rows
@@ -157,8 +159,10 @@ impl CalculatorApp {
                 .filter(|r| r.graphable().is_some())
                 .map(|r| r.submitted.as_str())
                 .collect();
-            ctx.accesskit_node_builder(id, |node| {
+            ctx.accesskit_node_builder(response.id, |node| {
                 node.set_role(egui::accesskit::Role::Canvas);
+                node.set_label(name.as_str());
+                node.set_bounds(access::bounds(rect));
                 node.set_value(equations.join("\n"));
             });
         }

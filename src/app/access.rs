@@ -154,6 +154,38 @@ pub(crate) fn text(ui: &Ui, rect: Rect, id: Id, name: &str, live: bool) {
     });
 }
 
+/// A group of controls for screen readers and accessibility services: a `Group` node named
+/// `name` with the bounds of `rect`, and a child `Ui` (as large as `ui`, so the layout doesn't
+/// change) whose controls become the group's children. egui's tree is otherwise flat, every
+/// control a child of the window, and Marionet keeps only a node's first 50 children: the
+/// keypads and the popup menus are groups so that none is cut (android/README.md).
+pub(super) fn group(ui: &Ui, id: Id, rect: Rect, name: &str) -> Ui {
+    ui.interact(rect, id, Sense::hover());
+    ui.ctx().accesskit_node_builder(id, |node| {
+        node.set_role(accesskit::Role::Group);
+        node.set_label(name);
+        node.set_bounds(bounds(rect));
+    });
+    children_of(ui, id)
+}
+
+/// A `Ui` like `ui` (as large, on the same layer, with the same clip and style) whose
+/// controls become children of the node `id` in the accessibility tree, which must exist.
+pub(super) fn children_of(ui: &Ui, id: Id) -> Ui {
+    // The drawing code has the `Ui` only by reference, so this is a new one, not a `new_child`.
+    let mut builder = egui::UiBuilder::new()
+        .layer_id(ui.layer_id())
+        .max_rect(ui.max_rect())
+        .style(ui.style().clone())
+        .accessibility_parent(id);
+    if !ui.is_enabled() {
+        builder = builder.disabled();
+    }
+    let mut children = Ui::new(ui.ctx().clone(), id.with("ui"), builder);
+    children.set_clip_rect(ui.clip_rect());
+    children
+}
+
 /// A rectangle in points as AccessKit's bounds (egui's root node scales points to pixels).
 pub(super) fn bounds(rect: Rect) -> accesskit::Rect {
     accesskit::Rect {

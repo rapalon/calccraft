@@ -737,6 +737,9 @@ impl CalculatorApp {
 
     fn draw_programmer_keypad(&mut self, ui: &Ui, rect: Rect, sizes: [f32; 3], now: f64) {
         use Command::*;
+        let id = Id::new("programmer-keypad");
+        let group = access::group(ui, id, rect, tr("fullKeypad.AutomationName"));
+        let ui = &group;
         let [digit_size, letter_size, operator_size] = sizes;
         let calc = &self.programmer.calc;
         let (left, right) = self.programmer.shift.commands();
@@ -868,6 +871,9 @@ impl CalculatorApp {
                 let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 4.0), outer);
                 popup_frame(p, ui.painter(), rect, p.popup);
                 ui.interact(rect, Id::new("programmer-menu-panel"), Sense::CLICK);
+                let name = tr("bitwiseButton.AutomationName");
+                let group = access::group(ui, Id::new("programmer-menu-items"), rect, name);
+                let ui = &group;
                 let grid = rect.shrink(3.0);
                 let keys = [
                     (Command::Operator(Op::And), "AND"),
@@ -930,6 +936,9 @@ impl CalculatorApp {
                 let rect = Rect::from_min_size(pos2(left, popup.anchor.bottom() + 4.0), size);
                 popup_frame(p, ui.painter(), rect, p.popup);
                 ui.interact(rect, Id::new("programmer-menu-panel"), Sense::CLICK);
+                let name = tr("bitShiftButton.AutomationName");
+                let group = access::group(ui, Id::new("programmer-menu-items"), rect, name);
+                let ui = &group;
                 let mut top = rect.top() + 12.0;
                 for (i, (mode, galley)) in ShiftMode::ALL.into_iter().zip(galleys).enumerate() {
                     let item = Rect::from_min_size(
@@ -998,8 +1007,30 @@ impl CalculatorApp {
             12.0
         };
         let mut toggled = None;
+        // The keypad is a group, and each row of 16 bits one inside it, named by the positions
+        // of its first and last bit: Marionet keeps 50 children a node (`access::group`).
+        let panel = access::group(
+            ui,
+            Id::new("programmer-bits"),
+            area,
+            tr("bitFlip.AutomationName"),
+        );
         for row in 0..4 {
             let top = area.top() + 2.0 * row as f32 * row_height;
+            let row_rect =
+                Rect::from_min_size(pos2(area.left(), top), vec2(area.width(), 2.0 * row_height));
+            let position = |bit: usize| match bit {
+                0 => tr("LeastSignificantBit").to_string(),
+                _ => tr_format("BitPosition", &[tr(&bit.to_string())]),
+            };
+            let name = format!("{} – {}", position(63 - row * 16), position(48 - row * 16));
+            let row_group = access::group(
+                &panel,
+                Id::new("programmer-bit-row").with(row),
+                row_rect,
+                &name,
+            );
+            let ui = &row_group;
             for group in 0..4 {
                 for j in 0..4 {
                     let bit = 63 - (row * 16 + group * 4 + j);

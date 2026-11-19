@@ -176,6 +176,13 @@ impl CalculatorApp {
 
     fn draw_graphing_keys(&mut self, ui: &Ui, rect: Rect, sizes: Sizes) {
         use GraphKey::*;
+        let group = access::group(
+            ui,
+            Id::new("graph-keypad"),
+            rect,
+            tr("fullKeypad.AutomationName"),
+        );
+        let ui = &group;
         let shift = self.graphing.shift;
         let first = |normal: GraphKey, second: GraphKey| if shift { second } else { normal };
         let syntax = region_syntax();
@@ -390,6 +397,14 @@ impl CalculatorApp {
         let rect = Rect::from_min_size(pos2(left, top), outer);
         popup_frame(p, ui.painter(), rect, p.popup);
         ui.interact(rect, Id::new("graph-keypad-menu-panel"), egui::Sense::CLICK);
+        // The menu's items are a group named as its button (`access::group`).
+        let name = match menu {
+            KeypadMenu::Trigonometry => tr("trigButton.AutomationName"),
+            KeypadMenu::Inequalities => tr("inequalityButton.AutomationName"),
+            KeypadMenu::Function => tr("funcButton.AutomationName"),
+        };
+        let group = access::group(ui, Id::new("graph-keypad-menu-items"), rect, name);
+        let ui = &group;
         let grid = rect.shrink(3.0);
         let (w, h) = (grid.width() / columns as f32, grid.height() / rows as f32);
         let cell = |column: usize, row: usize| {

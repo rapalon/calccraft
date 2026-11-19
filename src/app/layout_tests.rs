@@ -59,7 +59,7 @@ pub(super) const SCREENS: [Screen; 5] = [
 ];
 
 /// Every mode: the calculators, the date calculation and every converter.
-fn all_modes() -> Vec<Mode> {
+pub(super) fn all_modes() -> Vec<Mode> {
     Mode::CALCULATORS
         .into_iter()
         .chain(Category::ALL.map(Mode::Converter))

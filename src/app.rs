@@ -1857,7 +1857,11 @@ impl CalculatorApp {
             };
             name = format!("{name}, {}", tr_format(key, &[part]));
         }
-        access::text(ui, line_rect, Id::new("expression"), &name, part.is_some());
+        let line_id = Id::new("expression");
+        access::text(ui, line_rect, line_id, &name, part.is_some());
+        let clicked = self.expression_part_nodes(
+            ui, line_id, rect, &galley, pos, shift, &text, &ranges, &parts,
+        );
         if let Some(range) = &edited {
             // A light background marks the number being edited.
             let start = galley.pos_from_cursor(egui::text::CCursor::new(range.start));
@@ -1884,31 +1888,39 @@ impl CalculatorApp {
             (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0),
         );
         let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
-        if !tap.clicked() || access::is_covered(ui) {
-            return;
-        }
-        let Some(pointer) = tap.interact_pointer_pos() else {
-            return;
-        };
-        let index = galley.cursor_from_pos(pointer - pos).index.0;
-        let index = if shift > 0 && index > 0 {
-            index - 1 + shift
+        // A screen reader's or an accessibility service's click on a part's node is a tap at
+        // the part's end.
+        let (hit, index) = if let Some((range, at)) = clicked {
+            let end = range.end;
+            (Some((range, at)), end)
         } else {
-            index
-        };
-        // A number first, then an operator, which is one character wide: a tap on the spaces
-        // next to it hits it too.
-        let hit = ranges
-            .iter()
-            .find(|(range, _)| range.start <= index && index <= range.end)
-            .or_else(|| {
-                ranges.iter().find(|(range, at)| {
-                    parts[*at].kind == PartKind::Operator
-                        && range.start <= index + 1
-                        && index <= range.end + 1
+            if !tap.clicked() || access::is_covered(ui) {
+                return;
+            }
+            let Some(pointer) = tap.interact_pointer_pos() else {
+                return;
+            };
+            let index = galley.cursor_from_pos(pointer - pos).index.0;
+            let index = if shift > 0 && index > 0 {
+                index - 1 + shift
+            } else {
+                index
+            };
+            // A number first, then an operator, which is one character wide: a tap on the
+            // spaces next to it hits it too.
+            let hit = ranges
+                .iter()
+                .find(|(range, _)| range.start <= index && index <= range.end)
+                .or_else(|| {
+                    ranges.iter().find(|(range, at)| {
+                        parts[*at].kind == PartKind::Operator
+                            && range.start <= index + 1
+                            && index <= range.end + 1
+                    })
                 })
-            })
-            .cloned();
+                .cloned();
+            (hit, index)
+        };
         let calc = self.engine_mut();
         let Some((range, at)) = hit else {
             calc.commit_edit();
@@ -1927,6 +1939,81 @@ impl CalculatorApp {
         if let Some(id) = access::focused(ui.ctx()) {
             ui.memory_mut(|memory| memory.surrender_focus(id));
         }
+    }
+
+    /// The expression line's parts that a tap edits (numbers and binary operators) as children
+    /// of the line's node `line_id`, each with its bounds, a name (`Number 7`, `Operator +`)
+    /// and a click action, so that screen readers and accessibility services (Marionet,
+    /// uiautomator) can pick one without a screenshot (android/README.md). `galley` is the
+    /// line at `pos` in `rect`, its first `shift` characters elided. Returns the part that
+    /// such a click chose in this frame: its characters in `text` and its index in `parts`.
+    #[allow(clippy::too_many_arguments)]
+    fn expression_part_nodes(
+        &self,
+        ui: &Ui,
+        line_id: Id,
+        rect: Rect,
+        galley: &egui::Galley,
+        pos: Pos2,
+        shift: usize,
+        text: &str,
+        ranges: &[(std::ops::Range<usize>, usize)],
+        parts: &[crate::engine::ExpressionPart],
+    ) -> Option<(std::ops::Range<usize>, usize)> {
+        // Covered by a popup or a flyout, the line takes no clicks, not even a screen reader's.
+        if access::is_covered(ui) {
+            return None;
+        }
+        let calc = self.engine();
+        let edited = calc.number_edit().map(|edit| edit.item);
+        let operator = calc.selected_operator();
+        let children = access::children_of(ui, line_id);
+        let visible = rect.intersect(ui.clip_rect());
+        let mut clicked = None;
+        for (i, (range, at)) in ranges.iter().enumerate() {
+            // An elided line shows `…` in place of its first `shift` characters (and the
+            // galley's index 0 is the `…`): a part under it has no node.
+            let (start, end) = if shift > 0 {
+                if range.start < shift {
+                    continue;
+                }
+                (range.start + 1 - shift, range.end + 1 - shift)
+            } else {
+                (range.start, range.end)
+            };
+            let from = galley.pos_from_cursor(egui::text::CCursor::new(start));
+            let to = galley.pos_from_cursor(egui::text::CCursor::new(end));
+            let part_rect = Rect::from_x_y_ranges(from.left()..=to.left(), from.y_range())
+                .translate(pos.to_vec2())
+                .intersect(visible);
+            if !(part_rect.width() > 0.0 && part_rect.height() > 0.0) {
+                continue;
+            }
+            let part = &parts[*at];
+            let shown: String = text.chars().skip(range.start).take(range.len()).collect();
+            let (key, selected) = match part.kind {
+                PartKind::Operator => ("CalcCraft.ExpressionOperator", operator == Some(part.item)),
+                _ => ("CalcCraft.ExpressionNumber", edited == Some(part.item)),
+            };
+            let name = tr_format(key, &[shown.trim()]);
+            let id = Id::new("expression-part").with(i);
+            children.interact(part_rect, id, Sense::hover());
+            ui.ctx().accesskit_node_builder(id, |node| {
+                node.set_role(egui::accesskit::Role::Button);
+                node.set_label(name);
+                node.set_bounds(access::bounds(part_rect));
+                node.add_action(egui::accesskit::Action::Click);
+                if selected {
+                    node.set_selected(true);
+                }
+            });
+            if ui.input(|input| {
+                input.has_accesskit_action_request(id, egui::accesskit::Action::Click)
+            }) {
+                clicked = Some((range.clone(), *at));
+            }
+        }
+        clicked
     }
 
     /// The caret's keys (CalcCraft's own): Left, Right, Home, End, Ctrl+Left and Ctrl+Right
@@ -2097,6 +2184,8 @@ impl CalculatorApp {
             Digit(1), Digit(2), Digit(3), Operator(Op::Add),
             Function(Func::Negate), Digit(0), Decimal, Equals,
         ];
+        let group = access::group(ui, Id::new("keypad"), rect, tr("fullKeypad.AutomationName"));
+        let ui = &group;
         let width = (rect.width() - 3.0 * GAP) / 4.0;
         let height = (rect.height() - 5.0 * GAP) / 6.0;
         for (i, command) in KEYS.into_iter().enumerate() {
