@@ -90,17 +90,21 @@ your IP address and your browser's usual information (see "Third-party services"
 
 These are the links in the app, where they are, and what they add to the address:
 
-- **Rapalon Labs** (About card, support window) opens <https://rapalon.com>. Nothing is added.
-- **Privacy policy** (Settings) opens <https://rapalon.com/calccraft/privacy>. Nothing is added.
-- **Send feedback** (Settings) opens <https://github.com/rapalon/calccraft/issues>. Nothing is
+- **Rapalon Labs** (About card, support window) opens [rapalon.com](https://rapalon.com).
+  Nothing is added.
+- **Privacy policy** (Settings) opens this policy at
+  [rapalon.com/calccraft/privacy](https://rapalon.com/calccraft/privacy). Nothing is added.
+- **Send feedback** (Settings) opens
+  [CalcCraft's issues on GitHub](https://github.com/rapalon/calccraft/issues). Nothing is
   added.
-- **GitHub** (Settings) opens <https://github.com/rapalon/calccraft>. Nothing is added.
+- **GitHub** (Settings) opens
+  [CalcCraft's repository on GitHub](https://github.com/rapalon/calccraft). Nothing is added.
 - **Donate** (support window; GitHub, F-Droid, desktop and web versions only) opens
-  <https://rapalon.com/calccraft/donate>, which forwards you to Stripe's payment page. The
-  address carries the parameters described below.
+  [rapalon.com/calccraft/donate](https://rapalon.com/calccraft/donate), which forwards you to
+  Stripe's payment page. The address carries the parameters described below.
 - **Get CalcCraft Pro** (support window of the free Google Play app) opens CalcCraft Pro's page
-  in the Google Play Store app, or on <https://play.google.com>. Nothing is added but that
-  app's ID.
+  in the Google Play Store app, or on [play.google.com](https://play.google.com). Nothing is
+  added but that app's ID.
 
 **Donate.** Only the GitHub, F-Droid, desktop and web versions have it. The donate address
 carries these parameters:
