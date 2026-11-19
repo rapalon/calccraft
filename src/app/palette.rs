@@ -131,6 +131,9 @@ pub(crate) struct Palette {
     /// Whether egui's own widgets (tooltips, text boxes, scroll bars) take this palette's
     /// colors instead of egui's defaults, which Classic and Gold keep.
     pub restyle: bool,
+    /// Night: no white anywhere, so what would be white (hover overlays, labels on an
+    /// equation's color) takes the palette's text or ink instead.
+    pub no_white: bool,
 }
 
 /// A metal key: a vertical gradient (`stops`, top to bottom, evenly spaced), a soft
@@ -324,6 +327,7 @@ pub(crate) const DARK: Palette = Palette {
     display_panel: None,
     graph: None,
     restyle: false,
+    no_white: false,
 };
 
 pub(crate) const LIGHT: Palette = Palette {
@@ -411,6 +415,7 @@ pub(crate) const LIGHT: Palette = Palette {
     display_panel: None,
     graph: None,
     restyle: false,
+    no_white: false,
 };
 
 // ------------------------------------------------------------ colour themes
@@ -612,6 +617,7 @@ pub(crate) const NIGHT: Palette = Palette {
     display_panel: None,
     graph: Some(&NIGHT_GRAPH),
     restyle: true,
+    no_white: true,
 };
 
 const LCD_BODY: Color32 = rgb(0xB4BCA2);
@@ -705,6 +711,7 @@ pub(crate) const RETRO_LCD: Palette = Palette {
     display_panel: Some((LCD_GLASS, LCD_LINE)),
     graph: None,
     restyle: true,
+    no_white: false,
 };
 
 const PAPER_BACKGROUND: Color32 = rgb(0xF6F0E1);
@@ -797,6 +804,7 @@ pub(crate) const PAPER: Palette = Palette {
     display_panel: None,
     graph: None,
     restyle: true,
+    no_white: false,
 };
 
 /// The color of the gradient `stops` (evenly spaced, top to bottom) at `t` in 0..=1.

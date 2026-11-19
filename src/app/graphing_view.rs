@@ -845,6 +845,20 @@ fn contrast(color: Color32) -> Color32 {
     }
 }
 
+/// `contrast` in the palette `p`: Night has no white, so its labels on an equation's color
+/// are its dark ink.
+fn contrast_in(p: &Palette, color: Color32) -> Color32 {
+    match contrast(color) {
+        Color32::WHITE if p.no_white => p.text_on_accent,
+        other => other,
+    }
+}
+
+/// The overlay that lightens a hovered equation button in a dark theme: white, or Night's red.
+fn light_overlay(p: &Palette) -> Color32 {
+    if p.no_white { p.text } else { Color32::WHITE }
+}
+
 /// `f` with its number as a subscript: the equation button's label.
 fn function_label(index: Option<usize>, size: f32) -> LayoutJob {
     let mut job = LayoutJob::default();
@@ -1269,12 +1283,12 @@ impl CalculatorApp {
         let (fill, text_color) = if add_mode || !visible {
             (p.hidden_equation, p.hidden_equation_text)
         } else {
-            (color, contrast(color))
+            (color, contrast_in(p, color))
         };
         painter.rect_filled(button, RADIUS, fill);
         if !add_mode && response.hovered() {
             let overlay = if ctx.theme() == egui::Theme::Dark {
-                Color32::WHITE
+                light_overlay(p)
             } else {
                 Color32::BLACK
             };
@@ -1938,7 +1952,11 @@ impl CalculatorApp {
         painter.rect_filled(back, RADIUS, color);
         if response.hovered() {
             let dark = ui.ctx().theme() == egui::Theme::Dark;
-            let overlay = if dark { Color32::WHITE } else { Color32::BLACK };
+            let overlay = if dark {
+                light_overlay(p)
+            } else {
+                Color32::BLACK
+            };
             let opacity = match (dark, response.is_pointer_button_down_on()) {
                 (true, false) => 0.3,
                 (true, true) => 0.5,
@@ -1947,7 +1965,11 @@ impl CalculatorApp {
             };
             painter.rect_filled(back, RADIUS, overlay.gamma_multiply(opacity));
         }
-        let fg = Color32::WHITE;
+        let fg = if p.no_white {
+            p.text_on_accent
+        } else {
+            Color32::WHITE
+        };
         let arrow = painter.layout_job(icon_label(ICON_BACK, 16.0));
         painter.galley(
             pos2(back.left() + 10.0, back.center().y - arrow.size().y / 2.0),

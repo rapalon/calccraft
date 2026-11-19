@@ -3699,7 +3699,9 @@ impl CalculatorApp {
             vec2(16.0, 16.0),
         );
         let uv = Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0));
-        painter.image(self.app_icon.id(), icon, uv, Color32::WHITE);
+        // Night has no blue: its icon is tinted red.
+        let tint = if p.no_white { p.text } else { Color32::WHITE };
+        painter.image(self.app_icon.id(), icon, uv, tint);
         let name = painter.layout_no_wrap("CalcCraft".to_owned(), body.clone(), p.text);
         let by = brand::CREDIT
             .strip_suffix(brand::COMPANY)

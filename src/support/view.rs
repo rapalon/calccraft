@@ -676,7 +676,14 @@ const THANKS_GAP: f32 = 6.0;
 /// Not `clickable`, it is a plain label (the paid Play app).
 fn draw_thanks_line(ui: &Ui, rect: Rect, p: &Palette, clickable: bool) -> bool {
     let dark = dark(ui.ctx());
-    let color = if dark { THANKS_DARK } else { THANKS_LIGHT };
+    // Night (CalcCraft Pro's theme for the dark) has its red everywhere, this line too.
+    let color = if p.no_white {
+        p.text
+    } else if dark {
+        THANKS_DARK
+    } else {
+        THANKS_LIGHT
+    };
     let label = tr("CalcCraft.Support.Thanks");
     let heart = ui
         .painter()
