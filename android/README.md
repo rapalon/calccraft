@@ -418,8 +418,15 @@ the device: the accessibility services run on the phone.
   line's name then says so (`…, Editing 7`, `…, Selected operator +`). Functions and
   parentheses have no node: a tap doesn't edit them. A part hidden by the line's `…` has none
   either.
+- **What's out of view.** egui gives a control its whole rectangle even where its scroll area
+  cuts it off, so a navigation item scrolled out of view lay over the Settings button, and a tap
+  at its center opened Settings. A control shown in part keeps only that part as its bounds, and
+  one not shown at all leaves the tree unless it has the focus (`access::interact`). And the
+  Scientific and Programmer menus open above their button when there's no room under it (a
+  phone's landscape layout), as the Graphing keypad's do: they had opened below the screen.
 - **Device tests.** `tests/device/` describes flows by these names (no coordinates) and runs
   them on a phone, through Marionet or through adb and uiautomator (`tests/device/README.md`).
+  The host test `device_scenarios_pass_on_the_host` runs the same files in every `cargo test`.
 - **Its log lines.** `adb logcat -s CalcCraft` shows, once each, where the delegate went
   (`AccessKit: the accessibility delegate goes on android.app.NativeActivity$NativeContentView{…}`),
   when a service first asked for the tree, and the first tree update (`… N nodes, the root in a

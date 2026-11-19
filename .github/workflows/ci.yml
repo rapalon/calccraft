@@ -46,6 +46,13 @@ jobs:
       - name: Test
         run: cargo test
 
+      # The device scenarios' adb runner (tests/device/README.md), without a device: against a
+      # recorded uiautomator dump, and every scenario's steps. The scenarios themselves ran on
+      # the host in `cargo test` (device_scenarios_pass_on_the_host).
+      - name: Self-test the device test runner
+        shell: pwsh
+        run: tests/device/run.ps1 -SelfTest
+
       # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
       # differently: their own tests, with and without the paid app's ID.
       - name: Test the Google Play channels

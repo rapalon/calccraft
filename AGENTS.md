@@ -79,8 +79,12 @@ src/app/orientation.rs   the Android screen orientation setting: choices, stored
                          `setRequestedOrientation` values, where Android honors them (pure)
 src/app/layout_tests.rs  the layouts at the Android screen sizes, and a software rasterizer that
                          paints them into target/shots/ (`write_layout_shots`, ignored)
-src/app/a11y_tests.rs    the accessibility tree through AccessKit's consumer: bounds of every node,
-                         the graph's node, a focus that is always in the tree
+src/app/a11y_tests.rs    the accessibility tree through AccessKit's consumer: bounds and names of every
+                         node, at most 50 children a node (Marionet's limit), popup menus, the
+                         expression line's parts, a focus that is always in the tree, and the
+                         device scenarios run on the host (`device_scenarios_pass_on_the_host`)
+tests/device/            device tests by accessible name: scenarios/*.json, run.ps1 (adb and
+                         uiautomator, `-SelfTest` in CI), README.md (the steps, the Marionet prompt)
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
@@ -338,7 +342,13 @@ nothing changes until the display or the line is touched. The spec and every cho
   and the memory row (`is_calculator_key`), where it stays `=` like Windows' `CalculatorButton`.
   The same tree reaches TalkBack and Android's accessibility services (automation agents,
   `uiautomator dump`) through eframe's `accesskit` feature and `vendor/accesskit_winit`, on
-  Android 8.0 and later: a control's name is what they click it by, so keep the names stable.
+  Android 8.0 and later: a control's name is what they click it by, so keep the names stable
+  (`tests/device/scenarios` use them). Marionet keeps a node's first 50 children, and egui's tree
+  is flat, so keypads and popup menus are groups (`access::group`; a new keypad or menu needs
+  one); the expression line's numbers and operators are child nodes that a click edits
+  (`expression_part_nodes`); a control its scroll area hides leaves the tree, and one it shows in
+  part keeps only that part as its bounds (`access::interact`). `src/app/a11y_tests.rs` checks
+  all of it on the Android screen sizes.
 - Popups: `popup_covers` is true while the menu, a context menu, a drop-down or the calendar is
   open; the controls drawn under it are "covered": they leave the Tab order and sense only
   hovers, so neither a screen reader's click (egui takes AccessKit's `Click` for a real one) nor
@@ -975,3 +985,8 @@ Unit tests don't cover the UI. After visual or interaction changes:
   a maintainer asks. Run by hand (`workflow_dispatch`), the release workflow builds only the
   signed Google Play test files of a branch as a run artifact, without a tag or a release
   (`android/README.md`, "Version codes, and the release"); starting it is a maintainer's call too.
+- **Before a Google Play release**, run the device scenarios (`tests/device/README.md`) on a
+  phone with the build to be released: on pc_010 through adb (`pwsh -File tests/device/run.ps1
+  -Serial <serial> -Package <application id> -Out target/device-results.md`), or through Marionet
+  with the README's agent prompt. Attach the result table to the release's pull request or
+  task; a failed step blocks the release until it's understood.
