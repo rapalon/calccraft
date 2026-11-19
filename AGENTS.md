@@ -79,6 +79,8 @@ src/app/orientation.rs   the Android screen orientation setting: choices, stored
                          `setRequestedOrientation` values, where Android honors them (pure)
 src/app/layout_tests.rs  the layouts at the Android screen sizes, and a software rasterizer that
                          paints them into target/shots/ (`write_layout_shots`, ignored)
+src/app/a11y_tests.rs    the accessibility tree through AccessKit's consumer: bounds of every node,
+                         the graph's node, a focus that is always in the tree
 src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
@@ -841,6 +843,11 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   used, which is why covered controls take another id. egui never scrolls to the focused widget
   on its own, and `gained_focus` is false after an arrow key, so `access::control` scrolls when
   the focused control isn't fully visible.
+- **Focus and AccessKit:** a `request_focus` for a widget that isn't drawn in that frame (a new
+  Graphing box) makes egui name a focus without a node, and AccessKit's consumer panics on that
+  tree: it ended the Android app. `access::settle_focus` (end of `App::ui`) moves such a focus to
+  the next frame; keep it last. A text that isn't a control (`access::text`) sets its own
+  bounds: egui gives them only to interactive widgets, and Android drops nodes without them.
 - egui's text layout has no bidirectional text and no shaping. `strings::UNSUPPORTED` lists the
   languages it can't draw (Arabic, Hebrew, the Indic scripts, …); CJK, Thai and Amharic need the
   Windows font from `strings::script_font`, which `setup_fonts` loads.

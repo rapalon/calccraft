@@ -1,7 +1,8 @@
 # A copy of accesskit_winit 0.32.2 (https://github.com/AccessKit/accesskit, Apache-2.0: see
 # LICENSE-APACHE) with one change, in src/platform_impl/android.rs: the Android adapter hooks
-# NativeActivity's content view instead of GameActivity's surface view, and does nothing below
-# Android 8.0 (android/README.md, "Accessibility"). `[patch.crates-io]` in the root Cargo.toml
+# NativeActivity's content view instead of GameActivity's surface view, does nothing below
+# Android 8.0, and gives the root bounds and every update a focus in the tree (root_bounds.rs,
+# focus_guard.rs; android/README.md, "Accessibility"). `[patch.crates-io]` in the root Cargo.toml
 # puts it in place of the crates.io release for every platform, so the version must stay the
 # one egui-winit asks for; tests/vendor.rs checks that. The release's examples and
 # dev-dependencies aren't carried over. The manifest is the release's Cargo.toml.orig with the

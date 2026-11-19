@@ -24,5 +24,7 @@ Android adapter differs from the release: `src/platform_impl/android.rs` works w
 view, does nothing on Android versions before 8.0, where `accesskit_android` can't load its
 Java delegate, logs where the delegate went, and gives the tree's root node the window's
 bounds (the new `src/platform_impl/root_bounds.rs`, declared in `src/platform_impl/mod.rs`).
-The file's header says so. Everything else is the release's code; the examples
+It also keeps every update's focus in the tree, where `accesskit_consumer` would panic (the
+new `src/platform_impl/focus_guard.rs`), and turns itself off instead of ending the app if
+the adapter panics all the same. The file's header says so. Everything else is the release's code; the examples
 and dev-dependencies aren't carried over. See `android/README.md`, "Accessibility".

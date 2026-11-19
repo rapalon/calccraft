@@ -371,8 +371,34 @@ the device: the accessibility services run on the phone.
   window's rectangle (`src/platform_impl/root_bounds.rs`, tested in `tests/vendor.rs`). egui's
   root has none, so the content view's node was 0 × 0 (`bounds="[0,0][0,0]"` in a uiautomator
   dump), and a service that drops empty nodes with their children (Marionet did) saw one
-  empty Group instead of the keys. Everything else, and the desktop builds, are the unchanged
-  upstream code.
+  empty Group instead of the keys. And every tree update passes a focus guard
+  (`src/platform_impl/focus_guard.rs`, tested in `tests/vendor.rs`) before `accesskit_consumer`
+  gets it: the consumer panics on an update whose focus isn't a node of the tree ("Focused ID …
+  is not in the node list"), so the guard gives such a focus to the root and logs one warning,
+  and a panic in the adapter all the same turns the adapter off (no tree any more) instead of
+  ending the app. Everything else, and the desktop builds, are the unchanged upstream code.
+- **The focus in the tree.** egui names the widget that has the keyboard focus as the tree's
+  focus even in the frame before the widget is drawn (a `request_focus` keeps it for a frame),
+  and that widget has no node yet. The Graphing keypad's ↵ (Submit) does that: it adds a box and
+  focuses it, as Windows does, and the box is drawn in the next frame. With a service reading the
+  tree, the consumer panicked on that frame and the app ended (`Focused ID #812028608375119981`,
+  the new box's text edit). The app keeps its focus in the tree itself: at the end of a frame, a
+  focus on a widget that wasn't drawn waits for the next frame (`access::settle_focus` in
+  `src/app/access.rs`; `src/app/a11y_tests.rs` taps Submit and feeds every frame's tree to the
+  consumer). The guard above is for whatever else would do the same.
+- **A panic ends the process.** android-activity runs `android_main` on its own thread and
+  catches a panic there, which ended that thread but left the process running, and Android's
+  next start of the activity in the same process then failed (`EventLoop can't be recreated`:
+  winit allows one event loop per process). `android_main` catches the panic itself, logs
+  `CalcCraft ends after the panic above` and ends the process, as it does when the event loop
+  ends, so the next start gets a new process.
+- **Bounds for every node.** egui gives bounds only to the nodes of interactive widgets, so the
+  display and the expression line (`access::text`) set their own rectangles: without them
+  Android showed them at `[0,0][0,0]` and services that drop empty nodes lost the result. The
+  graph is a canvas node named as in Windows (`Graph viewing window, … displaying 2
+  equations`), with the graphed equations, one a line, as its value (Android's `text`).
+  `src/app/a11y_tests.rs` checks that every node an adapter shows in the Graphing mode has
+  finite bounds that aren't empty, on the Android screen sizes.
 - **Its log lines.** `adb logcat -s CalcCraft` shows, once each, where the delegate went
   (`AccessKit: the accessibility delegate goes on android.app.NativeActivity$NativeContentView{…}`),
   when a service first asked for the tree, and the first tree update (`… N nodes, the root in a
@@ -394,8 +420,9 @@ the device: the accessibility services run on the phone.
   that fails too). Re-apply the patch: copy the new release from
   `~/.cargo/registry/src/*/accesskit_winit-<version>/` over `vendor/accesskit_winit` (its
   `Cargo.toml` without the examples and dev-dependencies, which the copy doesn't carry), put
-  the same changes into `src/platform_impl/android.rs` (and `mod.rs`'s `root_bounds` line)
-  again, keep `root_bounds.rs`, and update the version in the file's header.
+  the same changes into `src/platform_impl/android.rs` (and `mod.rs`'s `root_bounds` and
+  `focus_guard` lines) again, keep `root_bounds.rs` and `focus_guard.rs`, and update the
+  version in the file's header.
 - **Checking it on a phone.** `adb shell uiautomator dump` writes the tree Android sees
   (`/sdcard/window_dump.xml`): under NativeContentView, which has the window's bounds, the keys
   appear as `android.widget.Button` nodes with their names as `content-desc`, the display as a
