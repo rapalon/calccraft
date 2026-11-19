@@ -290,9 +290,9 @@ while building them, each the simplest one and the closest to typing the number 
   line (the `+` of `8 + 3 =` that a repeated `=` writes after `5 + 3 =`, the `×` of `2(3)`).
 - **Where a tap puts the caret** (2026-11-18, found through Marionet on the Pixel: a tap at the
   centre of `Number 7` in `12 + 7 × 3 =`, then ⌫ and 9, gave `97`, not `9`). A tap on a number
-  of the line goes to the nearest digit boundary, but a number of one character has only its
-  start and its end, and its centre is a tie that the font and the rounding to the screen's
-  pixels decide. So a tap anywhere on a one-character number puts the caret after it: a finger
+  of the line goes to the nearest digit boundary, but a number of one digit (`7`, `-7`) has only
+  its start and its end, and its centre is a tie that the font and the rounding to the screen's
+  pixels decide. So a tap anywhere on a one-digit number puts the caret after it: a finger
   can't aim at one side of a digit, and after it is where typing goes on, as at the end of the
   number being typed. A longer number keeps the nearest boundary, so a finger can still go
   between its digits. A screen reader's or an accessibility service's click on a number's node

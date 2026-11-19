@@ -21,7 +21,7 @@ result table to the release (AGENTS.md, "Git and pull requests").
 | --- | --- |
 | `basic-calculations` | 7 + 8, 9 × 6, 100 − 37, √144, 25², 81 ÷ 9, 3.5 × 4, 999 + 1, 50 ÷ 8, 12 × 12 in the Standard mode |
 | `scientific-precedence` | 12 + 7 × 3 = 33 in the Scientific mode, and its expression line |
-| `token-edit` | the expression line's parts as nodes: `Number 7` edited into 9 gives 39, `Operator +` changed into − gives −15 |
+| `token-edit` | the expression line's parts as nodes: `Number 7` tapped at its centre (the caret goes after the 7), ⌫ and 9 give 39, `Operator +` changed into − gives −15 |
 | `graphing-three-equations` | x^2, sin(x) and 2x+1 typed on the Graphing keypad (its Trigonometry menu too) and submitted; the graph's node says `displaying 3 equations` |
 | `length-converter` | a typed value in the Length converter |
 | `mode-switching` | the navigation menu opens every kind of page, and the Standard mode still calculates after them |

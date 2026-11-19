@@ -226,6 +226,11 @@ fn tap(ctx: &Context, app: &mut CalculatorApp, screen: &Screen, name_of: &str) {
         .unwrap_or_else(|| panic!("{}: no node named {name_of:?}", screen.name));
     let b = node.bounding_box().unwrap();
     let at = pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32);
+    tap_at(ctx, app, screen, at);
+}
+
+/// A pointer tap at `at`, then a frame to settle.
+fn tap_at(ctx: &Context, app: &mut CalculatorApp, screen: &Screen, at: Pos2) {
     let press = |pressed| egui::Event::PointerButton {
         pos: at,
         button: egui::PointerButton::Primary,
@@ -449,6 +454,95 @@ fn expression_parts_are_nodes_that_a_click_edits() {
     click(&ctx, &mut app, screen, "Minus");
     click(&ctx, &mut app, screen, "Equals");
     assert_eq!(app.scientific.calc.display(), "-15");
+}
+
+/// Marionet's path to a part of the expression line: its node says `clickable="false"`, so it
+/// taps the centre of the node's bounds (rounded to the phone's pixels) instead of clicking it.
+/// A tap anywhere on the one-digit `Number 7` puts the caret after the 7, so ⌫ and 9 make it
+/// 9 and the result 39 (on the Pixel the caret went before it: `97`). A longer number keeps the
+/// nearest digit boundary. docs/research/editable-expression.md, "Where a tap puts the caret".
+#[test]
+fn a_tap_on_a_one_digit_number_puts_the_caret_after_it() {
+    // The Pixel's 2.625 physical pixels a point: Marionet's integer pixels, back in points.
+    let pixel = |v: f64| ((v * 2.625).floor() / 2.625) as f32;
+    for screen in &SCREENS {
+        for (where_, fraction) in [
+            ("left", 0.1),
+            ("centre", 0.5),
+            ("pixel centre", -1.0),
+            ("right", 0.9),
+        ] {
+            let ctx = Context::default();
+            let mut app = settled(&ctx, Mode::Scientific, screen);
+            for key in [
+                "One",
+                "Two",
+                "Plus",
+                "Seven",
+                "Multiply by",
+                "Three",
+                "Equals",
+            ] {
+                click(&ctx, &mut app, screen, key);
+            }
+            let page = format!("{}: a tap at the {where_} of Number 7", screen.name);
+            let node_box = |app: &mut CalculatorApp, name_of: &str| {
+                let tree = tree(&ctx, app, screen);
+                let mut nodes = Vec::new();
+                shown(&tree.state().root(), &mut nodes);
+                find(&nodes, name_of)
+                    .unwrap_or_else(|| panic!("{page}: no {name_of:?}"))
+                    .bounding_box()
+                    .unwrap()
+            };
+            let b = node_box(&mut app, "Number 7");
+            let y = ((b.y0 + b.y1) / 2.0) as f32;
+            let x = if fraction < 0.0 {
+                pixel((b.x0 + b.x1) / 2.0)
+            } else {
+                (b.x0 + (b.x1 - b.x0) * fraction) as f32
+            };
+            tap_at(&ctx, &mut app, screen, pos2(x, y));
+            let edit = app.scientific.calc.number_edit().expect(&page);
+            assert_eq!(edit.text, "7", "{page}");
+            assert_eq!(edit.caret.index, 1, "{page}: the caret is before the 7");
+            for key in ["Backspace", "Nine"] {
+                click(&ctx, &mut app, screen, key);
+            }
+            assert!(
+                names(&ctx, &mut app, screen).iter().any(|n| n
+                    .starts_with("Expression is 12 + 9 × 3 =")
+                    && n.ends_with("Editing 9")),
+                "{page}: {:?}",
+                names(&ctx, &mut app, screen)
+            );
+            click(&ctx, &mut app, screen, "Equals");
+            assert_eq!(app.scientific.calc.display(), "39", "{page}");
+        }
+        // A longer number keeps the nearest boundary: its left edge is before the 1 of 12.
+        let ctx = Context::default();
+        let mut app = settled(&ctx, Mode::Scientific, screen);
+        for key in ["One", "Two", "Plus", "Seven", "Equals"] {
+            click(&ctx, &mut app, screen, key);
+        }
+        let tree = tree(&ctx, &mut app, screen);
+        let mut nodes = Vec::new();
+        shown(&tree.state().root(), &mut nodes);
+        let b = find(&nodes, "Number 12").unwrap().bounding_box().unwrap();
+        let at = pos2((b.x0 + 1.0) as f32, ((b.y0 + b.y1) / 2.0) as f32);
+        tap_at(&ctx, &mut app, screen, at);
+        let edit = app.scientific.calc.number_edit().unwrap();
+        assert_eq!(
+            (edit.text.as_str(), edit.caret.index),
+            ("12", 0),
+            "{}",
+            screen.name
+        );
+        // A click on its node puts the caret at its end.
+        click(&ctx, &mut app, screen, "Number 12");
+        let edit = app.scientific.calc.number_edit().unwrap();
+        assert_eq!(edit.caret.index, 2, "{}", screen.name);
+    }
 }
 
 // ------------------------------------------------------------------ device scenarios

@@ -1902,8 +1902,10 @@ impl CalculatorApp {
             (line_rect.top() - 6.0)..=(line_rect.bottom() + 4.0),
         );
         let tap = ui.interact(tap_area, Id::new("expression-caret"), Sense::CLICK);
-        // A screen reader's or an accessibility service's click on a part's node is a tap at
-        // the part's end.
+        // A screen reader's or an accessibility service's click on a part's node puts the caret
+        // at the number's end (docs/research/editable-expression.md, "Where a tap puts the
+        // caret").
+        let by_click = clicked.is_some();
         let (hit, index) = if let Some((range, at)) = clicked {
             let end = range.end;
             (Some((range, at)), end)
@@ -1945,9 +1947,17 @@ impl CalculatorApp {
         }
         if let Some(edit) = calc.number_edit() {
             let number: String = text.chars().skip(range.start).take(range.len()).collect();
-            let stops =
-                caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
-            let caret = stops.nearest(index.saturating_sub(range.start));
+            // A one-digit number (`7`, `-7`) has only its start and its end, and a tap at its
+            // centre (an accessibility service's gesture on the node, or a finger) is a tie
+            // that the font and the pixel rounding decide: anywhere on it puts the caret after.
+            let one_digit = edit.mantissa.chars().count() == 1 && edit.exponent.is_none();
+            let caret = if by_click || one_digit {
+                caret::end(&edit.mantissa, edit.exponent.as_deref())
+            } else {
+                let stops =
+                    caret::Stops::new(&number, &decimal, &edit.mantissa, edit.exponent.as_deref());
+                stops.nearest(index.saturating_sub(range.start))
+            };
             calc.edit_operand(edit.item, Some(caret));
         }
         if let Some(id) = access::focused(ui.ctx()) {
