@@ -620,7 +620,8 @@ nothing changes until the display or the line is touched. The spec and every cho
   menu button for regular users (4 launches, 3 active days), a popup after 7 unseen days at a calm
   moment only (3 s without input after a successful `=`, focused, calculator mode, nothing open),
   under the display, an interval ladder (7, 14, 30, 60, 90 days), and pauses after Donate (180
-  days) or "I already supported" (365 days, shown only after a Donate click).
+  days) or "I already supported" (365 days, shown only after a Donate click, and never in
+  `play-free`, which has no self-declared supporter state: `self_declared_support`).
 - Everything lives in `src/support/`; the rest of the app has only thin hooks behind
   `#[cfg(feature = "support-prompt")]` (`begin_frame`, `after_command`, `note_display`,
   `draw_menu_badge`, `draw_menu_button`, `draw_overlay`, `new`/`save`). Don't put support logic
@@ -638,8 +639,10 @@ nothing changes until the display or the line is touched. The spec and every cho
   section 8): the default has the donate link; the Google Play builds have none, as Play's
   Payments policy requires. `play-free` leads the popup's button ("Get CalcCraft Pro") to the
   paid app's Play listing, named by `CALCCRAFT_PAID_ID` at build time (`option_env!`), and
-  hides the whole prompt without it; `play-paid` shows no prompt, only "Supported by you".
-  `SupportPolicyConfig::prompt` carries the mode into the pure policy. Keep `DONATE_URL` and
+  hides the whole prompt without it, and never has "I already supported" or "Supported by
+  you" (a user there bought Pro or didn't); `play-paid` shows no prompt, only "Supported by
+  you". `SupportPolicyConfig::prompt` and `self_declared_support` carry this into the pure
+  policy. Keep `DONATE_URL` and
   anything Stripe under `#[cfg(not(any(feature = "play-free", feature = "play-paid")))]`:
   `build-apk.ps1` fails a Play build whose library contains them. `android/README.md` has the
   commands (`-Channel`, `-PaidApplicationId`).

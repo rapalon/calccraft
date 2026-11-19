@@ -1425,7 +1425,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Semi-transparent amber card floats over the calculator without blocking keyboard typing.
   - Dismissible via close button ("X") or Escape key.
   - "Donate" opens `DONATE_URL` with Stripe UTM parameters and a coarse `client_reference_id`.
-  - "I already supported" shows only after a Donate click, thanks, and pauses reminders.
+  - "I already supported" shows only after a Donate click, thanks, and pauses reminders. It is
+    only in the default channel: the free Play app (`play-free`) never shows it and has no
+    supporter state, even with one stored by 1.4.4 (a user there bought Pro or didn't).
   - Supporter state: for the 365 days after "I already supported" the menu shows a quiet green
     line, "Supported by you" followed by a green heart, instead of the amber button; it wraps in
     narrow menus, is a focusable button that opens the popup without touching the pause, and the
@@ -1439,7 +1441,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Compiles cleanly and tests pass with `--no-default-features`.
   - Google Play channels (docs/support-prompt.md, section 8), Cargo features with no donate link
     in the binary: `play-free` leads "Get CalcCraft Pro" to the paid app's Play listing
-    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all); `play-paid` shows no prompt, only
+    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all), with no "I already supported"
+    and no "Supported by you"; `play-paid` shows no prompt, only
     "Supported by you". Both share the bare `SHARE_URL`.
 - **Differences:** Windows Calculator has no support prompt.
 
@@ -1560,3 +1563,4 @@ Windows source in `../win-calculator`.
 | 2026-11-18 | Claude Code | `FEAT-SHELL-013` | The expression line's computed numbers (carried-over results, `%`'s value, MR) are editable as literals in place of the steps that computed them, and its binary operators can be selected and replaced by the next operator key, replayed with each mode's precedence; no cascade into later history entries; "Selected operator %1" in all 50 languages (Konst's `10 + 2 = 12 + 4 = 16 ÷ 4` test) |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-006` | Android accessibility: the AccessKit tree reaches TalkBack and accessibility services (Marionet, `uiautomator`) through eframe's `accesskit` feature and `accesskit_android`, on NativeActivity's content view via a patched copy of `accesskit_winit` 0.32.2 (`vendor/accesskit_winit`, `[patch.crates-io]`; upstream only hooks GameActivity, whose AppCompat chain the Gradle-less build can't carry); below Android 8.0 the adapter is skipped with a log line, so minSdk stays 24 |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014`, `FEAT-SHELL-012` | CalcCraft 1.4.4: colour themes (Classic; Pro: Gold with a metallic `=`, Night, Retro LCD, Paper), unlocked in the default channel and in CalcCraft Pro (default Gold), locked with a PRO pill that opens Pro's Play listing in the free Play app; "Get CalcCraft Pro" in About (play-free); the Play builds always name `com.rapalon.calccraft.pro` (1.4.3's free build had no paid ID, so its support prompt was hidden); Pro's own launcher icon |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-012` | `play-free`: no "I already supported" button and no supporter state ("Supported by you"), not even one stored by 1.4.4: a user of the free Play app either bought CalcCraft Pro or didn't (`SupportPolicyConfig::self_declared_support`, `channel::self_declared_support`) |
