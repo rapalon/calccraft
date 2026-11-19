@@ -228,12 +228,13 @@ def write_android():
 
 
 # android/res-pro/values/colors.xml when it doesn't exist yet; its colour is then sampled.
+# No double hyphen in the comment: XML forbids it there, and aapt2 refuses the file.
 PRO_COLORS = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- CalcCraft Pro's launcher icon background, sampled from
-         android/icon-source/pro/calccraft-pro-icon-512.png by tools/app-icon.py --pro, which
-         rewrites this value. build-apk.ps1 lays android/res-pro/ over android/res/ for the
-         play-paid app only. -->
+         android/icon-source/pro/calccraft-pro-icon-512.png by tools/app-icon.py in its Pro
+         mode, which rewrites this value. build-apk.ps1 lays android/res-pro/ over
+         android/res/ for the play-paid app only. -->
     <color name="ic_launcher_background">#000000</color>
 </resources>
 """
