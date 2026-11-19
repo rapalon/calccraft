@@ -260,6 +260,13 @@ nothing changes until the display or the line is touched. The spec and every cho
   opening one loads `strings::LIST_FONTS` (`all_scripts`), which go again with the page.
   The Regional format card is left out where `region::regions()` is empty (Android, Linux,
   macOS: only "Use system setting", which changes nothing there; `show_region_card`).
+- The Expression size card (`SettingsList::ExpressionSize`, `app/expression_size.rs`,
+  CalcCraft's own) comes right after App theme in every build: Small (Windows' 14 px, the
+  default, exactly the old look), Medium, Large and Extra large, saved as
+  `CalcCraftExpressionSize` and kept in `CalculatorApp::expression_size`.
+  `draw_expression_line` draws the line at that size (8/7 of it while a part is edited), with a
+  48 px tap area at Large and up; `draw_display_sized` moves the line up into the room above
+  it, then the result down (shrinking it if it must), so the two never overlap.
 - The Android app alone has a Key vibration card after Language (`draw_vibration_card`): a
   strength slider from 1 to 100, a Style drop-down (`SettingsList::VibrationStyle`: Off,
   Auto, Click, Pulse, Heavy click; Off hides the sliders, and a stored strength of 0 from

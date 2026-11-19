@@ -510,6 +510,12 @@ mod tests {
             "CalcCraft.Edit",
             "CalcCraft.EditingNumber",
             "CalcCraft.SelectedOperator",
+            "CalcCraft.ExpressionSize",
+            "CalcCraft.ExpressionSizeDescription",
+            "CalcCraft.ExpressionSizeSmall",
+            "CalcCraft.ExpressionSizeMedium",
+            "CalcCraft.ExpressionSizeLarge",
+            "CalcCraft.ExpressionSizeExtraLarge",
         ];
         for language in languages() {
             let table = parse(own(language));
