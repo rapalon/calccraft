@@ -1,10 +1,9 @@
 # CalcCraft's pages on rapalon.com
 
 > **Draft for Konst's review, not legal advice.** `TERMS.md` was written for CalcCraft Pro's
-> Play listing on November 19, 2026, and has not been reviewed by a lawyer. Before it goes
-> live: choose the governing law (the placeholder
-> `[GOVERNING LAW — Konst to decide: Delaware or California]` in its "Governing law" section),
-> and have the whole text checked.
+> Play listing on November 19, 2026, and has not been reviewed by a lawyer. Its governing law
+> is Delaware (Konst's choice of November 19, 2026), with no venue or arbitration clause
+> beyond "courts of competent jurisdiction". Have the whole text checked before it goes live.
 
 This repository is the source of truth for CalcCraft's pages on the Rapalon Labs website:
 

@@ -114,7 +114,10 @@ app's repository, whose history keeps every dated revision.
 
 ## Governing law
 
-[GOVERNING LAW — Konst to decide: Delaware or California]
+These terms are governed by the laws of the State of Delaware, USA, without regard to its
+conflict-of-law rules. Any dispute about them or about CalcCraft goes to the courts of competent
+jurisdiction. If you are a consumer, you keep the protections that the mandatory laws of the
+country where you live give you.
 
 ## Contact
 
