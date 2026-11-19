@@ -87,7 +87,11 @@ src/app/a11y_tests.rs    the accessibility tree through AccessKit's consumer: bo
                          device scenarios run on the host (`device_scenarios_pass_on_the_host`)
 tests/device/            device tests by accessible name: scenarios/*.json, run.ps1 (adb and
                          uiautomator, `-SelfTest` in CI), README.md (the steps, the Marionet prompt)
-src/app/palette.rs       the dark and light color palettes (`DARK`, `LIGHT`)
+src/app/palette.rs       the color palettes: Classic's `DARK` and `LIGHT`, and every colour theme's
+                         (`THEMES`, `ThemeSpec`; Gold's `Metal` key), with contrast tests
+src/app/color_theme.rs   the Colour theme setting: themes, stored keys, gating by channel (pure)
+src/channel.rs           the distribution channel (Cargo features `play-free`, `play-paid`) and
+                         the paid app's ID (`CALCCRAFT_PAID_ID`), in every build
 src/app/math_label.rs    the keys' formula labels (x², ²√x, xʸ …): measured layout, vector radical
 src/app/share.rs         the graph's share: Windows' share sheet (`IDataTransferManagerInterop`),
                          Android's (one cached PNG for android/java's ShareProvider), or a
@@ -262,6 +266,20 @@ nothing changes until the display or the line is touched. The spec and every cho
   opening one loads `strings::LIST_FONTS` (`all_scripts`), which go again with the page.
   The Regional format card is left out where `region::regions()` is empty (Android, Linux,
   macOS: only "Use system setting", which changes nothing there; `show_region_card`).
+- The Colour theme card (CalcCraft's own, right under App theme; `docs/color-themes.md`) picks a
+  `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD and
+  Paper, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
+  `palette::THEMES` with its dark and light `Palette` (most built with struct update from
+  `DARK` / `LIGHT`) and the egui theme it fixes (Night dark; Paper and Retro LCD light), which
+  overrides App theme's preference while it is on. Gold's `=` is a `Metal` gradient
+  (`paint_metal_key`). A new theme is a palette, a `ThemeSpec` and a label string; the palette
+  tests check its contrast. **The rule:** the default channel (GitHub, F-Droid, desktops, web;
+  open source with Donate) unlocks every theme, default Classic; `play-paid` (CalcCraft Pro)
+  unlocks every theme, default Gold; `play-free` shows the Pro themes locked with a PRO pill
+  that opens Pro's Play listing (`open_pro_listing`), or hides them without
+  `CALCCRAFT_PAID_ID`; a stored theme the build doesn't unlock loads as Classic. No in-app
+  purchase, licence check or network. The channel is `crate::channel` (compiled in every
+  build; `support::channel` re-exports it).
 - The Expression size card (`SettingsList::ExpressionSize`, `app/expression_size.rs`,
   CalcCraft's own) comes right after App theme in every build: Small (Windows' 14 px, the
   default, exactly the old look), Medium, Large and Extra large, saved as
