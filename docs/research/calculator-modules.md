@@ -4,25 +4,25 @@ Status: research only, written 2026-11-18 for Mission Control task 58afde9d from
 at 0517cd1 (CalcCraft 1.4.2). Nothing in the product changed. The code references below
 (`src/app.rs:547` and the like) are to that commit.
 
-## Краткое резюме (по-русски)
+## Summary
 
-Добавлять новые калькуляторы (химический, биологический и другие) как отдельные Rust-крейты
-можно, и в архитектуре CalcCraft для этого почти всё уже есть: каждый режим — это своё
-состояние плюс функции отрисовки и клавиатуры, которые `app.rs` вызывает по значению `Mode`.
-Мешает только то, что список режимов зашит в перечисление `Mode` и примерно в двенадцать мест
-кода (меню, сохранение, клавиатура, строки, тесты); рефакторинг сводит их к одному реестру
-модулей и трейту `CalcModule` в небольшом крейте `calccraft-module-api`. Модули надо
-линковать статически через Cargo-features, а не подгружать как плагины: у Rust нет стабильного
-ABI, в браузере (wasm) и на Android динамическая загрузка кода либо невозможна, либо запрещена
-правилами Google Play, а размер модуля (десятки–сотни килобайт) на фоне 23 МБ exe и 11 МБ wasm
-несущественен. Платная версия Pro получает модули через feature `pro`, которую включает
-`play-paid`; бесплатная сборка их не содержит вовсе, как сегодня не содержит ссылку на донат.
-Рекомендую начать с химического модуля (молярная масса по формуле, стехиометрия и
-уравнивание реакций, разведение C1V1=C2V2, pH, газовые законы), а вторым сделать
-биологический/лабораторный (разведения, плотность клеток, ПЦР, молярность ДНК и белков,
-Харди–Вайнберг): у них общая «лабораторная» основа, данные общедоступны (атомные массы IUPAC —
-факты, не защищённые авторским правом), и это две разные аудитории студентов. Рефакторинг —
-примерно 5–8 агенто-дней в 4 задачах, первый модуль — ещё 8–12 агенто-дней в 3–4 задачах.
+New calculators (chemistry, biology and others) can be added as separate Rust crates, and
+CalcCraft's architecture is nearly ready for it: every mode is a state struct plus drawing and
+keyboard functions that `app.rs` calls by the value of `Mode`. What stands in the way is only
+that the list of modes is hard-wired into the `Mode` enum and about twelve places of the code
+(menu, persistence, keyboard, strings, tests); a refactor reduces them to one module registry
+and a `CalcModule` trait in a small `calccraft-module-api` crate. Modules should be linked
+statically through Cargo features, not loaded as plugins: Rust has no stable ABI, in the
+browser (wasm) and on Android dynamic code loading is either impossible or forbidden by Google
+Play's policies, and a module's size (tens to hundreds of kilobytes) is nothing next to the
+23 MB executable and the 11 MB wasm. The paid Pro edition gets the modules through a `pro`
+feature that `play-paid` turns on; the free build doesn't contain them at all, just as it
+contains no donate link today. The recommendation is to start with a chemistry module (molar
+mass from a formula, stoichiometry and equation balancing, dilution `C1V1 = C2V2`, pH, gas laws)
+and make biology/lab the second (dilutions, cell density, PCR, molarity of DNA and proteins,
+Hardy–Weinberg): they share a "lab" core, their data is free (IUPAC atomic weights are facts,
+not copyrightable), and they serve two different student audiences. The refactor is about 5–7
+agent-days in four tasks, the first module another 8–12 agent-days in three or four tasks.
 
 **Verdict in one line:** feasible on every platform with a static, feature-gated module
 registry; recommended first modules for the Pro edition: Chemistry, then Biology/lab.
