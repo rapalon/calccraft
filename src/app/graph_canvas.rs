@@ -91,7 +91,7 @@ impl CalculatorApp {
         let p = self.palette;
         let ctx = ui.ctx().clone();
         let dark = ctx.theme() == egui::Theme::Dark;
-        let gp: &GraphPalette = self.graphing.graph_palette(dark);
+        let gp: &GraphPalette = self.graphing.graph_palette(dark, p);
         let (w, h) = (rect.width().max(1.0), rect.height().max(1.0));
         self.graphing.graph_size = (w, h);
         let values = self.graphing.values();
@@ -790,7 +790,7 @@ impl CalculatorApp {
     fn share_graph(&mut self, ctx: &egui::Context, image: ColorImage) {
         let gp = self
             .graphing
-            .graph_palette(ctx.theme() == egui::Theme::Dark);
+            .graph_palette(ctx.theme() == egui::Theme::Dark, self.palette);
         let equations: Vec<(String, Color32)> = self
             .graphing
             .rows

@@ -54,13 +54,14 @@ jobs:
         run: tests/device/run.ps1 -SelfTest
 
       # The Google Play channels (docs/support-prompt.md, section 8) build the support prompt
-      # differently: their own tests, with and without the paid app's ID.
+      # and the colour themes (docs/color-themes.md) differently: their own tests, with and
+      # without the paid app's ID.
       - name: Test the Google Play channels
         if: runner.os == 'Linux'
         run: |
-          cargo test --lib --features play-free support
-          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free support
-          cargo test --lib --features play-paid support
+          cargo test --lib --features play-free -- support color_theme palette
+          CALCCRAFT_PAID_ID=com.rapalon.calccraft.pro cargo test --lib --features play-free -- support color_theme palette
+          cargo test --lib --features play-paid -- support color_theme palette
 
   licenses:
     name: licenses (cargo-deny)

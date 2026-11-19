@@ -3,6 +3,7 @@
 
 mod app;
 mod brand;
+pub mod channel;
 mod converter;
 mod dates;
 mod engine;

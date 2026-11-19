@@ -23,7 +23,7 @@ use super::icons::{
     ICON_LIGHTNING, ICON_MULTIPLY, ICON_PASTE, ICON_REMOVE, ICON_THEME, ICON_UNDO, ICON_VIEW,
     ICON_WARNING, icon_label,
 };
-use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH};
+use super::palette::{DARK_GRAPH, GraphPalette, LIGHT_GRAPH, Palette};
 use super::scientific_view::Sizes;
 use super::strings::{tr, tr_format};
 use super::{
@@ -591,9 +591,11 @@ impl GraphingState {
         self.variables.iter().map(|v| (v.name, v.value)).collect()
     }
 
-    /// The graph's colors for the effective app theme.
-    pub(super) fn graph_palette(&self, app_dark: bool) -> &'static GraphPalette {
-        if self.match_app_theme && app_dark {
+    /// The graph's colors for the effective app theme, or the colour theme's own (Night's).
+    pub(super) fn graph_palette(&self, app_dark: bool, p: &Palette) -> &'static GraphPalette {
+        if let Some(graph) = p.graph {
+            graph
+        } else if self.match_app_theme && app_dark {
             &DARK_GRAPH
         } else {
             &LIGHT_GRAPH
@@ -1208,7 +1210,7 @@ impl CalculatorApp {
         let ctx = ui.ctx().clone();
         let graph = self
             .graphing
-            .graph_palette(ctx.theme() == egui::Theme::Dark);
+            .graph_palette(ctx.theme() == egui::Theme::Dark, self.palette);
         let Some(index) = self.graphing.index_of(id) else {
             return;
         };
@@ -1912,7 +1914,7 @@ impl CalculatorApp {
         };
         let graph = self
             .graphing
-            .graph_palette(ui.ctx().theme() == egui::Theme::Dark);
+            .graph_palette(ui.ctx().theme() == egui::Theme::Dark, self.palette);
         let row = &self.graphing.rows[index];
         let color = graph.equations[row.color];
         let painter = ui.painter().clone();
@@ -2425,7 +2427,7 @@ impl CalculatorApp {
         };
         let graph = self
             .graphing
-            .graph_palette(ui.ctx().theme() == egui::Theme::Dark);
+            .graph_palette(ui.ctx().theme() == egui::Theme::Dark, self.palette);
         let full = ui.max_rect();
         // Seven 44 px swatches a row, smaller ones in the narrowest windows.
         let swatch = ((full.width() - 8.0 - 32.0) / 7.0).min(44.0);

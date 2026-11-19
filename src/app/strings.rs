@@ -516,6 +516,15 @@ mod tests {
             "CalcCraft.ExpressionSizeMedium",
             "CalcCraft.ExpressionSizeLarge",
             "CalcCraft.ExpressionSizeExtraLarge",
+            "CalcCraft.ColorTheme",
+            "CalcCraft.ColorThemeDescription",
+            "CalcCraft.ThemeClassic",
+            "CalcCraft.ThemeGold",
+            "CalcCraft.ThemeNight",
+            "CalcCraft.ThemeRetroLcd",
+            "CalcCraft.ThemePaper",
+            "CalcCraft.ProThemeLocked",
+            "CalcCraft.GetPro",
         ];
         for language in languages() {
             let table = parse(own(language));
@@ -539,7 +548,12 @@ mod tests {
             let ms = load(language).get("CalcCraft.KeyVibrationMilliseconds");
             assert_eq!(ms.matches("%1").count(), 1, "{language}");
             // And the edited number and the selected operator of the expression line.
-            for key in ["CalcCraft.EditingNumber", "CalcCraft.SelectedOperator"] {
+            // And the locked Pro theme's name.
+            for key in [
+                "CalcCraft.EditingNumber",
+                "CalcCraft.SelectedOperator",
+                "CalcCraft.ProThemeLocked",
+            ] {
                 let text = load(language).get(key);
                 assert_eq!(text.matches("%1").count(), 1, "{language} {key}");
             }
