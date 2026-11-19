@@ -413,9 +413,12 @@ the device: the accessibility services run on the phone.
 - **The expression line's parts.** The expression line is a text node (`Expression is 12 + 7 ×
   3 =`) with a child for each part that a tap edits (CalcCraft's own,
   docs/research/editable-expression.md): a number (typed or computed), `Number 7`, and a binary
-  operator, `Operator +`, each with its own bounds and `ACTION_CLICK`. A click does what a tap on
-  the part does: it puts the caret at the end of the number, or selects the operator, and the
-  line's name then says so (`…, Editing 7`, `…, Selected operator +`). Functions and
+  operator, `Operator +`, each with its own bounds and `ACTION_CLICK`. A click puts the caret at
+  the end of the number, or selects the operator, and the line's name then says so (`…, Editing
+  7`, `…, Selected operator +`). The nodes say `clickable="false"` like the keys, so Marionet
+  taps their centre instead: a tap anywhere on a one-character number puts the caret after it
+  too, while a tap on a longer one goes to the nearest digit boundary (so tap its right edge, or
+  use the click). Functions and
   parentheses have no node: a tap doesn't edit them. A part hidden by the line's `…` has none
   either.
 - **What's out of view.** egui gives a control its whole rectangle even where its scroll area
