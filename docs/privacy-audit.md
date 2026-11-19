@@ -23,6 +23,11 @@ together.
   `<application id>.share`) that serves one file read-only, `cache/share/graph.png`, to the app
   the user picks in the graph's share sheet. Nothing else can read it: the provider isn't
   exported, and Android grants the chosen app read access to that one URI only.
+- Since 2026-11-19 the library also carries AccessKit's Android adapter (`accesskit_android`,
+  Apache-2.0, through the patched `vendor/accesskit_winit`): one Java class, loaded from a dex
+  embedded in `libcalculator.so`, that describes the app's controls to TalkBack and other
+  accessibility services the user has turned on, on the device (`android/README.md`,
+  "Accessibility"). It reads nothing, stores nothing and sends nothing; no SDK, no network.
 - `android:allowBackup="true"` (`AndroidManifest.xml:12`): Android Auto Backup may copy the
   app's internal files (the settings file below) to the user's Google account backup and use
   them in a device-to-device transfer. That is Google's backup under the user's account; the

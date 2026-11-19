@@ -3,7 +3,9 @@
 CalcCraft as a native Android app: Android's `NativeActivity` loads the Rust library
 (`libcalculator.so`, see `src/lib.rs`), and eframe draws the same egui interface as on the
 desktop with OpenGL ES. The only Java code is the graph share's small `ContentProvider` (see
-"How it works"). `docs/mobile-apps-research.md` (on
+"How it works"). TalkBack and other accessibility services (and the automation agents built on
+them) get every control's name and the display's value from the same AccessKit tree as Narrator
+does on Windows (see "Accessibility"). `docs/mobile-apps-research.md` (on
 the `research/mobile-apps` branch) explains the choices and what a store release still needs.
 
 **Status:** builds for 64-bit ARM (`arm64-v8a`), Android 7.0 (API 24) and later, targeting
@@ -273,8 +275,9 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
 
 ## How it works
 
-- `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`) and
-  glow, as in egui's `hello_android` example, without wgpu and `arboard`.
+- `Cargo.toml` gives Android its own eframe: NativeActivity (`android-native-activity`), glow,
+  as in egui's `hello_android` example, and the screen reader support (`accesskit`, see
+  "Accessibility" below), without wgpu and `arboard`.
 - `AndroidManifest.xml`: the app handles every configuration change itself, since winit allows
   one event loop per process (so a rotation only resizes the window, and the input, history and
   mode stay); it fixes no screen orientation (Settings → Screen orientation picks it, see
@@ -340,12 +343,60 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   says `android:hasCode="true"`. No library, no download: both tools come with the JDK and
   the SDK the build already needs.
 
+## Accessibility: TalkBack and accessibility services
+
+The app's controls are described to screen readers through AccessKit on every platform
+(`src/app/access.rs`: Windows' `AutomationProperties.Name` for every key, the display as a live
+region, and so on). On Android, eframe's `accesskit` feature hands that tree to
+`accesskit_winit`, whose Android adapter (`accesskit_android`) installs a
+`View.AccessibilityDelegate` with an `AccessibilityNodeProvider` on the activity's view: TalkBack
+reads the display and the keys by name, swipes between them and double-taps to press, and any
+accessibility service (an automation agent such as Marionet, `uiautomator dump`) sees the
+same tree and can click a control by its name. Nothing is drawn differently, and nothing leaves
+the device: the accessibility services run on the phone.
+
+- **Why a patched `accesskit_winit`.** Upstream's Android adapter only knows
+  [GameActivity](https://developer.android.com/games/agdk/game-activity): it reads the activity's
+  `mSurfaceView` field. GameActivity itself extends `AppCompatActivity`, so an APK built on it
+  needs the whole AppCompat and Jetpack chain (about 25 libraries, their resources, a
+  `Theme.AppCompat` theme), which this Gradle-less build doesn't have. CalcCraft keeps
+  `NativeActivity` and ships a copy of `accesskit_winit` 0.32.2 in `vendor/accesskit_winit`
+  (Apache-2.0, its `LICENSE-APACHE` kept), which `[patch.crates-io]` in `Cargo.toml` puts in
+  place of the crates.io release for every platform. The only change is in
+  `src/platform_impl/android.rs`, whose header names the upstream version and the change: the
+  adapter's host is NativeActivity's content view (the window's decor view →
+  `android.R.id.content` → its one child), found through JNI. Everything else, and the desktop
+  builds, are the unchanged upstream code.
+- **Android 8.0 and later.** `accesskit_android` loads its Java delegate class from a dex it
+  embeds, through `dalvik.system.InMemoryDexClassLoader`, which exists from API 26. Upstream
+  creates the adapter unconditionally; the patched copy asks `Build.VERSION.SDK_INT` first
+  and, below 26, logs one line (`adb logcat -s CalcCraft`) and leaves the app without an
+  accessibility tree instead of crashing. That's why the minimum SDK stays 24.
+- **The direct dependency.** eframe's `accesskit` feature alone gives Android a no-op adapter:
+  the real one is behind `accesskit_winit`'s own `accesskit_android` feature, which egui-winit
+  doesn't pass on, so `Cargo.toml` names `accesskit_winit` with that feature for Android.
+- **Upgrading eframe.** A new eframe (egui-winit) wants a new `accesskit_winit`, and Cargo then
+  warns that the patch is unused (`cargo test` has a test, `vendored_accesskit_winit_matches_the_lockfile`,
+  that fails too). Re-apply the patch: copy the new release from
+  `~/.cargo/registry/src/*/accesskit_winit-<version>/` over `vendor/accesskit_winit` (its
+  `Cargo.toml` without the examples and dev-dependencies, which the copy doesn't carry), put
+  the same change into `src/platform_impl/android.rs` again, and update the version in the
+  file's header.
+- **Checking it on a phone.** `adb shell uiautomator dump` writes the tree Android sees
+  (`/sdcard/window_dump.xml`): the keys appear as `android.view.View` nodes with their names
+  as `content-desc` and `clickable="true"`, the display with its value as `text`. With
+  TalkBack on, swipe right through the keys, double-tap `1`, `2`, `×`, `3`, `=` and hear "Display
+  is 36"; drag a finger over the keypad (explore by touch) to hear the key under it. Hover
+  events reach the adapter only if NativeActivity passes them on to its view: that's the one
+  part of TalkBack that wasn't verified on a device when the patch was written.
+
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
 - Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
   no Regional format card (its list would be empty).
-- TalkBack: eframe's screen reader support needs GameActivity on Android.
+- TalkBack on Android 7 (API 24 and 25): the accessibility tree needs Android 8.0's
+  `InMemoryDexClassLoader` (see "Accessibility"); the app runs there without it.
 - The status bar's icons follow the phone's dark mode, not the app's own theme setting.
 - The graph's hover-only features (its buttons, tracing) have no touch alternative yet.
 - Google Play: the bundle builds (`-Bundle`), but the upload key, the Play Console listing
