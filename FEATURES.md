@@ -1502,7 +1502,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Description:** A Colour theme card under App theme: Classic (today's look), and the Pro
   themes Gold (a metallic gold `=` key, following Light/Dark), Night (dim red on near-black,
   always dark, graphs included), Retro LCD (greenish-grey LCD display, always light) and Paper
-  (cream and ink, always light), saved as `CalcCraftColorTheme`.
+  (cream and ink, always light), and from 1.4.5 AMOLED Black (pure #000000 everywhere, always
+  dark) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders and
+  semibold labels, always dark), saved as `CalcCraftColorTheme`.
 - **Rule (by channel):** the default channel (GitHub, F-Droid, desktops, web; open source with
   Donate) unlocks every theme, default Classic. `play-paid` (CalcCraft Pro) unlocks every theme,
   default **Gold**. `play-free` shows the Pro themes locked, with an oval PRO pill, and a tap
@@ -1510,10 +1512,13 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   doesn't unlock loads as Classic. No in-app purchase, no licence check, no network.
 - **Acceptance Criteria:**
   - Labels have at least 4.5:1 contrast in every palette, and the graph's equation colours stay
-    distinguishable (unit tests); Night has no blue and no white.
+    distinguishable (unit tests); Night has no blue and no white; AMOLED Black paints every
+    surface #000000; High Contrast keeps 7:1 (WCAG AAA) for all its text.
   - Locked items are named "Gold, Pro theme, locked, opens CalcCraft Pro on Google Play".
   - The new strings exist in all 50 languages.
-  - The free Play app has a quiet "Get CalcCraft Pro" link in About.
+  - The free Play app has a quiet "Get CalcCraft Pro" link in About; CalcCraft Pro has a quiet
+    "Thank you for supporting CalcCraft" line there instead (1.4.5).
+  - About links the Terms of Service in every build (1.4.5).
 - **Differences:** Windows Calculator has no colour themes.
 
 ---
@@ -1564,3 +1569,4 @@ Windows source in `../win-calculator`.
 | 2026-11-19 | Claude Code | `FEAT-SHELL-006` | Android accessibility: the AccessKit tree reaches TalkBack and accessibility services (Marionet, `uiautomator`) through eframe's `accesskit` feature and `accesskit_android`, on NativeActivity's content view via a patched copy of `accesskit_winit` 0.32.2 (`vendor/accesskit_winit`, `[patch.crates-io]`; upstream only hooks GameActivity, whose AppCompat chain the Gradle-less build can't carry); below Android 8.0 the adapter is skipped with a log line, so minSdk stays 24 |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014`, `FEAT-SHELL-012` | CalcCraft 1.4.4: colour themes (Classic; Pro: Gold with a metallic `=`, Night, Retro LCD, Paper), unlocked in the default channel and in CalcCraft Pro (default Gold), locked with a PRO pill that opens Pro's Play listing in the free Play app; "Get CalcCraft Pro" in About (play-free); the Play builds always name `com.rapalon.calccraft.pro` (1.4.3's free build had no paid ID, so its support prompt was hidden); Pro's own launcher icon |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-012` | `play-free`: no "I already supported" button and no supporter state ("Supported by you"), not even one stored by 1.4.4: a user of the free Play app either bought CalcCraft Pro or didn't (`SupportPolicyConfig::self_declared_support`, `channel::self_declared_support`) |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-014` | Two Pro colour themes, AMOLED Black (pure black everywhere, graphs included) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders, semibold labels, its own graph colours); About links the Terms of Service in every build, and CalcCraft Pro's About says "Thank you for supporting CalcCraft" |

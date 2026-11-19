@@ -271,12 +271,13 @@ nothing changes until the display or the line is touched. The spec and every cho
   The Regional format card is left out where `region::regions()` is empty (Android, Linux,
   macOS: only "Use system setting", which changes nothing there; `show_region_card`).
 - The Colour theme card (CalcCraft's own, right under App theme; `docs/color-themes.md`) picks a
-  `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD and
-  Paper, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
+  `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD,
+  Paper, AMOLED Black and High Contrast, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
   `palette::THEMES` with its dark and light `Palette` (most built with struct update from
-  `DARK` / `LIGHT`) and the egui theme it fixes (Night dark; Paper and Retro LCD light), which
+  `DARK` / `LIGHT`) and the egui theme it fixes (Night, AMOLED Black and High Contrast dark;
+  Paper and Retro LCD light), which
   overrides App theme's preference while it is on. Gold's `=` is a `Metal` gradient
-  (`paint_metal_key`). A new theme is a palette, a `ThemeSpec` and a label string; the palette
+  (`paint_metal_key`); High Contrast sets `key_border` (2 px) and `bold_keys`. A new theme is a palette, a `ThemeSpec` and a label string; the palette
   tests check its contrast. **The rule:** the default channel (GitHub, F-Droid, desktops, web;
   open source with Donate) unlocks every theme, default Classic; `play-paid` (CalcCraft Pro)
   unlocks every theme, default Gold; `play-free` shows the Pro themes locked with a PRO pill

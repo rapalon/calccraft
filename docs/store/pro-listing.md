@@ -1,4 +1,4 @@
-# CalcCraft Pro: Google Play listing (1.4.4)
+# CalcCraft Pro: Google Play listing (1.4.4, themes of 1.4.5)
 
 The store text for the paid app, `com.rapalon.calccraft.pro` (US$4.99, set in the Play
 Console), and the 1.4.4 release notes for both apps. English only (en-US). Play's limits: title
@@ -23,13 +23,13 @@ a bullet in the store. Counts are JavaScript's `String.length` of the block's te
 The precise calculator, with Gold, Night and more themes. No support popups.
 ```
 
-## Full description (1,981 characters)
+## Full description (2,143 characters)
 
 ```
 CalcCraft Pro is the supporter edition of CalcCraft: the same precise, ad-free calculator, with color themes of its own and no support reminders. Buying it keeps CalcCraft in development.
 
 WHAT PRO ADDS
-• Color themes. Gold, Pro's default: the familiar look with a polished gold equals key. Night: dim red on near-black, for using the calculator in the dark without losing your night vision, with no white and no blue anywhere, graphs included. Retro LCD: a greenish LCD display with dark digits. Paper: warm cream and ink. More themes will follow.
+• Color themes. Gold, Pro's default: the familiar look with a polished gold equals key. Night: dim red on near-black, for using the calculator in the dark without losing your night vision, with no white and no blue anywhere, graphs included. Retro LCD: a greenish LCD display with dark digits. Paper: warm cream and ink. AMOLED Black: pure black everywhere, so an OLED screen keeps those pixels off. High Contrast: white on black with yellow keys and thick outlines, for low vision. More themes will follow.
 • No support reminders, ever: no red dot, no popup.
 • You support an independent developer and future updates.
 
@@ -63,4 +63,21 @@ Welcome to CalcCraft Pro!
 ```
 • New in Settings: Color theme. Classic stays free; Gold, Night, Retro LCD and Paper come with CalcCraft Pro, the supporter edition on Google Play.
 • The support reminder now leads to CalcCraft Pro, and About has a link to it.
+```
+
+## Release notes, 1.4.5 (drafts: the 1.4.5 integration adds the regional-format changes)
+
+### CalcCraft Pro (176 characters)
+
+```
+• Two new color themes: AMOLED Black (pure black, easy on OLED screens) and High Contrast (white on black with yellow keys, for low vision).
+• About links the Terms of Service.
+```
+
+### CalcCraft, the free app (156 characters)
+
+```
+• Two more Pro color themes: AMOLED Black and High Contrast.
+• The support reminder no longer has "I already supported".
+• About links the Terms of Service.
 ```
