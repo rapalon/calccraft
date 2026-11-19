@@ -321,9 +321,9 @@ enum SettingsCard {
 /// theme), Language, Screen orientation where the app can choose
 /// it (the Android app, where Android honors it: `orientation::honored`), Key vibration where
 /// keys vibrate (the Android app), and Regional format where there are formats to choose. Where
-/// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
-/// setting", which changes nothing there: the formats are en-US until those systems' own are
-/// read.
+/// `region::regions()` is empty (Linux, macOS) its list would hold only "Use system setting",
+/// which changes nothing there: the formats are en-US until those systems' own are read
+/// (`docs/regional-formats.md`).
 fn settings_cards(orientation: bool, key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
     let mut cards = vec![SettingsCard::ExpressionSize, SettingsCard::Language];
     if orientation {
@@ -5722,7 +5722,7 @@ mod tests {
         );
         assert_eq!(
             cards.contains(&Region),
-            cfg!(any(windows, target_arch = "wasm32"))
+            cfg!(any(windows, target_arch = "wasm32", target_os = "android"))
         );
         assert_eq!(cards.contains(&KeyVibration), cfg!(target_os = "android"));
         assert_eq!(cards.contains(&Orientation), cfg!(target_os = "android"));

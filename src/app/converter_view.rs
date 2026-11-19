@@ -168,8 +168,9 @@ impl ConverterState {
 }
 
 /// The user's region (Windows Settings → Time & language → Language & region), which
-/// picks the default units as Windows' `GeographicRegion` does. `US` when unknown. The web
-/// version takes the country of the browser's regional format (`DE` for `de-DE`).
+/// picks the default units as Windows' `GeographicRegion` does. The web version takes the
+/// country of the browser's regional format (`DE` for `de-DE`), and the other systems the
+/// regional format's (the phone's on Android; en-US on Linux and macOS). `US` when unknown.
 fn user_region() -> String {
     #[cfg(target_arch = "wasm32")]
     if let Some(country) = super::web::country() {
@@ -186,7 +187,9 @@ fn user_region() -> String {
             return String::from_utf16_lossy(&name[..length as usize - 1]);
         }
     }
-    "US".to_string()
+    super::region::formats()
+        .country()
+        .unwrap_or_else(|| "US".to_string())
 }
 
 fn unit_picker_id(top: bool) -> Id {

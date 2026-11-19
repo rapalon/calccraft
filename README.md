@@ -85,7 +85,7 @@ Each one comes with a `.sha256` checksum.
 | **Windows 10 or 11** | `calculator-<version>-windows-x64.exe` | Just run it, there's no installer. The file isn't signed, so Windows may say it protected your PC: **More info → Run anyway**. |
 | **macOS** (Apple silicon & Intel) | `calculator-<version>-macos-universal.zip` | Unzip it and move `CalcCraft.app` to Applications. Universal 2 app for both Apple silicon and Intel Macs. It isn't notarized: open it the first time with right-click → **Open** (or run `xattr -dr com.apple.quarantine CalcCraft.app`). |
 | **Linux** (x64) | `calculator-<version>-linux-x64.tar.gz` | Unpack it and run `./calculator`. It needs X11 or Wayland and OpenGL, as any desktop has. |
-| **Android 7.0 or later** (64-bit ARM) | `calculator-<version>-android-arm64.apk` | Open it on your phone and allow installing apps from your browser or Files app. It's a preview: Copy, Paste, Share and regional formats are still missing. If it won't install over an earlier version, uninstall that one first. |
+| **Android 7.0 or later** (64-bit ARM) | `calculator-<version>-android-arm64.apk` | Open it on your phone and allow installing apps from your browser or Files app. It's a preview: Copy, Paste and Share are still missing. If it won't install over an earlier version, uninstall that one first. |
 
 CalcCraft is modeled on the Windows 11 Calculator, while fully supporting Windows, macOS, Linux,
 the web, and Android. On Windows, it uses Segoe UI (from your Windows installation), tints its
@@ -464,7 +464,7 @@ The same app also builds as a native Android app for 64-bit ARM phones and table
 and later): `pwsh android/build-apk.ps1` writes `target/android/CalcCraft-<version>-arm64.apk`,
 which installs with `adb install -r`. CI builds the same APK for every push (the run's
 `CalcCraft-android-arm64` artifact), and every release has one. It isn't in Google Play yet and
-still lacks the clipboard, Share and regional formats; [`android/README.md`](android/README.md)
+still lacks the clipboard and Share; [`android/README.md`](android/README.md)
 has the requirements and the details.
 
 ### Releasing
