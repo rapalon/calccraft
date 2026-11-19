@@ -113,8 +113,8 @@ carries these parameters:
   days since you first started the app (`d0-7`, `d7-30`, `d30-90`, `d90-365` or `d365p`).
 
 For example, version 1.3.2 on Android, opened by the reminder for the third time, 30 to 90
-days after the first start, adds `utm_medium=popup`, `utm_content=android_1-3-2` and
-`client_reference_id=cc_android_1-3-2_popup_c3_d30-90`.
+days after the first start, adds `utm_medium=popup`, `utm_content=android_1-3-2`, and `client_reference_id` with the
+value `cc_android_1-3-2_popup_c3_d30-90`.
 
 These values contain no name, no identifier of you or your device, and nothing you calculated.
 We use them only in aggregate, to see which reminders and platforms lead to donations. Stripe
