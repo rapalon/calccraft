@@ -481,14 +481,16 @@ pub(super) fn spec(theme: ColorTheme) -> &'static ThemeSpec {
         .unwrap_or(&THEMES[0])
 }
 
-/// Gold's `=`: polished gold, light at the top and deep at the bottom, with a warm white
-/// highlight and a darker rim, as on the Pro icon's gold key. The label is a dark brown that
-/// keeps 4.5:1 on every stop.
+/// Gold's `=`: the gold key of the Pro icon (android/icon-source/pro/calccraft-pro-icon-512.png),
+/// sampled from it: the key's mean colour from its upper to its lower bands (#E6C980 to
+/// #B99148), its sheen (#FFF3B8, the lightest pixel) as the highlight and its darkest pixel
+/// (#795421) as the rim. The label is a dark brown that keeps 4.5:1 on every stop (5.8:1 on the
+/// darkest).
 pub(crate) const GOLD: Metal = Metal {
-    stops: [rgb(0xFFF0B3), rgb(0xF5CD55), rgb(0xD9A626), rgb(0xB8860B)],
-    // Warm white at 55 %, premultiplied.
-    highlight: Color32::from_rgba_premultiplied(0x8C, 0x88, 0x7A, 0x8C),
-    edge: rgb(0x8A6410),
+    stops: [rgb(0xE8CC84), rgb(0xDAB96E), rgb(0xC8A257), rgb(0xB99148)],
+    // #FFF3B8 at 60 %, premultiplied.
+    highlight: Color32::from_rgba_premultiplied(0x99, 0x92, 0x6E, 0x99),
+    edge: rgb(0x795421),
     text: rgb(0x2A1A00),
 };
 
