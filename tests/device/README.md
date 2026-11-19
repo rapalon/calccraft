@@ -25,6 +25,7 @@ result table to the release (AGENTS.md, "Git and pull requests").
 | `graphing-three-equations` | x^2, sin(x) and 2x+1 typed on the Graphing keypad (its Trigonometry menu too) and submitted; the graph's node says `displaying 3 equations` |
 | `length-converter` | a typed value in the Length converter |
 | `mode-switching` | the navigation menu opens every kind of page, and the Standard mode still calculates after them |
+| `support-popup` | the free app only: the support popup opened from the menu's `Please Support!` has no `I already supported`, and nothing is named `Supported by you` (docs/support-prompt.md, section 8). `Get CalcCraft Pro` is never tapped (that opens Google Play); its pause is pinned by the host tests. A free build without a paid app ID has no prompt, and the steps only check that none of it shows |
 | `themes` | Settings → Color theme (docs/color-themes.md). The free app: Classic checked, the Pro themes named `Gold, Pro theme, locked, opens CalcCraft Pro on Google Play` and so on, never tapped (that opens Google Play). CalcCraft Pro: Night picked, 7 × 6 = 42 still on the display, Gold picked back |
 
 Each step is an object with one key:

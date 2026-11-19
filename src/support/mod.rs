@@ -381,6 +381,100 @@ mod tests {
         state
     }
 
+    /// The free Play app's state (with a paid app): the full prompt without the supporter state.
+    fn play_free(storage: Option<&dyn eframe::Storage>, clock: Clock) -> SupportState {
+        SupportState::with_policy(storage, clock, PromptMode::Full, false)
+    }
+
+    /// Draws the popup in a 480 × 640 window; returns which of the Donate (or "Get CalcCraft
+    /// Pro") and "I already supported" buttons were drawn.
+    fn popup_buttons(ctx: &Context, state: &mut SupportState) -> (bool, bool) {
+        let window = egui::Rect::from_min_size(pos2(0.0, 0.0), vec2(480.0, 640.0));
+        let mut output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(window),
+                ..Default::default()
+            },
+            |ui| state.draw_overlay(ui, window, &crate::app::palette::LIGHT),
+        );
+        output.textures_delta.clear();
+        let drawn = |id: &str| ctx.read_response(egui::Id::new(id)).is_some();
+        (drawn("support-donate"), drawn("support-already"))
+    }
+
+    #[test]
+    fn the_default_popup_offers_already_supported_after_a_donate_click() {
+        // The check below means something: the default channel draws the button.
+        let ctx = fonts_context();
+        let mut state = regular();
+        state.open_on_demand();
+        assert_eq!(popup_buttons(&ctx, &mut state), (true, false));
+        state.handle(&ctx, PopupAction::Donate);
+        state.open_on_demand();
+        assert_eq!(popup_buttons(&ctx, &mut state), (true, true));
+    }
+
+    #[test]
+    fn play_free_popup_never_offers_already_supported() {
+        let ctx = fonts_context();
+        let mut state = play_free(None, Clock::fixed(at(0, 0)));
+        state.stats.launches = 4;
+        state.stats.active_days = 3;
+        state.open_on_demand();
+        assert_eq!(popup_buttons(&ctx, &mut state), (true, false));
+        // "Get CalcCraft Pro" pauses like Donate, and the popup opened again has no button.
+        state.handle(&ctx, PopupAction::Donate);
+        assert!(!state.is_open());
+        assert!(state.stats.donate_clicked_ever);
+        assert_eq!(state.stats.pause_until_day, Some(180));
+        state.open_on_demand();
+        assert_eq!(popup_buttons(&ctx, &mut state), (true, false));
+        // Even a stray press thanks no one and makes no supporter.
+        let before = state.stats.clone();
+        state.handle(&ctx, PopupAction::AlreadySupported);
+        assert_eq!(state.stats, before);
+        assert!(state.popup.is_some_and(|p| p.thank_you_since_ms.is_none()));
+        assert_eq!(state.menu_entry(), MenuEntry::SupportButton);
+    }
+
+    #[test]
+    fn play_free_ignores_a_stored_supporter_state_and_keeps_it() {
+        // 1.4.4's free app stored a supporter state (pressed on day 10, until day 375).
+        let mut storage = MemoryStorage::default();
+        supporter().save(&mut storage);
+        let ctx = fonts_context();
+        let mut state = play_free(Some(&storage), Clock::fixed(at(20, 0)));
+        assert_eq!(state.stats.supporter_until_day, Some(375));
+        assert_eq!(state.menu_entry(), MenuEntry::SupportButton);
+        menu_frame(&ctx, &mut state, vec![]);
+        assert!(
+            ctx.read_response(egui::Id::new("support-menu-button"))
+                .is_some()
+        );
+        assert!(ctx.read_response(egui::Id::new("support-thanks")).is_none());
+        // Saved again, the record is unchanged but for this launch.
+        let mut again = MemoryStorage::default();
+        state.save(&mut again);
+        let reloaded = play_free(Some(&again), Clock::fixed(at(21, 0)));
+        assert_eq!(reloaded.stats.supporter_until_day, Some(375));
+        assert_eq!(reloaded.stats.pause_until_day, Some(375));
+        assert!(reloaded.stats.donate_clicked_ever);
+    }
+
+    #[test]
+    fn play_free_demos_have_no_supporter_stages() {
+        for demo in ["popup-supported", "thanks", "supporter", "supporter-popup"] {
+            let mut state = play_free(None, Clock::fixed(at(0, 0)));
+            state.start_demo(demo);
+            assert_eq!(state.stats.supporter_until_day, None, "{demo}");
+            assert_eq!(state.menu_entry(), MenuEntry::SupportButton, "{demo}");
+            assert!(
+                state.popup.is_none_or(|p| p.thank_you_since_ms.is_none()),
+                "{demo}"
+            );
+        }
+    }
+
     /// A context with the app's fonts (the thank-you line draws an icon).
     fn fonts_context() -> Context {
         let ctx = Context::default();

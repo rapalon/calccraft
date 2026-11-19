@@ -1,0 +1,17 @@
+{
+  "name": "support-popup",
+  "description": "The free app's support popup (docs/support-prompt.md, section 8), opened from the menu's 'Please Support!' button: it has no 'I already supported' button, and the app never shows 'Supported by you'. 'Get CalcCraft Pro' is never tapped (that opens Google Play). A free build without a paid app ID (the a11ytest build) has no prompt at all: the steps then only check that nothing of it shows.",
+  "steps": [
+    { "launch": true },
+    { "edition": "free" },
+    { "tap": "Open Navigation" },
+    { "expect_absent": "Supported by you" },
+    { "tap_if_present": "Please Support!" },
+    { "expect_absent": "Please Support!" },
+    { "expect_absent": "I already supported" },
+    { "expect_absent": "Supported by you" },
+    { "tap_if_present": "Close" },
+    { "expect_absent": "I already supported" },
+    { "edition": "any" }
+  ]
+}
