@@ -228,7 +228,12 @@ fn sample(
         map,
         w: w as f64,
         h: h as f64,
+        budget: 0,
     };
+    // `steep` checks a steep step down to single pixels, which takes about two values a
+    // pixel of the range they run across: that much in each sample's step, so that curves
+    // with hundreds of poles a pixel stay within a few times the usual work.
+    let budget = 2 * (w + h - along) as u32;
     let mut prev = (t0, f(t0));
     if prev.1.is_finite() {
         line.push(sampler.px(prev.0, prev.1));
@@ -236,6 +241,7 @@ fn sample(
     for i in 1..=n {
         let t = t0 + (t1 - t0) * i as f64 / n as f64;
         let next = (t, f(t));
+        sampler.budget = budget;
         sampler.segment(prev, next, 10, &mut line, &mut lines);
         prev = next;
     }
@@ -250,6 +256,8 @@ struct Sampler<'a> {
     map: &'a dyn Fn(f64, f64) -> (f64, f64),
     w: f64,
     h: f64,
+    /// How many more values `steep` may compute in the current sample's step.
+    budget: u32,
 }
 
 impl Sampler<'_> {
@@ -308,7 +316,7 @@ impl Sampler<'_> {
         }
         if depth == 0 {
             // Still a big step: a jump or an asymptote, unless it's merely steep.
-            if gap > self.h as f32 / 4.0 {
+            if gap > self.h as f32 / 4.0 && !self.steep(a, b) {
                 flush(line, lines);
             }
             line.push(pb);
@@ -318,6 +326,29 @@ impl Sampler<'_> {
         let mid = (t, (self.f)(t));
         self.segment(a, mid, depth - 1, line, lines);
         self.segment(mid, b, depth - 1, line, lines);
+    }
+
+    /// Whether the curve from `a` to `b`, still a big step at the last subdivision, is
+    /// merely steep rather than a jump or an asymptote: y = 1000000x rises 750 000 px a
+    /// pixel in an 800 × 600 graph of −10 to 10. Halved down to steps of a pixel, both
+    /// halves each time (a pole can hide in either), a continuous monotone curve has every
+    /// midpoint strictly between the values at its interval's ends. At a pole some
+    /// midpoint lies beyond them (1/x from −1 to 2 is 2 at 0.5); at a jump it is one of
+    /// them, or the step stays long until the interval can't be halved. Parts beyond one
+    /// edge of the graph aren't looked into, and once `budget` is spent it's a jump.
+    fn steep(&mut self, a: (f64, f64), b: (f64, f64)) -> bool {
+        let (pa, pb) = (self.px(a.0, a.1), self.px(b.0, b.1));
+        if (pa[0] - pb[0]).abs() + (pa[1] - pb[1]).abs() <= 1.0 || same_side(pa, pb, self.w, self.h)
+        {
+            return true;
+        }
+        let t = (a.0 + b.0) / 2.0;
+        if self.budget == 0 || t == a.0 || t == b.0 {
+            return false;
+        }
+        self.budget -= 1;
+        let v = (self.f)(t);
+        v > a.1.min(b.1) && v < a.1.max(b.1) && self.steep(a, (t, v)) && self.steep((t, v), b)
     }
 }
 
@@ -1017,6 +1048,53 @@ mod tests {
 
     fn plot_of(text: &str) -> Plot {
         plot(&equation(text), &Env::RADIANS, &View::DEFAULT, 400.0, 400.0)
+    }
+
+    #[test]
+    fn steep_lines_are_drawn() {
+        // Too steep for the last subdivision (y = 1000000x rises 750 000 px a pixel here),
+        // these were taken for asymptotes and not drawn at all.
+        let (w, h) = (800.0, 600.0);
+        // Where the lines cross the row of pixels `row`, to the nearest pixel.
+        let crossings = |text: &str, view: &View, row: f32| -> Vec<f32> {
+            let p = plot(&equation(text), &Env::RADIANS, view, w, h);
+            let at = |a: [f32; 2], b: [f32; 2]| a[0] + (row - a[1]) / (b[1] - a[1]) * (b[0] - a[0]);
+            p.lines
+                .iter()
+                .flat_map(|line| line.windows(2))
+                .filter(|s| (s[0][1] - row) * (s[1][1] - row) < 0.0)
+                .map(|s| at(s[0], s[1]).round())
+                .collect()
+        };
+        assert_eq!(crossings("1000000x", &View::DEFAULT, h / 3.0), [400.0]);
+        let wide = View {
+            x_min: -1e6,
+            x_max: 1e6,
+            y_min: -1.0,
+            y_max: 1.0,
+        };
+        assert_eq!(crossings("x", &wide, h / 3.0), [400.0]);
+        // x¹⁰ zoomed out by 70 notches of the wheel: both sides of its U.
+        let mut view = View::DEFAULT;
+        for _ in 0..70 {
+            view = view.zoomed(400.0, 300.0, w, h, 1.15);
+        }
+        assert_eq!(crossings("x^10", &view, h / 4.0), [400.0, 400.0]);
+        // Asymptotes and jumps still break the line, also a pole in the same step as a
+        // steep line, on either side of where it crosses the graph.
+        let lines =
+            |text: &str, view: &View| plot(&equation(text), &Env::RADIANS, view, w, h).lines;
+        assert_eq!(lines("1/(x-0.5)", &View::DEFAULT).len(), 2);
+        assert_eq!(lines("x+10sign(x-0.01)", &View::DEFAULT).len(), 2);
+        let big = View {
+            x_min: -1e6,
+            x_max: 1e6,
+            y_min: -1e6,
+            y_max: 1e6,
+        };
+        assert_eq!(lines("1000000x+1/(x-0.001)", &big).len(), 2);
+        assert_eq!(lines("1000000x+1000/(x-0.5)", &big).len(), 2);
+        assert_eq!(lines("1000000x-1000/(x+0.5)", &big).len(), 2);
     }
 
     #[test]
