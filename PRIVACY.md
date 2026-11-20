@@ -94,6 +94,8 @@ These are the links in the app, where they are, and what they add to the address
   Nothing is added.
 - **Privacy policy** (Settings) opens this policy at
   [rapalon.com/calccraft/privacy](https://rapalon.com/calccraft/privacy). Nothing is added.
+- **Terms of Service** (Settings) opens the Terms at
+  [rapalon.com/calccraft/terms](https://rapalon.com/calccraft/terms/). Nothing is added.
 - **Send feedback** (Settings) opens
   [CalcCraft's issues on GitHub](https://github.com/rapalon/calccraft/issues). Nothing is
   added.

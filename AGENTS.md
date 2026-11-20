@@ -69,13 +69,17 @@ src/app/access.rs        keyboard focus, focus visuals and screen reader names o
 src/app/caret.rs         where the engine's caret is in the text shown (grouping, padding), pure
 src/app/icons.rs         the icons: code points of the embedded icon font, and a test that it has them
 src/app/strings.rs       the interface's text in the user's language (from locales/)
-src/app/region.rs        the user's regional formats, read from Windows (or the browser's Intl)
+src/app/region.rs        the user's regional formats, read from Windows, the browser's Intl or
+                         Java (docs/regional-formats.md); en-US on Linux and macOS
+src/app/region/java.rs   Java's locale data as `Formats` (the Android app): separators and grouping
+                         off a formatted number, first day, names, a Java date pattern formatter (pure)
 src/app/web.rs           the web version's ties to the browser: URL parameters, languages, Intl,
                          clipboard, downloads, browser shortcuts (wasm32 only)
 src/app/android.rs       the Android app's ties to the system (JNI): the system bars' insets as
-                         egui's safe area, the back button, languages, the keys' vibration
-                         (Vibrator, the touch feedback setting), whether the system
-                         keyboard is showing (`ime_visible`) (Android only)
+                         egui's safe area, the back button, languages, the regional formats
+                         (`region_source`, `display_name`), the keys' vibration (Vibrator, the
+                         touch feedback setting), whether the system keyboard is showing
+                         (`ime_visible`) (Android only)
 src/app/vibration.rs     the Android key vibration: mappings, the Auto style rule, the card rows (pure)
 src/app/orientation.rs   the Android screen orientation setting: choices, stored keys, the
                          `setRequestedOrientation` values, where Android honors them (pure)
@@ -268,15 +272,18 @@ nothing changes until the display or the line is touched. The spec and every cho
   `region::set_region` at runtime and save `CalcCraftLanguage` and `CalcCraftRegionalFormat`
   (a tag, or `Default` for the Windows setting). Their lists show names in their own scripts, so
   opening one loads `strings::LIST_FONTS` (`all_scripts`), which go again with the page.
-  The Regional format card is left out where `region::regions()` is empty (Android, Linux,
-  macOS: only "Use system setting", which changes nothing there; `show_region_card`).
+  The Regional format card is left out where `region::regions()` is empty (Linux, macOS: only
+  "Use system setting", which changes nothing there; `show_region_card`). The web version and
+  the Android app list the translations' regions; `docs/regional-formats.md` has every
+  platform's sources and the Linux and macOS proposal.
 - The Colour theme card (CalcCraft's own, right under App theme; `docs/color-themes.md`) picks a
-  `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD and
-  Paper, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
+  `ColorTheme` (`app/color_theme.rs`): Classic, and the Pro themes Gold, Night, Retro LCD,
+  Paper, AMOLED Black and High Contrast, saved as `CalcCraftColorTheme`. Each theme is data: a `ThemeSpec` in
   `palette::THEMES` with its dark and light `Palette` (most built with struct update from
-  `DARK` / `LIGHT`) and the egui theme it fixes (Night dark; Paper and Retro LCD light), which
+  `DARK` / `LIGHT`) and the egui theme it fixes (Night, AMOLED Black and High Contrast dark;
+  Paper and Retro LCD light), which
   overrides App theme's preference while it is on. Gold's `=` is a `Metal` gradient
-  (`paint_metal_key`). A new theme is a palette, a `ThemeSpec` and a label string; the palette
+  (`paint_metal_key`); High Contrast sets `key_border` (2 px) and `bold_keys`. A new theme is a palette, a `ThemeSpec` and a label string; the palette
   tests check its contrast. **The rule:** the default channel (GitHub, F-Droid, desktops, web;
   open source with Donate) unlocks every theme, default Classic; `play-paid` (CalcCraft Pro)
   unlocks every theme, default Gold; `play-free` shows the Pro themes locked with a PRO pill
@@ -620,7 +627,8 @@ nothing changes until the display or the line is touched. The spec and every cho
   menu button for regular users (4 launches, 3 active days), a popup after 7 unseen days at a calm
   moment only (3 s without input after a successful `=`, focused, calculator mode, nothing open),
   under the display, an interval ladder (7, 14, 30, 60, 90 days), and pauses after Donate (180
-  days) or "I already supported" (365 days, shown only after a Donate click).
+  days) or "I already supported" (365 days, shown only after a Donate click, and never in
+  `play-free`, which has no self-declared supporter state: `self_declared_support`).
 - Everything lives in `src/support/`; the rest of the app has only thin hooks behind
   `#[cfg(feature = "support-prompt")]` (`begin_frame`, `after_command`, `note_display`,
   `draw_menu_badge`, `draw_menu_button`, `draw_overlay`, `new`/`save`). Don't put support logic
@@ -638,8 +646,10 @@ nothing changes until the display or the line is touched. The spec and every cho
   section 8): the default has the donate link; the Google Play builds have none, as Play's
   Payments policy requires. `play-free` leads the popup's button ("Get CalcCraft Pro") to the
   paid app's Play listing, named by `CALCCRAFT_PAID_ID` at build time (`option_env!`), and
-  hides the whole prompt without it; `play-paid` shows no prompt, only "Supported by you".
-  `SupportPolicyConfig::prompt` carries the mode into the pure policy. Keep `DONATE_URL` and
+  hides the whole prompt without it, and never has "I already supported" or "Supported by
+  you" (a user there bought Pro or didn't); `play-paid` shows no prompt, only "Supported by
+  you". `SupportPolicyConfig::prompt` and `self_declared_support` carry this into the pure
+  policy. Keep `DONATE_URL` and
   anything Stripe under `#[cfg(not(any(feature = "play-free", feature = "play-paid")))]`:
   `build-apk.ps1` fails a Play build whose library contains them. `android/README.md` has the
   commands (`-Channel`, `-PaidApplicationId`).
@@ -851,6 +861,15 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   starting on its first day of the week.
 - The date difference joins its units with the region's list separator and a space (`; ` in
   Germany), with the unit words in the interface language.
+- On Android they come from Java's locale classes through JNI (`android::region_source`),
+  read once per region, and `region/java.rs` turns them into `Formats` without JNI, so the
+  host tests pin them with the values Android gives: `1.234.567,89`, `15. Oktober 2026`,
+  `Donnerstag, 15. Oktober 2026` (de-DE); for ru-RU `1 234 567,89`, the day, the month's
+  genitive name and the year with the abbreviation for "year", the calendar's title with the
+  month's nominative name (the standalone month, `LLLL`) and a header of two-letter weekday
+  names from Monday; India's `3;2;0` grouping off `12,34,56,78,90,123.5`; the era of th-TH's Gregorian
+  pattern left out. A failed JNI call or odd data gives en-US, never a panic. The list
+  separator is `;` with a decimal comma, else `,`, as in the web version.
 
 ## Conventions
 

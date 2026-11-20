@@ -86,6 +86,18 @@ pub fn prompt_mode() -> PromptMode {
     prompt_mode_of(CHANNEL, checked_id(PAID_ID_RAW))
 }
 
+/// Whether `channel` has the self-declared supporter state ("I already supported", then
+/// "Supported by you" for 365 days). Only the default channel does: in the free Play app a user
+/// either bought CalcCraft Pro or didn't, and the paid app is always a supporter by itself.
+pub fn self_declared_support_of(channel: Channel) -> bool {
+    channel == Channel::Donate
+}
+
+/// Whether this build has the self-declared supporter state.
+pub fn self_declared_support() -> bool {
+    self_declared_support_of(CHANNEL)
+}
+
 /// The paid app's listing: the Play Store app's `market://` address, and the web page for
 /// where nothing takes it. No query parameters.
 pub fn store_urls(paid_id: &str) -> [String; 2] {
@@ -130,6 +142,10 @@ mod tests {
         };
         assert_eq!(prompt_mode(), expected);
         assert_eq!(link_parameters(), CHANNEL == Channel::Donate);
+        assert_eq!(self_declared_support(), CHANNEL == Channel::Donate);
+        assert!(self_declared_support_of(Channel::Donate));
+        assert!(!self_declared_support_of(Channel::PlayFree));
+        assert!(!self_declared_support_of(Channel::PlayPaid));
         #[cfg(not(any(feature = "play-free", feature = "play-paid")))]
         assert_eq!(CHANNEL, Channel::Donate);
         #[cfg(feature = "play-free")]

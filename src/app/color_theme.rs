@@ -20,6 +20,10 @@ pub(super) enum ColorTheme {
     RetroLcd,
     /// Cream and ink.
     Paper,
+    /// Pure black everywhere, for OLED screens (1.4.5).
+    AmoledBlack,
+    /// White on black with yellow, 7:1 for all text, for low vision (1.4.5).
+    HighContrast,
 }
 
 /// Whether a build lets the user pick a theme.
@@ -33,12 +37,14 @@ pub(super) enum Access {
 }
 
 impl ColorTheme {
-    pub(super) const ALL: [ColorTheme; 5] = [
+    pub(super) const ALL: [ColorTheme; 7] = [
         ColorTheme::Classic,
         ColorTheme::Gold,
         ColorTheme::Night,
         ColorTheme::RetroLcd,
         ColorTheme::Paper,
+        ColorTheme::AmoledBlack,
+        ColorTheme::HighContrast,
     ];
 
     /// The stored value.
@@ -49,6 +55,8 @@ impl ColorTheme {
             ColorTheme::Night => "Night",
             ColorTheme::RetroLcd => "RetroLcd",
             ColorTheme::Paper => "Paper",
+            ColorTheme::AmoledBlack => "AmoledBlack",
+            ColorTheme::HighContrast => "HighContrast",
         }
     }
 
@@ -64,6 +72,8 @@ impl ColorTheme {
             ColorTheme::Night => "CalcCraft.ThemeNight",
             ColorTheme::RetroLcd => "CalcCraft.ThemeRetroLcd",
             ColorTheme::Paper => "CalcCraft.ThemePaper",
+            ColorTheme::AmoledBlack => "CalcCraft.ThemeAmoledBlack",
+            ColorTheme::HighContrast => "CalcCraft.ThemeHighContrast",
         }
     }
 
@@ -124,6 +134,20 @@ mod tests {
             assert_eq!(ColorTheme::from_key(theme.key()), Some(theme));
         }
         assert_eq!(ColorTheme::from_key("Sepia"), None);
+        // The stored keys are a contract with existing settings files: never rename them.
+        let keys: Vec<_> = ColorTheme::ALL.iter().map(|theme| theme.key()).collect();
+        assert_eq!(
+            keys,
+            [
+                "Classic",
+                "Gold",
+                "Night",
+                "RetroLcd",
+                "Paper",
+                "AmoledBlack",
+                "HighContrast"
+            ]
+        );
         assert!(!ColorTheme::Classic.is_pro());
         assert!(ColorTheme::ALL[1..].iter().all(|theme| theme.is_pro()));
     }

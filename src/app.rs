@@ -116,6 +116,9 @@ const FEEDBACK_URL: &str = "https://github.com/rapalon/calccraft/issues";
 /// CalcCraft's privacy policy (`PRIVACY.md`, published on the company's site). Windows'
 /// Settings page links Microsoft's privacy statement in the same place.
 const PRIVACY_URL: &str = "https://rapalon.com/calccraft/privacy";
+/// CalcCraft's Terms of Service (`TERMS.md`, published on the company's site), linked under
+/// the privacy policy.
+const TERMS_URL: &str = "https://rapalon.com/calccraft/terms/";
 /// Storage key and values of the theme choice, the same as Windows uses.
 const THEME_KEY: &str = "SelectedAppTheme";
 /// Storage key of the mode the app was closed in, the same as Windows uses
@@ -321,9 +324,9 @@ enum SettingsCard {
 /// theme), Language, Screen orientation where the app can choose
 /// it (the Android app, where Android honors it: `orientation::honored`), Key vibration where
 /// keys vibrate (the Android app), and Regional format where there are formats to choose. Where
-/// `region::regions()` is empty (Android, Linux, macOS) its list would hold only "Use system
-/// setting", which changes nothing there: the formats are en-US until those systems' own are
-/// read.
+/// `region::regions()` is empty (Linux, macOS) its list would hold only "Use system setting",
+/// which changes nothing there: the formats are en-US until those systems' own are read
+/// (`docs/regional-formats.md`).
 fn settings_cards(orientation: bool, key_vibration: bool, has_regions: bool) -> Vec<SettingsCard> {
     let mut cards = vec![SettingsCard::ExpressionSize, SettingsCard::Language];
     if orientation {
@@ -1765,19 +1768,26 @@ impl CalculatorApp {
         };
 
         let painter = ui.painter();
+        // High Contrast's labels are semibold.
+        let label = label.into();
+        let label = if p.bold_keys { label.bold() } else { label };
         if kind == Kind::Accent
             && enabled
             && let Some(metal) = p.metal
         {
             paint_metal_key(painter, rect, metal, hovered, pressed);
-            label.into().paint(painter, rect.center(), metal.text);
+            label.paint(painter, rect.center(), metal.text);
             return;
         }
         painter.rect_filled(rect, RADIUS, fill);
-        if matches!(kind, Kind::Digit | Kind::Operator | Kind::Emphasized) {
-            painter.rect_stroke(rect, RADIUS, Stroke::new(1.0, p.border), StrokeKind::Inside);
+        // High Contrast's thick outlines go round the accent keys too.
+        let outlined = matches!(kind, Kind::Digit | Kind::Operator | Kind::Emphasized)
+            || (kind == Kind::Accent && p.key_border > 1.0);
+        if outlined {
+            let stroke = Stroke::new(p.key_border, p.border);
+            painter.rect_stroke(rect, RADIUS, stroke, StrokeKind::Inside);
         }
-        label.into().paint(painter, rect.center(), text);
+        label.paint(painter, rect.center(), text);
     }
 
     // ---------------------------------------------------------------- header
@@ -3380,9 +3390,19 @@ impl CalculatorApp {
         } else {
             0.0
         };
-        // The free Play app's quiet way to the paid app, under Privacy policy.
+        // The free Play app's quiet way to the paid app, under Terms of Service; in its place
+        // CalcCraft Pro thanks its buyer, as plain text.
         let pro_link = crate::channel::CHANNEL == crate::channel::Channel::PlayFree
             && crate::channel::paid_id().is_some();
+        let pro_thanks = crate::channel::CHANNEL == crate::channel::Channel::PlayPaid;
+        let thanks = pro_thanks.then(|| {
+            painter.layout(
+                tr("CalcCraft.ProThanks").into(),
+                body.clone(),
+                p.text_secondary,
+                width - 2.0 * SIDE,
+            )
+        });
         // The Language and Regional format cards: the region's describes it by example.
         let today = chrono::Local::now().date_naive();
         // A stored choice that isn't in the list shows by its own name.
@@ -3503,9 +3523,15 @@ impl CalculatorApp {
         let feedback_y = about_top + CARD_HEIGHT + 25.0;
         // The privacy policy's link sits under Send feedback, one hyperlink button lower.
         let privacy_y = feedback_y + 32.0;
-        let pro_y = privacy_y + 32.0;
-        let last_link_y = if pro_link { pro_y } else { privacy_y };
-        let contribute_top = last_link_y + 40.0 - row_height / 2.0;
+        let terms_y = privacy_y + 32.0;
+        let pro_y = terms_y + 32.0;
+        let last_link_y = if pro_link { pro_y } else { terms_y };
+        // Pro's thank-you line sits where the free app's link is, and may wrap.
+        let thanks_height = thanks.as_ref().map_or(0.0, |g| g.size().y);
+        let contribute_top = match &thanks {
+            Some(_) => pro_y - row_height / 2.0 + thanks_height + 40.0 - row_height / 2.0,
+            None => last_link_y + 40.0 - row_height / 2.0,
+        };
         let height = contribute_top + contribute.size().y + SIDE;
 
         let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
@@ -3760,6 +3786,28 @@ impl CalculatorApp {
             Id::new("privacy-policy"),
         ) {
             action = Some(SettingsAction::OpenUrl(PRIVACY_URL));
+        }
+        if link_button(
+            p,
+            ui,
+            pos2(left, top + terms_y),
+            tr("CalcCraft.TermsOfService"),
+            Id::new("terms-of-service"),
+        ) {
+            action = Some(SettingsAction::OpenUrl(TERMS_URL));
+        }
+        if let Some(thanks) = thanks {
+            // Plain text, no link: CalcCraft Pro's buyer has already supported it.
+            let origin = pos2(left, top + pro_y - row_height / 2.0);
+            let rect = Rect::from_min_size(origin, thanks.size());
+            access::text(
+                ui,
+                rect,
+                Id::new("pro-thanks"),
+                tr("CalcCraft.ProThanks"),
+                false,
+            );
+            painter.galley(origin, thanks, p.text_secondary);
         }
         if pro_link
             && link_button(
@@ -5722,7 +5770,7 @@ mod tests {
         );
         assert_eq!(
             cards.contains(&Region),
-            cfg!(any(windows, target_arch = "wasm32"))
+            cfg!(any(windows, target_arch = "wasm32", target_os = "android"))
         );
         assert_eq!(cards.contains(&KeyVibration), cfg!(target_os = "android"));
         assert_eq!(cards.contains(&Orientation), cfg!(target_os = "android"));
@@ -6172,6 +6220,65 @@ mod tests {
             .collect();
         assert_eq!(opened, [PRIVACY_URL]);
         assert_eq!(PRIVACY_URL, format!("{}/calccraft/privacy", brand::URL));
+    }
+
+    #[test]
+    fn settings_link_to_the_terms_of_service() {
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let mut app = start_in(&ctx);
+        app.page = Page::Settings;
+        let size = vec2(320.0, 500.0);
+        run(&ctx, &mut app, size, vec![]);
+        let nodes = accesskit_nodes(&ctx, &mut app, size);
+        let link = |(_, node): &(_, egui::accesskit::Node)| {
+            node.role() == Role::Link && node.label() == Some("Terms of Service")
+        };
+        assert!(nodes.iter().any(link));
+
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+            events: vec![screen_reader_click(Id::new("terms-of-service"))],
+            ..Default::default()
+        };
+        let mut frame = eframe::Frame::_new_kittest();
+        let mut output = ctx.run_ui(input, |ui| eframe::App::ui(&mut app, ui, &mut frame));
+        output.textures_delta.clear();
+        let opened: Vec<_> = output
+            .platform_output
+            .commands
+            .iter()
+            .filter_map(|command| match command {
+                egui::OutputCommand::OpenUrl(open) => Some(open.url.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(opened, [TERMS_URL]);
+        assert_eq!(TERMS_URL, format!("{}/calccraft/terms/", brand::URL));
+    }
+
+    /// CalcCraft Pro's About thanks its buyer in plain text, where the free app links Pro; the
+    /// other builds have no such line.
+    #[test]
+    fn about_thanks_only_in_calccraft_pro() {
+        let ctx = Context::default();
+        ctx.enable_accesskit();
+        let mut app = start_in(&ctx);
+        app.page = Page::Settings;
+        let size = vec2(320.0, 500.0);
+        run(&ctx, &mut app, size, vec![]);
+        let nodes = accesskit_nodes(&ctx, &mut app, size);
+        let thanks = nodes.iter().any(|(_, node)| {
+            node.role() == Role::Label && node.value() == Some("Thank you for supporting CalcCraft")
+        });
+        let pro_link = nodes.iter().any(|(_, node)| {
+            node.role() == Role::Link && node.label() == Some("Get CalcCraft Pro")
+        });
+        let paid = crate::channel::CHANNEL == crate::channel::Channel::PlayPaid;
+        assert_eq!(thanks, paid);
+        if paid {
+            assert!(!pro_link);
+        }
     }
 
     #[test]

@@ -344,6 +344,22 @@ impl From<Formula> for Label {
 }
 
 impl Label {
+    /// The label with its regular text in semibold (High Contrast's keys). Formulas and text in
+    /// other families (icons, symbols, light) stay as they are.
+    pub(crate) fn bold(self) -> Self {
+        match self {
+            Label::Text(mut job) => {
+                for section in &mut job.sections {
+                    if section.format.font_id.family == FontFamily::Proportional {
+                        section.format.font_id.family = crate::app::semibold();
+                    }
+                }
+                Label::Text(job)
+            }
+            formula => formula,
+        }
+    }
+
     /// Paints the label centered on `center` in `color` (the key's text color).
     pub(crate) fn paint(self, painter: &Painter, center: Pos2, color: Color32) {
         match self {
@@ -361,6 +377,25 @@ mod tests {
     use eframe::egui::{FontData, FontDefinitions, epaint::text::Fonts};
 
     use super::*;
+
+    #[test]
+    fn bold_labels_take_semibold_text_only() {
+        let mut job = LayoutJob::default();
+        let format =
+            |family| eframe::egui::TextFormat::simple(FontId::new(20.0, family), Color32::WHITE);
+        let icons = FontFamily::Name("icons".into());
+        job.append("7", 0.0, format(FontFamily::Proportional));
+        job.append("\u{E948}", 0.0, format(icons.clone()));
+        let Label::Text(bold) = Label::Text(job).bold() else {
+            panic!("a text label stays text");
+        };
+        let families: Vec<_> = bold
+            .sections
+            .iter()
+            .map(|s| s.format.font_id.family.clone())
+            .collect();
+        assert_eq!(families, [crate::app::semibold(), icons]);
+    }
 
     /// The fonts the labels use where Segoe UI is missing: Inter and Noto Sans Math.
     fn fonts() -> Fonts {

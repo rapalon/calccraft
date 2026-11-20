@@ -112,17 +112,36 @@ impl SupportState {
     }
 
     pub(crate) fn with_clock(storage: Option<&dyn Storage>, clock: Clock) -> Self {
-        Self::with_mode(storage, clock, channel::prompt_mode())
+        Self::with_policy(
+            storage,
+            clock,
+            channel::prompt_mode(),
+            channel::self_declared_support(),
+        )
     }
 
-    /// The state with the prompt `mode` instead of the build's (tests try every channel's).
+    /// The state with the prompt `mode` instead of the build's, with the default channel's
+    /// supporter state (tests try every channel's).
+    #[cfg(test)]
     pub(crate) fn with_mode(storage: Option<&dyn Storage>, clock: Clock, mode: PromptMode) -> Self {
+        Self::with_policy(storage, clock, mode, true)
+    }
+
+    /// The state with the prompt `mode` and, if `self_declared_support`, "I already supported"
+    /// and its supporter state (the default channel; not the free Play app).
+    pub(crate) fn with_policy(
+        storage: Option<&dyn Storage>,
+        clock: Clock,
+        mode: PromptMode,
+        self_declared_support: bool,
+    ) -> Self {
         let mut cfg = if clock.is_fast() {
             SupportPolicyConfig::fast()
         } else {
             SupportPolicyConfig::default()
         };
         cfg.prompt = mode;
+        cfg.self_declared_support = self_declared_support;
         let stats = SupportStats::load(storage, clock.is_fast(), |secs| clock.day_of(secs));
         let mut state = Self {
             stats,
@@ -168,6 +187,14 @@ impl SupportState {
         if self.cfg.prompt != PromptMode::Full {
             return;
         }
+        // The free Play app has no supporter stages: show the nearest stage it has.
+        let demo = match demo {
+            "supporter" if !self.cfg.self_declared_support => "menu",
+            "popup-supported" | "thanks" | "supporter-popup" if !self.cfg.self_declared_support => {
+                "popup"
+            }
+            demo => demo,
+        };
         let stats = &mut self.stats;
         stats.launches = stats.launches.max(self.cfg.min_launches);
         stats.active_days = stats.active_days.max(self.cfg.min_active_days);
@@ -412,6 +439,8 @@ impl SupportState {
             PopupAction::Donate => self.donate(ctx),
             // No reaction for the policy: it's a link, like any other in the app.
             PopupAction::OpenCompany => crate::app::open_link(ctx, brand::URL),
+            // The free Play app has no such button; nothing to thank for.
+            PopupAction::AlreadySupported if !self.cfg.self_declared_support => {}
             PopupAction::AlreadySupported => {
                 self.apply(SupportEvent::AlreadySupported);
                 if let Some(popup) = &mut self.popup {
@@ -539,7 +568,7 @@ impl SupportState {
         };
         let display = noted_display(ui.ctx());
         let width = card_width(display.unwrap_or(window).width());
-        let already = policy::show_already_supported_button(&self.stats);
+        let already = policy::show_already_supported_button(&self.stats, &self.cfg);
         let logo = self.logo_texture(ui.ctx());
         let content = Content::new(ui, popup, already, width, logo);
         let card = card_rect(window, display, width, content.height());

@@ -39,6 +39,10 @@ pub struct SupportPolicyConfig {
     /// How much of the prompt the build shows (its distribution channel, section 8): only
     /// `Full` ever shows a dot or a popup. `Default` is `Full`; the app takes the build's.
     pub prompt: PromptMode,
+    /// Whether "I already supported" and its supporter state exist (section 2.9): only in the
+    /// default channel. The free Play app has neither, and ignores a supporter state its 1.4.4
+    /// stored (section 8). `Default` is true; the app takes the build's.
+    pub self_declared_support: bool,
 }
 
 impl Default for SupportPolicyConfig {
@@ -54,6 +58,7 @@ impl Default for SupportPolicyConfig {
             already_supported_pause_days: 365,
             thank_you_ms: 1500,
             prompt: PromptMode::Full,
+            self_declared_support: true,
         }
     }
 }
@@ -226,6 +231,8 @@ pub fn on_event(
             pause_until(&mut s, now.day + cfg.donate_pause_days);
             s.dot_since_day = None;
         }
+        // A build without the supporter state has no such button: nothing to change.
+        SupportEvent::AlreadySupported if !cfg.self_declared_support => {}
         SupportEvent::AlreadySupported => {
             let until = now.day + cfg.already_supported_pause_days;
             pause_until(&mut s, until);
@@ -276,16 +283,19 @@ pub fn menu_entry(stats: &SupportStats, cfg: &SupportPolicyConfig, now: Timestam
         PromptMode::Hidden => return MenuEntry::Hidden,
         PromptMode::Supporter => return MenuEntry::SupporterThanks,
     }
-    if stats.supporter_until_day.is_some_and(|day| now.day < day) {
+    // Without the supporter state a stored one (from the free Play app's 1.4.4) is ignored, but
+    // kept in the record.
+    if cfg.self_declared_support && stats.supporter_until_day.is_some_and(|day| now.day < day) {
         MenuEntry::SupporterThanks
     } else {
         MenuEntry::SupportButton
     }
 }
 
-/// "I already supported" shows only after a Donate click.
-pub fn show_already_supported_button(stats: &SupportStats) -> bool {
-    stats.donate_clicked_ever
+/// "I already supported" shows only after a Donate click, and only in a build with the
+/// supporter state (never in the free Play app, whatever was clicked).
+pub fn show_already_supported_button(stats: &SupportStats, cfg: &SupportPolicyConfig) -> bool {
+    cfg.self_declared_support && stats.donate_clicked_ever
 }
 
 #[cfg(test)]
@@ -530,17 +540,17 @@ mod tests {
     #[test]
     fn donate_pauses_for_180_days() {
         let s = dot(&regular(4), 2);
-        assert!(!show_already_supported_button(&s));
+        assert!(!show_already_supported_button(&s, &cfg()));
         let s = apply(&s, SupportEvent::DonateClicked, at(3));
         assert!(s.donate_clicked_ever);
-        assert!(show_already_supported_button(&s));
+        assert!(show_already_supported_button(&s, &cfg()));
         assert_eq!(s.dot_since_day, None);
         assert_eq!(decide(&s, at(182)), SupportDecision::Nothing);
         assert_eq!(decide(&s, at(183)), SupportDecision::ShowDot);
         // The flag is never reset.
         let s = apply(&s, SupportEvent::AlreadySupported, at(200));
         let s = apply(&s, SupportEvent::MenuOpened, at(600));
-        assert!(show_already_supported_button(&s));
+        assert!(show_already_supported_button(&s, &cfg()));
     }
 
     #[test]
@@ -554,11 +564,11 @@ mod tests {
             if decide(&s, at(day)) == SupportDecision::ShowPopup {
                 s = apply(&s, SupportEvent::PopupShown, at(day));
             }
-            assert!(!show_already_supported_button(&s));
+            assert!(!show_already_supported_button(&s, &cfg()));
         }
         assert!(s.popups_shown > 0);
         let s = apply(&s, SupportEvent::DonateClicked, at(400));
-        assert!(show_already_supported_button(&s));
+        assert!(show_already_supported_button(&s, &cfg()));
     }
 
     #[test]
@@ -671,7 +681,7 @@ mod tests {
         assert!(!s.donate_clicked_ever);
         assert_eq!((s.pause_until_day, s.supporter_until_day), (None, None));
         assert_eq!(menu_entry(&s, &cfg(), at(3)), MenuEntry::SupportButton);
-        assert!(!show_already_supported_button(&s));
+        assert!(!show_already_supported_button(&s, &cfg()));
         for day in 3..17 {
             assert_eq!(decide(&s, at(day)), SupportDecision::Nothing, "day {day}");
         }
@@ -787,6 +797,112 @@ mod tests {
         let (decisions, entries) = two_years(PromptMode::Supporter);
         assert!(decisions.iter().all(|d| *d == SupportDecision::Nothing));
         assert!(entries.iter().all(|e| *e == MenuEntry::SupporterThanks));
+    }
+
+    /// The free Play app's policy: the full prompt without the self-declared supporter state.
+    fn play_free() -> SupportPolicyConfig {
+        SupportPolicyConfig {
+            self_declared_support: false,
+            ..cfg()
+        }
+    }
+
+    #[test]
+    fn play_free_never_offers_already_supported() {
+        // Two years of a regular user who taps "Get CalcCraft Pro" in every popup: the button
+        // never shows, before or after a tap, and the menu always has the support button.
+        let c = play_free();
+        let mut s = SupportStats::default();
+        let mut popups = 0;
+        for day in 0..730 {
+            let now = at(day);
+            s = on_event(&s, &c, SupportEvent::AppLaunched, now);
+            s = on_event(&s, &c, SupportEvent::CalculationDone, now);
+            match evaluate(&s, &c, now, calm(now)) {
+                SupportDecision::ShowDot if s.dot_since_day.is_none() => {
+                    s = on_event(&s, &c, SupportEvent::DotShown, now);
+                }
+                SupportDecision::ShowPopup => {
+                    s = on_event(&s, &c, SupportEvent::PopupShown, now);
+                    assert!(!show_already_supported_button(&s, &c), "day {day}");
+                    s = on_event(&s, &c, SupportEvent::DonateClicked, now);
+                    popups += 1;
+                }
+                _ => {}
+            }
+            assert!(!show_already_supported_button(&s, &c), "day {day}");
+            assert_eq!(
+                menu_entry(&s, &c, now),
+                MenuEntry::SupportButton,
+                "day {day}"
+            );
+        }
+        assert!(s.donate_clicked_ever);
+        assert!(popups >= 2, "{popups}");
+        // The same stats in the default channel would offer it.
+        assert!(show_already_supported_button(&s, &cfg()));
+    }
+
+    #[test]
+    fn play_free_get_pro_pauses_like_donate() {
+        let s = dot(&regular(4), 2);
+        let free = on_event(&s, &play_free(), SupportEvent::DonateClicked, at(3));
+        let default = apply(&s, SupportEvent::DonateClicked, at(3));
+        assert_eq!(free, default);
+        assert_eq!(free.pause_until_day, Some(183));
+        let c = play_free();
+        assert_eq!(
+            evaluate(&free, &c, at(182), calm(at(182))),
+            SupportDecision::Nothing
+        );
+        assert_eq!(
+            evaluate(&free, &c, at(183), calm(at(183))),
+            SupportDecision::ShowDot
+        );
+    }
+
+    #[test]
+    fn play_free_never_enters_the_supporter_state() {
+        let c = play_free();
+        let s = on_event(&regular(4), &c, SupportEvent::DonateClicked, at(2));
+        // Even if the event arrived, it would change nothing.
+        assert_eq!(on_event(&s, &c, SupportEvent::AlreadySupported, at(10)), s);
+        assert_eq!(s.supporter_until_day, None);
+        assert_eq!(menu_entry(&s, &c, at(10)), MenuEntry::SupportButton);
+    }
+
+    #[test]
+    fn play_free_ignores_a_stored_supporter_state_but_keeps_the_record() {
+        // A 1.4.4 user who pressed "I already supported" on day 10 (supporter and paused until
+        // day 375), now on a build without it.
+        let stored = apply(
+            &apply(&regular(4), SupportEvent::DonateClicked, at(2)),
+            SupportEvent::AlreadySupported,
+            at(10),
+        );
+        assert_eq!(stored.supporter_until_day, Some(375));
+        let c = play_free();
+        for day in [10, 11, 200, 374, 375, 1000] {
+            assert_eq!(
+                menu_entry(&stored, &c, at(day)),
+                MenuEntry::SupportButton,
+                "day {day}"
+            );
+            assert!(!show_already_supported_button(&stored, &c), "day {day}");
+        }
+        // Nothing is deleted: the record goes back to storage as it was, and the pause it set
+        // still holds the automatic reminders back.
+        let after = on_event(&stored, &c, SupportEvent::MenuOpened, at(20));
+        assert_eq!(after, stored);
+        assert_eq!(after.pause_until_day, Some(375));
+        assert_eq!(
+            evaluate(&stored, &c, at(374), calm(at(374))),
+            SupportDecision::Nothing
+        );
+        assert_eq!(
+            evaluate(&stored, &c, at(375), calm(at(375))),
+            SupportDecision::ShowDot
+        );
     }
 
     #[test]

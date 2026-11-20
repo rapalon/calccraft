@@ -49,7 +49,7 @@ own `NOT_STARTED` entry.
 | **Phase 8: Application Shell, UX & Accessibility** | 13 | 12 | 0 | 1 | 0 |
 | **TOTAL** | **69** | **67** | **0** | **1** | **1** |
 
-*Last updated: 2026-11-19 (CalcCraft 1.4.4: colour themes, CalcCraft Pro edition)*
+*Last updated: 2026-11-19 (CalcCraft 1.4.5: regional formats on Android, AMOLED Black and High Contrast, Terms link)*
 
 ---
 
@@ -1246,9 +1246,14 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Settings can pick another language and regional format for CalcCraft alone
     (`FEAT-SHELL-008`); "Use system setting" follows Windows, or `CALCCRAFT_LANGUAGE` and
     `CALCCRAFT_REGION` where they're set.
-- **Not yet:** Android, Linux and macOS use en-US formats whatever the system's region (and hide
-  the Regional format card, `FEAT-SHELL-008`), until a later task reads the region's formats
-  there (through JNI and ICU on Android).
+  - Android follows the phone's format locale (`Locale.getDefault(FORMAT)`: the system region,
+    a per-app language, Android 14's regional preferences) through JNI: `java.text.NumberFormat`,
+    `Calendar.getFirstDayOfWeek`, ICU's `DateFormatSymbols` and
+    `DateFormat.getBestDateTimePattern` (`src/app/android.rs`, `src/app/region/java.rs`,
+    `docs/regional-formats.md`), with en-US when a call fails.
+- **Not yet:** Linux and macOS use en-US formats whatever the system's region (and hide the
+  Regional format card, `FEAT-SHELL-008`); `docs/regional-formats.md` proposes ICU4X and
+  CFLocale for them.
 - **Differences:** right-to-left and complex scripts are `FEAT-SHELL-011`. Numbers always use
   Western digits, and dates the Gregorian calendar. The contribute sentence in Settings stays
   English (its translations name the Windows Calculator). Pasted text loses its group separators
@@ -1267,7 +1272,7 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Appearance: the expandable App theme card (`FEAT-SHELL-003`), then a Language and a Regional
     format card with a drop-down each, like WinUI's `SettingsCard` with a `ComboBox`: the box sits
     right of the text, or under it in cards narrower than 476 px. The Regional format card shows
-    only where there are regional formats to choose (Windows and the web version): on Android,
+    only where there are regional formats to choose (Windows, the web version and Android): on
     Linux and macOS its list would hold only "Use system setting", which changes nothing there.
   - Every build (CalcCraft's own; Windows has one size): an Expression size card right after the
     App theme card, with a drop-down: Small (by default), Medium, Large, Extra large. It sizes
@@ -1342,8 +1347,10 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
     are pure functions in `app/vibration.rs`).
   - The lists start with "Use system setting", then the 60 languages (50 selectable in the UI
     that egui can currently draw) or Windows' regional formats (those that use the Gregorian calendar) by their own names
-    (`Deutsch (Schweiz)`), sorted. Typing the first letters jumps to a name. The Regional format
-    card shows an example in the chosen format (`1’234’567.89 · 15. Oktober 2026`).
+    (`Deutsch (Schweiz)`), sorted; the web version and the Android app offer the translations'
+    regions instead, named by `Intl.DisplayNames` or `Locale.getDisplayName`. Typing the first
+    letters jumps to a name. The Regional format card shows an example in the chosen format
+    (`1’234’567.89 · 15. Oktober 2026`).
   - A choice applies at once and is saved as `CalcCraftLanguage` / `CalcCraftRegionalFormat` /
     `CalcCraftScreenOrientation` / `CalcCraftKeyVibration` / `CalcCraftKeyVibrationStyle` /
     `CalcCraftKeyVibrationDuration`.
@@ -1425,7 +1432,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Semi-transparent amber card floats over the calculator without blocking keyboard typing.
   - Dismissible via close button ("X") or Escape key.
   - "Donate" opens `DONATE_URL` with Stripe UTM parameters and a coarse `client_reference_id`.
-  - "I already supported" shows only after a Donate click, thanks, and pauses reminders.
+  - "I already supported" shows only after a Donate click, thanks, and pauses reminders. It is
+    only in the default channel: the free Play app (`play-free`) never shows it and has no
+    supporter state, even with one stored by 1.4.4 (a user there bought Pro or didn't).
   - Supporter state: for the 365 days after "I already supported" the menu shows a quiet green
     line, "Supported by you" followed by a green heart, instead of the amber button; it wraps in
     narrow menus, is a focusable button that opens the popup without touching the pause, and the
@@ -1439,7 +1448,8 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   - Compiles cleanly and tests pass with `--no-default-features`.
   - Google Play channels (docs/support-prompt.md, section 8), Cargo features with no donate link
     in the binary: `play-free` leads "Get CalcCraft Pro" to the paid app's Play listing
-    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all); `play-paid` shows no prompt, only
+    (`CALCCRAFT_PAID_ID` at build time, else no prompt at all), with no "I already supported"
+    and no "Supported by you"; `play-paid` shows no prompt, only
     "Supported by you". Both share the bare `SHARE_URL`.
 - **Differences:** Windows Calculator has no support prompt.
 
@@ -1499,7 +1509,9 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
 - **Description:** A Colour theme card under App theme: Classic (today's look), and the Pro
   themes Gold (a metallic gold `=` key, following Light/Dark), Night (dim red on near-black,
   always dark, graphs included), Retro LCD (greenish-grey LCD display, always light) and Paper
-  (cream and ink, always light), saved as `CalcCraftColorTheme`.
+  (cream and ink, always light), and from 1.4.5 AMOLED Black (pure #000000 everywhere, always
+  dark) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders and
+  semibold labels, always dark), saved as `CalcCraftColorTheme`.
 - **Rule (by channel):** the default channel (GitHub, F-Droid, desktops, web; open source with
   Donate) unlocks every theme, default Classic. `play-paid` (CalcCraft Pro) unlocks every theme,
   default **Gold**. `play-free` shows the Pro themes locked, with an oval PRO pill, and a tap
@@ -1507,10 +1519,13 @@ code, unit tests); UI in `src/app/graphing_view.rs`, `src/app/graph_canvas.rs` a
   doesn't unlock loads as Classic. No in-app purchase, no licence check, no network.
 - **Acceptance Criteria:**
   - Labels have at least 4.5:1 contrast in every palette, and the graph's equation colours stay
-    distinguishable (unit tests); Night has no blue and no white.
+    distinguishable (unit tests); Night has no blue and no white; AMOLED Black paints every
+    surface #000000; High Contrast keeps 7:1 (WCAG AAA) for all its text.
   - Locked items are named "Gold, Pro theme, locked, opens CalcCraft Pro on Google Play".
   - The new strings exist in all 50 languages.
-  - The free Play app has a quiet "Get CalcCraft Pro" link in About.
+  - The free Play app has a quiet "Get CalcCraft Pro" link in About; CalcCraft Pro has a quiet
+    "Thank you for supporting CalcCraft" line there instead (1.4.5).
+  - About links the Terms of Service in every build (1.4.5).
 - **Differences:** Windows Calculator has no colour themes.
 
 ---
@@ -1560,3 +1575,7 @@ Windows source in `../win-calculator`.
 | 2026-11-18 | Claude Code | `FEAT-SHELL-013` | The expression line's computed numbers (carried-over results, `%`'s value, MR) are editable as literals in place of the steps that computed them, and its binary operators can be selected and replaced by the next operator key, replayed with each mode's precedence; no cascade into later history entries; "Selected operator %1" in all 50 languages (Konst's `10 + 2 = 12 + 4 = 16 ÷ 4` test) |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-006` | Android accessibility: the AccessKit tree reaches TalkBack and accessibility services (Marionet, `uiautomator`) through eframe's `accesskit` feature and `accesskit_android`, on NativeActivity's content view via a patched copy of `accesskit_winit` 0.32.2 (`vendor/accesskit_winit`, `[patch.crates-io]`; upstream only hooks GameActivity, whose AppCompat chain the Gradle-less build can't carry); below Android 8.0 the adapter is skipped with a log line, so minSdk stays 24 |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014`, `FEAT-SHELL-012` | CalcCraft 1.4.4: colour themes (Classic; Pro: Gold with a metallic `=`, Night, Retro LCD, Paper), unlocked in the default channel and in CalcCraft Pro (default Gold), locked with a PRO pill that opens Pro's Play listing in the free Play app; "Get CalcCraft Pro" in About (play-free); the Play builds always name `com.rapalon.calccraft.pro` (1.4.3's free build had no paid ID, so its support prompt was hidden); Pro's own launcher icon |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-012` | `play-free`: no "I already supported" button and no supporter state ("Supported by you"), not even one stored by 1.4.4: a user of the free Play app either bought CalcCraft Pro or didn't (`SupportPolicyConfig::self_declared_support`, `channel::self_declared_support`) |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-014` | Two Pro colour themes, AMOLED Black (pure black everywhere, graphs included) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders, semibold labels, its own graph colours); About links the Terms of Service in every build, and CalcCraft Pro's About says "Thank you for supporting CalcCraft" |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android follows the phone's regional format: separators and grouping, the first day of the week, the calendar's month and weekday names and the date formats come from Java's locale classes through JNI (`android::region_source`, read once per region), turned into `Formats` by the pure `region/java.rs` (a Java date pattern formatter, host-tested with de-DE and ru-RU values), with en-US when a call fails; the Regional format card is back on Android with the translations' regions named by `Locale.getDisplayName`, which also names the Language list; the converters' default units follow the region's country there (`docs/regional-formats.md`, with the Linux and macOS proposal) |
+| 2026-11-19 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-012`, `FEAT-SHELL-014` | CalcCraft 1.4.5 (versionCode 10405), one release for the free Play app and CalcCraft Pro: Android regional formats, AMOLED Black and High Contrast, the Terms link and Pro's thank-you in About, no "I already supported" in `play-free`; release notes in `docs/store/pro-listing.md` |

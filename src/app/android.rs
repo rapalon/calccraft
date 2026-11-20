@@ -1,16 +1,17 @@
 //! The Android app's ties to the system, through JNI where only Java can tell: the parts of
 //! the screen under the status bar, the navigation bar and a camera cutout (NativeActivity
-//! draws under them), the user's languages, the back button, the keys' vibration, whether
-//! the system keyboard is open, the screen orientation, and the share sheet.
+//! draws under them), the user's languages and regional formats, the back button, the keys'
+//! vibration, whether the system keyboard is open, the screen orientation, and the share sheet.
 
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use eframe::egui::{Context, Event, Key, RawInput, SafeAreaInsets, epaint::MarginF32};
 use jni::JNIEnv;
-use jni::objects::{JIntArray, JObject, JString, JValue};
+use jni::objects::{JIntArray, JObject, JObjectArray, JString, JValue};
 use winit::platform::android::activity::AndroidApp;
 
+use super::region::java;
 use super::{orientation, vibration};
 
 /// The app's activity, which `android_main` gets from Android.
@@ -522,6 +523,187 @@ pub(super) fn languages() -> Vec<String> {
         Ok(tags.split(',').map(str::to_string).collect())
     })
     .unwrap_or_default()
+}
+
+/// A Java string as a Rust one; `null` is empty.
+fn string(env: &mut JNIEnv, object: JObject) -> jni::errors::Result<String> {
+    if object.is_null() {
+        return Ok(String::new());
+    }
+    Ok(env.get_string(&JString::from(object))?.into())
+}
+
+/// A Java `String[]` as a vector; `null` is empty.
+fn strings(env: &mut JNIEnv, array: JObject) -> jni::errors::Result<Vec<String>> {
+    if array.is_null() {
+        return Ok(Vec::new());
+    }
+    let array = JObjectArray::from(array);
+    let length = env.get_array_length(&array)?;
+    (0..length)
+        .map(|i| {
+            // Each element's reference goes with its frame: a dozen name lists would pile up.
+            env.with_local_frame(4, |env| {
+                let item = env.get_object_array_element(&array, i)?;
+                string(env, item)
+            })
+        })
+        .collect()
+}
+
+/// `Locale.forLanguageTag(tag)`.
+fn locale_for<'local>(env: &mut JNIEnv<'local>, tag: &str) -> jni::errors::Result<JObject<'local>> {
+    let tag = env.new_string(tag)?;
+    env.call_static_method(
+        "java/util/Locale",
+        "forLanguageTag",
+        "(Ljava/lang/String;)Ljava/util/Locale;",
+        &[JValue::Object(&tag)],
+    )?
+    .l()
+}
+
+/// What Java says about a region's formats (`region::java::Source`, which turns it into the
+/// app's `Formats`): the phone's own format locale (`Locale.getDefault(FORMAT)`, which follows
+/// the system region, a per-app language and Android 14's regional preferences) for `None`, or
+/// a tag from the Settings list. The locale is asked with the Gregorian calendar and Latin
+/// digits (`java::gregorian`). `None` when a call fails: the formats are then en-US.
+pub(super) fn region_source(choice: Option<&str>) -> Option<java::Source> {
+    with_activity(|env, _| {
+        let tag = match choice {
+            Some(tag) => tag.to_string(),
+            None => {
+                let category = env
+                    .get_static_field(
+                        "java/util/Locale$Category",
+                        "FORMAT",
+                        "Ljava/util/Locale$Category;",
+                    )?
+                    .l()?;
+                let locale = env
+                    .call_static_method(
+                        "java/util/Locale",
+                        "getDefault",
+                        "(Ljava/util/Locale$Category;)Ljava/util/Locale;",
+                        &[JValue::Object(&category)],
+                    )?
+                    .l()?;
+                let tag = env
+                    .call_method(&locale, "toLanguageTag", "()Ljava/lang/String;", &[])?
+                    .l()?;
+                string(env, tag)?
+            }
+        };
+        let locale = locale_for(env, &java::gregorian(&tag))?;
+        // The separators and the grouping, read off a formatted number.
+        let format = env
+            .call_static_method(
+                "java/text/NumberFormat",
+                "getInstance",
+                "(Ljava/util/Locale;)Ljava/text/NumberFormat;",
+                &[JValue::Object(&locale)],
+            )?
+            .l()?;
+        let number = env
+            .call_method(
+                &format,
+                "format",
+                "(D)Ljava/lang/String;",
+                &[JValue::Double(java::SAMPLE)],
+            )?
+            .l()?;
+        let number = string(env, number)?;
+        let calendar = env
+            .call_static_method(
+                "java/util/Calendar",
+                "getInstance",
+                "(Ljava/util/Locale;)Ljava/util/Calendar;",
+                &[JValue::Object(&locale)],
+            )?
+            .l()?;
+        let first_day = env
+            .call_method(&calendar, "getFirstDayOfWeek", "()I", &[])?
+            .i()?;
+        // ICU's names: `java.text.DateFormatSymbols` has no standalone ones (Russian's nominative month names).
+        let symbols = env
+            .call_static_method(
+                "android/icu/text/DateFormatSymbols",
+                "getInstance",
+                "(Ljava/util/Locale;)Landroid/icu/text/DateFormatSymbols;",
+                &[JValue::Object(&locale)],
+            )?
+            .l()?;
+        let names = |env: &mut JNIEnv, method: &str, context: i32, width: i32| {
+            let array = env
+                .call_method(
+                    &symbols,
+                    method,
+                    "(II)[Ljava/lang/String;",
+                    &[JValue::Int(context), JValue::Int(width)],
+                )?
+                .l()?;
+            strings(env, array)
+        };
+        let months = names(env, "getMonths", java::FORMAT, java::WIDE)?;
+        let months_standalone = names(env, "getMonths", java::STANDALONE, java::WIDE)?;
+        let short_months = names(env, "getMonths", java::FORMAT, java::ABBREVIATED)?;
+        let short_months_standalone = names(env, "getMonths", java::STANDALONE, java::ABBREVIATED)?;
+        let weekdays = names(env, "getWeekdays", java::FORMAT, java::WIDE)?;
+        let short_weekdays = names(env, "getWeekdays", java::FORMAT, java::ABBREVIATED)?;
+        // An ICU without the short width throws: the abbreviated names stand in.
+        let shortest_weekdays = match names(env, "getWeekdays", java::STANDALONE, java::SHORT) {
+            Ok(names) => names,
+            Err(_) => {
+                env.exception_clear()?;
+                short_weekdays.clone()
+            }
+        };
+        let pattern = |env: &mut JNIEnv, skeleton: &str| {
+            let skeleton = env.new_string(skeleton)?;
+            let pattern = env
+                .call_static_method(
+                    "android/text/format/DateFormat",
+                    "getBestDateTimePattern",
+                    "(Ljava/util/Locale;Ljava/lang/String;)Ljava/lang/String;",
+                    &[JValue::Object(&locale), JValue::Object(&skeleton)],
+                )?
+                .l()?;
+            string(env, pattern)
+        };
+        Ok(java::Source {
+            picker: pattern(env, java::PICKER_SKELETON)?,
+            long: pattern(env, java::LONG_SKELETON)?,
+            year_month: pattern(env, java::YEAR_MONTH_SKELETON)?,
+            tag,
+            number,
+            first_day,
+            months,
+            months_standalone,
+            short_months,
+            short_months_standalone,
+            weekdays,
+            short_weekdays,
+            shortest_weekdays,
+        })
+    })
+}
+
+/// A language's or region's name in its own language (`Deutsch (Deutschland)`), from
+/// `Locale.getDisplayName`; `None` for a tag Java doesn't know, which it gives back as it is.
+pub(super) fn display_name(tag: &str) -> Option<String> {
+    with_activity(|env, _| {
+        let locale = locale_for(env, tag)?;
+        let name = env
+            .call_method(
+                &locale,
+                "getDisplayName",
+                "(Ljava/util/Locale;)Ljava/lang/String;",
+                &[JValue::Object(&locale)],
+            )?
+            .l()?;
+        string(env, name)
+    })
+    .filter(|name| !name.is_empty() && name != tag)
 }
 
 /// `Intent.FLAG_ACTIVITY_NEW_TASK`: harmless from an activity, needed from any other context.

@@ -134,6 +134,11 @@ pub(crate) struct Palette {
     /// Night: no white anywhere, so what would be white (hover overlays, labels on an
     /// equation's color) takes the palette's text or ink instead.
     pub no_white: bool,
+    /// The keys' outline width in points: 1, or 2 in High Contrast, which also outlines the
+    /// accent keys then.
+    pub key_border: f32,
+    /// Key labels in semibold (High Contrast: they look larger without taking more room).
+    pub bold_keys: bool,
 }
 
 /// A metal key: a vertical gradient (`stops`, top to bottom, evenly spaced), a soft
@@ -328,6 +333,8 @@ pub(crate) const DARK: Palette = Palette {
     graph: None,
     restyle: false,
     no_white: false,
+    key_border: 1.0,
+    bold_keys: false,
 };
 
 pub(crate) const LIGHT: Palette = Palette {
@@ -416,6 +423,8 @@ pub(crate) const LIGHT: Palette = Palette {
     graph: None,
     restyle: false,
     no_white: false,
+    key_border: 1.0,
+    bold_keys: false,
 };
 
 // ------------------------------------------------------------ colour themes
@@ -440,7 +449,7 @@ impl ThemeSpec {
 }
 
 /// Every colour theme, in `ColorTheme::ALL`'s order.
-pub(super) static THEMES: [ThemeSpec; 5] = [
+pub(super) static THEMES: [ThemeSpec; 7] = [
     ThemeSpec {
         theme: ColorTheme::Classic,
         dark: &DARK,
@@ -470,6 +479,18 @@ pub(super) static THEMES: [ThemeSpec; 5] = [
         dark: &PAPER,
         light: &PAPER,
         fixed: Some(egui::Theme::Light),
+    },
+    ThemeSpec {
+        theme: ColorTheme::AmoledBlack,
+        dark: &AMOLED_BLACK,
+        light: &AMOLED_BLACK,
+        fixed: Some(egui::Theme::Dark),
+    },
+    ThemeSpec {
+        theme: ColorTheme::HighContrast,
+        dark: &HIGH_CONTRAST,
+        light: &HIGH_CONTRAST,
+        fixed: Some(egui::Theme::Dark),
     },
 ];
 
@@ -620,6 +641,8 @@ pub(crate) const NIGHT: Palette = Palette {
     graph: Some(&NIGHT_GRAPH),
     restyle: true,
     no_white: true,
+    key_border: 1.0,
+    bold_keys: false,
 };
 
 const LCD_BODY: Color32 = rgb(0xB4BCA2);
@@ -714,6 +737,8 @@ pub(crate) const RETRO_LCD: Palette = Palette {
     graph: None,
     restyle: true,
     no_white: false,
+    key_border: 1.0,
+    bold_keys: false,
 };
 
 const PAPER_BACKGROUND: Color32 = rgb(0xF6F0E1);
@@ -807,6 +832,241 @@ pub(crate) const PAPER: Palette = Palette {
     graph: None,
     restyle: true,
     no_white: false,
+    key_border: 1.0,
+    bold_keys: false,
+};
+
+const OLED: Color32 = Color32::BLACK;
+const AMOLED_TEXT: Color32 = rgb(0xF2F2F2);
+/// AMOLED Black's one light accent: a soft blue, with a black label.
+const AMOLED_ACCENT: Color32 = rgb(0x8AB4F8);
+/// The thin outlines that tell the black keys and panels apart.
+const AMOLED_LINE: Color32 = rgb(0x262626);
+const AMOLED_LINE_2: Color32 = rgb(0x333333);
+
+/// AMOLED Black's graph: black, with the dark graph's equation colours.
+pub(crate) const AMOLED_GRAPH: GraphPalette = GraphPalette {
+    background: OLED,
+    axes: rgb(0xBFBFBF),
+    grid: AMOLED_LINE_2,
+    minor_grid: rgb(0x1A1A1A),
+    equations: DARK_GRAPH.equations,
+};
+
+/// AMOLED Black: pure black behind everything (an OLED screen leaves those pixels off), near-white
+/// text, keys told apart by thin dim outlines rather than grey fills, and one light accent.
+/// Hover and pressed states are the only near-black greys, and only while touched.
+pub(crate) const AMOLED_BLACK: Palette = Palette {
+    background: OLED,
+    digit: OLED,
+    digit_hover: rgb(0x121212),
+    digit_pressed: rgb(0x1E1E1E),
+    digit_disabled: OLED,
+    operator: OLED,
+    operator_hover: rgb(0x121212),
+    operator_pressed: rgb(0x1E1E1E),
+    operator_disabled: OLED,
+    accent: AMOLED_ACCENT,
+    accent_hover: rgb(0xA8C7FA),
+    accent_pressed: rgb(0x6E9EF0),
+    accent_disabled: rgb(0x1E1E1E),
+    emphasized_hover: rgb(0xA8C7FA),
+    emphasized_pressed: AMOLED_ACCENT,
+    text_on_emphasized: OLED,
+    subtle_hover: rgb(0x121212),
+    subtle_pressed: rgb(0x1E1E1E),
+    border: AMOLED_LINE,
+    flyout: OLED,
+    flyout_border: AMOLED_LINE_2,
+    backdrop: Color32::from_black_alpha(0xB3),
+    text: AMOLED_TEXT,
+    text_pressed: rgb(0xBFBFBF),
+    text_secondary: rgb(0xB3B3B3),
+    text_tertiary: rgb(0x8C8C8C),
+    text_disabled: rgb(0x5C5C5C),
+    text_on_accent: OLED,
+    card: OLED,
+    card_hover: rgb(0x121212),
+    card_pressed: rgb(0x1A1A1A),
+    card_border: AMOLED_LINE,
+    radio_ring: rgb(0x8C8C8C),
+    radio_fill: OLED,
+    radio_dot: OLED,
+    link: AMOLED_ACCENT,
+    link_hover: rgb(0xA8C7FA),
+    link_pressed: rgb(0x6E9EF0),
+    popup: OLED,
+    popup_item: rgb(0x1A1A1A),
+    popup_item_pressed: rgb(0x121212),
+    popup_border: AMOLED_LINE_2,
+    popup_shadow: Color32::TRANSPARENT,
+    calendar: OLED,
+    calendar_header: OLED,
+    calendar_line: AMOLED_LINE,
+    calendar_hover: rgb(0x1A1A1A),
+    calendar_pressed: rgb(0x121212),
+    calendar_arrow: rgb(0xB3B3B3),
+    other_month: rgb(0x8C8C8C),
+    control: OLED,
+    control_hover: rgb(0x121212),
+    control_pressed: rgb(0x1A1A1A),
+    control_border: AMOLED_LINE_2,
+    unit_hover: rgb(0xCCCCCC),
+    unit_pressed: rgb(0x999999),
+    divider: AMOLED_LINE,
+    bit_label: rgb(0xCCCCCC),
+    bit_hover: rgb(0x999999),
+    bit_pressed: rgb(0x737373),
+    bit_disabled: rgb(0x404040),
+    focus_outer: AMOLED_TEXT,
+    focus_inner: OLED,
+    graph_panel: OLED,
+    graph_panel_border: AMOLED_LINE_2,
+    graph_panel_text: AMOLED_TEXT,
+    error_border: rgb(0xEB5757),
+    error_fill: rgb(0x1A0606),
+    critical: rgb(0xFF99A4),
+    hidden_equation: AMOLED_LINE_2,
+    hidden_equation_text: AMOLED_TEXT,
+    slider_rail: rgb(0x8C8C8C),
+    slider_thumb: AMOLED_ACCENT,
+    slider_thumb_border: OLED,
+    value_underline: rgb(0x595959),
+    switch_track: OLED,
+    smoke: Color32::from_black_alpha(0x80),
+    metal: None,
+    display_panel: None,
+    graph: Some(&AMOLED_GRAPH),
+    restyle: true,
+    no_white: false,
+    key_border: 1.0,
+    bold_keys: false,
+};
+
+const HC_BLACK: Color32 = Color32::BLACK;
+const HC_WHITE: Color32 = Color32::WHITE;
+/// Windows' high-contrast yellow: the accent, links, hover text and pressed keys.
+const HC_YELLOW: Color32 = rgb(0xFFFF00);
+/// The keyboard focus, apart from hover and pressed (yellow).
+const HC_CYAN: Color32 = rgb(0x00FFFF);
+/// Disabled text: Windows' Night sky theme's GrayText, 8.4:1 on black.
+const HC_GRAY: Color32 = rgb(0xA6A6A6);
+/// The only fills besides black and yellow: hovered items, under white text (13:1).
+const HC_HOVER: Color32 = rgb(0x262626);
+
+/// High Contrast's graph: black, white axes, and 14 bright equation colours.
+pub(crate) const HIGH_CONTRAST_GRAPH: GraphPalette = GraphPalette {
+    background: HC_BLACK,
+    axes: HC_WHITE,
+    grid: rgb(0x8C8C8C),
+    minor_grid: rgb(0x404040),
+    equations: [
+        HC_YELLOW,
+        HC_CYAN,
+        rgb(0xFF66FF),
+        rgb(0x33FF33),
+        rgb(0xFF9900),
+        HC_WHITE,
+        rgb(0x66B3FF),
+        rgb(0xFF6666),
+        rgb(0xB399FF),
+        rgb(0x99FFCC),
+        rgb(0xCCCC00),
+        rgb(0xFFB3D9),
+        rgb(0x00CC99),
+        rgb(0xFFCC99),
+    ],
+};
+
+/// High Contrast: for low vision, after Windows' high-contrast themes. White on black, every
+/// text at least 7:1 (WCAG AAA), yellow for the accent keys and links and for a pressed key, a
+/// cyan focus ring, 2 px white key outlines and semibold labels.
+pub(crate) const HIGH_CONTRAST: Palette = Palette {
+    background: HC_BLACK,
+    digit: HC_BLACK,
+    digit_hover: HC_HOVER,
+    digit_pressed: HC_YELLOW,
+    digit_disabled: HC_BLACK,
+    operator: HC_BLACK,
+    operator_hover: HC_HOVER,
+    operator_pressed: HC_YELLOW,
+    operator_disabled: HC_BLACK,
+    accent: HC_YELLOW,
+    accent_hover: rgb(0xFFFF80),
+    accent_pressed: HC_WHITE,
+    accent_disabled: HC_BLACK,
+    emphasized_hover: HC_YELLOW,
+    emphasized_pressed: HC_WHITE,
+    text_on_emphasized: HC_BLACK,
+    subtle_hover: HC_HOVER,
+    subtle_pressed: HC_YELLOW,
+    border: HC_WHITE,
+    flyout: HC_BLACK,
+    flyout_border: HC_WHITE,
+    backdrop: Color32::from_black_alpha(0xCC),
+    text: HC_WHITE,
+    // On the yellow of a pressed key.
+    text_pressed: HC_BLACK,
+    text_secondary: rgb(0xE6E6E6),
+    text_tertiary: rgb(0xCCCCCC),
+    text_disabled: HC_GRAY,
+    text_on_accent: HC_BLACK,
+    card: HC_BLACK,
+    card_hover: HC_HOVER,
+    card_pressed: rgb(0x333333),
+    card_border: HC_WHITE,
+    radio_ring: HC_WHITE,
+    radio_fill: HC_BLACK,
+    radio_dot: HC_BLACK,
+    link: HC_YELLOW,
+    link_hover: rgb(0xFFFF80),
+    link_pressed: HC_WHITE,
+    popup: HC_BLACK,
+    popup_item: HC_HOVER,
+    popup_item_pressed: rgb(0x333333),
+    popup_border: HC_WHITE,
+    popup_shadow: Color32::TRANSPARENT,
+    calendar: HC_BLACK,
+    calendar_header: HC_BLACK,
+    calendar_line: rgb(0x8C8C8C),
+    calendar_hover: HC_HOVER,
+    calendar_pressed: rgb(0x333333),
+    calendar_arrow: HC_WHITE,
+    other_month: HC_GRAY,
+    control: HC_BLACK,
+    control_hover: HC_HOVER,
+    control_pressed: rgb(0x333333),
+    control_border: HC_WHITE,
+    unit_hover: HC_YELLOW,
+    unit_pressed: rgb(0xE6E600),
+    divider: HC_WHITE,
+    bit_label: HC_WHITE,
+    bit_hover: HC_YELLOW,
+    bit_pressed: rgb(0xE6E600),
+    bit_disabled: HC_GRAY,
+    focus_outer: HC_CYAN,
+    focus_inner: HC_BLACK,
+    graph_panel: HC_BLACK,
+    graph_panel_border: HC_WHITE,
+    graph_panel_text: HC_WHITE,
+    error_border: rgb(0xFF6666),
+    error_fill: rgb(0x330000),
+    critical: rgb(0xFF8080),
+    hidden_equation: rgb(0x333333),
+    hidden_equation_text: HC_WHITE,
+    slider_rail: HC_WHITE,
+    slider_thumb: HC_YELLOW,
+    slider_thumb_border: HC_BLACK,
+    value_underline: HC_WHITE,
+    switch_track: HC_BLACK,
+    smoke: Color32::from_black_alpha(0x99),
+    metal: None,
+    display_panel: None,
+    graph: Some(&HIGH_CONTRAST_GRAPH),
+    restyle: true,
+    no_white: false,
+    key_border: 2.0,
+    bold_keys: true,
 };
 
 /// The color of the gradient `stops` (evenly spaced, top to bottom) at `t` in 0..=1.
@@ -920,6 +1180,8 @@ mod tests {
             ("light", &LIGHT_GRAPH),
             ("dark", &DARK_GRAPH),
             ("night", &NIGHT_GRAPH),
+            ("amoled", &AMOLED_GRAPH),
+            ("high contrast", &HIGH_CONTRAST_GRAPH),
         ] {
             let colors = graph.equations;
             for (i, a) in colors.iter().enumerate() {
@@ -984,6 +1246,156 @@ mod tests {
         }
         assert_eq!(spec(ColorTheme::Night).fixed, Some(egui::Theme::Dark));
         assert!(NIGHT.graph.is_some());
+    }
+
+    /// AMOLED Black lights no pixel where nothing is drawn: every surface, the graph included,
+    /// is pure black, and so are egui's own panels and windows (it restyles them).
+    #[test]
+    fn amoled_black_is_pure_black() {
+        let p = &AMOLED_BLACK;
+        for (name, color) in [
+            ("background", p.background),
+            ("digit", p.digit),
+            ("digit_disabled", p.digit_disabled),
+            ("operator", p.operator),
+            ("operator_disabled", p.operator_disabled),
+            ("flyout", p.flyout),
+            ("card", p.card),
+            ("radio_fill", p.radio_fill),
+            ("popup", p.popup),
+            ("calendar", p.calendar),
+            ("calendar_header", p.calendar_header),
+            ("control", p.control),
+            ("graph_panel", p.graph_panel),
+            ("switch_track", p.switch_track),
+            ("graph", AMOLED_GRAPH.background),
+        ] {
+            assert_eq!(color, Color32::BLACK, "{name}");
+        }
+        assert!(p.restyle && p.display_panel.is_none() && p.metal.is_none());
+        assert!(std::ptr::eq(p.graph.unwrap(), &AMOLED_GRAPH));
+        assert_eq!(spec(ColorTheme::AmoledBlack).fixed, Some(egui::Theme::Dark));
+        // Its text is near-white, its labels and accent label at least 7:1 too.
+        assert!(contrast(p.text, Color32::BLACK) >= 7.0);
+        assert!(contrast(p.text_on_accent, p.accent) >= 7.0);
+    }
+
+    /// High Contrast keeps 7:1 (WCAG AAA) for every text on every surface it is drawn on, in
+    /// every key state, and its graph colours 4.5:1 on the graph.
+    #[test]
+    fn high_contrast_is_aaa() {
+        const AAA: f64 = 7.0;
+        let p = &HIGH_CONTRAST;
+        let check = |what: &str, a: Color32, b: Color32| {
+            let ratio = contrast(a, b);
+            assert!(ratio >= AAA, "High Contrast: {what} is {ratio:.2}:1");
+        };
+        let surfaces = [
+            ("background", p.background),
+            ("digit", p.digit),
+            ("digit_hover", p.digit_hover),
+            ("operator", p.operator),
+            ("operator_hover", p.operator_hover),
+            ("subtle_hover", p.subtle_hover),
+            ("card", p.card),
+            ("card_hover", p.card_hover),
+            ("card_pressed", p.card_pressed),
+            ("flyout", p.flyout),
+            ("popup", p.popup),
+            ("popup_item", p.popup_item),
+            ("popup_item_pressed", p.popup_item_pressed),
+            ("calendar", p.calendar),
+            ("calendar_hover", p.calendar_hover),
+            ("control", p.control),
+            ("control_hover", p.control_hover),
+            ("graph_panel", p.graph_panel),
+            ("hidden_equation", p.hidden_equation),
+        ];
+        for (ground, color) in surfaces {
+            check(&format!("text on {ground}"), p.text, color);
+            check(&format!("secondary on {ground}"), p.text_secondary, color);
+            check(&format!("tertiary on {ground}"), p.text_tertiary, color);
+        }
+        for (ground, color) in [
+            ("background", p.background),
+            ("digit_disabled", p.digit_disabled),
+            ("operator_disabled", p.operator_disabled),
+            ("accent_disabled", p.accent_disabled),
+        ] {
+            check(&format!("disabled on {ground}"), p.text_disabled, color);
+        }
+        // Every key state: pressed keys are yellow with a black label.
+        for (state, fill) in [
+            ("digit pressed", p.digit_pressed),
+            ("operator pressed", p.operator_pressed),
+            ("subtle pressed", p.subtle_pressed),
+        ] {
+            check(state, p.text_pressed, fill);
+        }
+        for (state, fill) in [
+            ("accent", p.accent),
+            ("accent hover", p.accent_hover),
+            ("accent pressed", p.accent_pressed),
+        ] {
+            check(state, p.text_on_accent, fill);
+        }
+        for (state, fill) in [
+            ("emphasized hover", p.emphasized_hover),
+            ("emphasized pressed", p.emphasized_pressed),
+        ] {
+            check(state, p.text_on_emphasized, fill);
+        }
+        for (what, color) in [
+            ("link", p.link),
+            ("link hover", p.link_hover),
+            ("link pressed", p.link_pressed),
+            ("bit label", p.bit_label),
+            ("bit hover", p.bit_hover),
+            ("bit pressed", p.bit_pressed),
+            ("bit disabled", p.bit_disabled),
+            ("unit hover", p.unit_hover),
+            ("unit pressed", p.unit_pressed),
+            ("other month", p.other_month),
+            ("critical", p.critical),
+            ("graph panel text", p.graph_panel_text),
+            ("focus ring", p.focus_outer),
+            ("key border", p.border),
+        ] {
+            check(what, color, p.background);
+        }
+        check(
+            "hidden equation text",
+            p.hidden_equation_text,
+            p.hidden_equation,
+        );
+        // Focus, hover and pressed never look alike.
+        assert_ne!(p.focus_outer, p.digit_pressed);
+        assert_ne!(p.focus_outer, p.accent);
+        assert_ne!(p.digit_hover, p.digit_pressed);
+        let graph = &HIGH_CONTRAST_GRAPH;
+        for (i, color) in graph.equations.iter().enumerate() {
+            let ratio = contrast(*color, graph.background);
+            assert!(ratio >= 4.5, "High Contrast: equation {i} is {ratio:.2}:1");
+        }
+        assert!(contrast(graph.axes, graph.background) >= AAA);
+        assert!(p.key_border >= 2.0 && p.bold_keys);
+        assert_eq!(
+            spec(ColorTheme::HighContrast).fixed,
+            Some(egui::Theme::Dark)
+        );
+    }
+
+    /// Only High Contrast changes the keys' outlines and label weight: the others keep the
+    /// old look.
+    #[test]
+    fn key_outlines_change_only_in_high_contrast() {
+        for spec in &THEMES {
+            for p in [spec.dark, spec.light] {
+                let high = spec.theme == ColorTheme::HighContrast;
+                assert_eq!(p.key_border, if high { 2.0 } else { 1.0 });
+                assert_eq!(p.bold_keys, high);
+            }
+        }
     }
 
     #[test]

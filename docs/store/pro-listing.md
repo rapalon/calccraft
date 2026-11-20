@@ -1,7 +1,7 @@
-# CalcCraft Pro: Google Play listing (1.4.4)
+# CalcCraft Pro: Google Play listing (1.4.5)
 
 The store text for the paid app, `com.rapalon.calccraft.pro` (US$4.99, set in the Play
-Console), and the 1.4.4 release notes for both apps. English only (en-US). Play's limits: title
+Console), and the 1.4.4 and 1.4.5 release notes for both apps. English only (en-US). Play's limits: title
 30 characters, short description 80, full description 4000, release notes 500. US spelling
 ("Color theme"), as the app's en-US text has it. The texts in
 the code blocks are ready to paste: their lines aren't wrapped, so each line is a paragraph or
@@ -23,13 +23,13 @@ a bullet in the store. Counts are JavaScript's `String.length` of the block's te
 The precise calculator, with Gold, Night and more themes. No support popups.
 ```
 
-## Full description (1,981 characters)
+## Full description (2,169 characters)
 
 ```
 CalcCraft Pro is the supporter edition of CalcCraft: the same precise, ad-free calculator, with color themes of its own and no support reminders. Buying it keeps CalcCraft in development.
 
 WHAT PRO ADDS
-• Color themes. Gold, Pro's default: the familiar look with a polished gold equals key. Night: dim red on near-black, for using the calculator in the dark without losing your night vision, with no white and no blue anywhere, graphs included. Retro LCD: a greenish LCD display with dark digits. Paper: warm cream and ink. More themes will follow.
+• Color themes. Gold, Pro's default: the familiar look with a polished gold equals key. Night: dim red on near-black, for using the calculator in the dark without losing your night vision, with no white and no blue anywhere, graphs included. Retro LCD: a greenish LCD display with dark digits. Paper: warm cream and ink. AMOLED Black: pure black everywhere, so an OLED screen keeps those pixels off. High Contrast: white on black with yellow keys and thick outlines, for low vision. More themes will follow.
 • No support reminders, ever: no red dot, no popup.
 • You support an independent developer and future updates.
 
@@ -41,7 +41,7 @@ EVERYTHING IN CALCCRAFT
 • Scientific mode with 32 digits, degrees, radians and gradians, and F-E notation.
 • Programmer mode with HEX, DEC, OCT and BIN, byte to QWORD, bitwise operators, shifts and the bit toggling keypad.
 • Graphing with equations, inequalities, sliders for variables, tracing, and an analysis of each function (domain, range, zeros, extrema, asymptotes).
-• Phone and tablet layouts, portrait and landscape, light and dark, 50 languages, regional number formats, screen reader support, and adjustable key vibration.
+• Phone and tablet layouts, portrait and landscape, light and dark, 50 languages, numbers and dates in your phone's regional format, screen reader support, and adjustable key vibration.
 • No ads, no account, no tracking, no network access. Your calculations stay on your device.
 
 CalcCraft is open source. The free edition stays free and has every calculator; Pro is for those who want the themes and want to support the work.
@@ -63,4 +63,23 @@ Welcome to CalcCraft Pro!
 ```
 • New in Settings: Color theme. Classic stays free; Gold, Night, Retro LCD and Paper come with CalcCraft Pro, the supporter edition on Google Play.
 • The support reminder now leads to CalcCraft Pro, and About has a link to it.
+```
+
+## Release notes, 1.4.5
+
+### CalcCraft Pro (394 characters)
+
+```
+• Two new color themes: AMOLED Black (pure black, easy on OLED screens) and High Contrast (white on black with yellow keys, for low vision).
+• Numbers and dates follow your phone's regional format: decimal separator, digit grouping, date formats and the first day of the week. Settings → Regional format picks another.
+• About thanks you for supporting CalcCraft and links the Terms of Service.
+```
+
+### CalcCraft, the free app (344 characters)
+
+```
+• Numbers and dates follow your phone's regional format: decimal separator, digit grouping, date formats and the first day of the week. Settings → Regional format picks another.
+• About links the Terms of Service.
+• The support reminder no longer has an "I already supported" button.
+• Two more Pro color themes: AMOLED Black and High Contrast.
 ```

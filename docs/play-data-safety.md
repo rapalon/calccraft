@@ -62,7 +62,7 @@ the same way: it has the same code, minus the prompt.
 
 | Declaration | Answer | Why |
 | --- | --- | --- |
-| Privacy policy | `https://rapalon.com/calccraft/privacy` | `PRIVACY.md`. |
+| Privacy policy | `https://rapalon.com/calccraft/privacy` | `PRIVACY.md`. The app's Settings also link the Terms of Service (`https://rapalon.com/calccraft/terms/`, `TERMS.md`), with nothing added to the address: no data leaves the device for it, and nothing above changes. |
 | Ads | **No, my app does not contain ads** | No ad SDK. In the free Play app the support reminder (once CalcCraft Pro exists) is the developer's own suggestion of its paid edition on Google Play, not a third-party ad; before that, and in the paid app, there is none. |
 | App access | **All functionality is available without special access** | No login, account, subscription or region lock. |
 | Content rating | Answer the IARC questionnaire with "No" to everything (no violence, sexuality, language, controlled substances, gambling, user interaction, sharing of location or personal information, or digital purchases inside the app) | A calculator. The Play builds have no donations and no in-app purchases; CalcCraft Pro is a separate paid app. Expected rating: Everyone / PEGI 3. |

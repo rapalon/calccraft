@@ -74,9 +74,11 @@ when the app closes.
   `src/app/strings.rs:329`), Android's (`src/app/android.rs:178`, via JNI),
   the browser's `navigator.languages` (`src/app/web.rs:26`).
 - Regional formats: `GetUserDefaultLocaleName` and `GetLocaleInfoEx` (`src/app/region.rs:373`),
-  the browser's `Intl` (`src/app/web.rs:63-216`).
+  the browser's `Intl` (`src/app/web.rs:63-216`), Android's format locale and its number, calendar
+  and date classes via JNI (`android::region_source`, `android::display_name`).
 - Country, for the converters' default units: `GetUserDefaultGeoName`
-  (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`).
+  (`src/app/converter_view.rs:180-184`), the region tag in the browser (`src/app/web.rs:51`) and
+  of the regional format elsewhere (`Formats::country`).
 - The system theme (egui/winit), the Android SDK version and the system bars' insets
   (`src/app/android.rs:52`, `:90`), the page address's `?lang=`/`?region=` (`src/app/web.rs:17`).
 - The screen's smallest width in dp (Android, `Configuration.smallestScreenWidthDp`,
@@ -106,6 +108,7 @@ All go through `open_link` (`src/app.rs:3050-3057`): the system browser on deskt
 | Rapalon Labs (About card) | `https://rapalon.com` | none | `src/app.rs:2502`, `src/brand.rs:13` |
 | Rapalon Labs (support popup) | `https://rapalon.com` | none | `src/support/view.rs:397` |
 | Privacy policy (Settings) | `https://rapalon.com/calccraft/privacy` | none | added after the audit: `PRIVACY_URL`, the link under Send feedback on the Settings page (`src/app.rs`) |
+| Terms of Service (Settings) | `https://rapalon.com/calccraft/terms/` | none | added after the audit (1.4.5): `TERMS_URL`, the link under Privacy policy on the Settings page (`src/app.rs`) |
 | Send feedback | `https://github.com/rapalon/calccraft/issues` | none | `src/app.rs:91`, `:2520` |
 | GitHub | `https://github.com/rapalon/calccraft` | none | `src/app.rs:90`, `:2538` |
 | Donate | `https://rapalon.com/calccraft/donate` (redirects to a Stripe Payment Link, keeping the query) | see below | `src/support/donate.rs:9`, `:88-106`; `src/support/view.rs:351-369` |

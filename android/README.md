@@ -484,8 +484,6 @@ the device: the accessibility services run on the phone.
 ## Not done yet
 
 - Copy and Paste (no clipboard: egui has none on Android, and `arboard` doesn't build there).
-- Regional formats: numbers and dates are en-US, whatever the phone's region, and Settings has
-  no Regional format card (its list would be empty).
 - TalkBack on Android 7 (API 24 and 25): the accessibility tree needs Android 8.0's
   `InMemoryDexClassLoader` (see "Accessibility"); the app runs there without it.
 - The status bar's icons follow the phone's dark mode, not the app's own theme setting.

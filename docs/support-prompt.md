@@ -126,7 +126,7 @@ by `ladder_step`, which goes up by one per complete cycle:
 | --- | --- |
 | Automatic popup closed (X or Esc) within `quick_close_ms` = **2000** ms of appearing ("annoyed") | One extra step up the ladder: the wait becomes the next interval (7 → 14 days, …). |
 | Donate clicked (popup or menu popup) | All automatic reminders pause for `donate_pause_days` = **180** days; `donate_clicked_ever = true`, never reset. The popup closes. |
-| "I already supported" | Shown in the popup only when `donate_clicked_ever` is true (until then the popup has just Donate and Close). Secondary style, under Donate. Pressing it shows "Thank you!" for `thank_you_ms` = **1500** ms, closes the popup, and pauses automatic reminders for `already_supported_pause_days` = **365** days. |
+| "I already supported" | Default channel only (never in `play-free`, section 8). Shown in the popup only when `donate_clicked_ever` is true (until then the popup has just Donate and Close). Secondary style, under Donate. Pressing it shows "Thank you!" for `thank_you_ms` = **1500** ms, closes the popup, and pauses automatic reminders for `already_supported_pause_days` = **365** days. |
 | Share ("Tell a friend" or the supporter line's share glyph, section 12) | A supporter-friendly reaction: completes the running cycle like "seen" and adds one extra ladder step (once per cycle). Not a Donate: `donate_clicked_ever` stays, no pause, no supporter state. |
 | Popup opened on demand from the menu | Counts as seen: completes the cycle if the dot was active, no penalty. Closing it quickly is no penalty either. Outside an active cycle it changes nothing. |
 
@@ -160,6 +160,9 @@ the press, stored as `supporter_until_day`), the user is a **supporter**:
   "I already supported" does.
 - When the 365 days are over, the amber button is back and the normal cycle resumes at Stage 1
   (the dot first).
+- Only the default channel has this self-declared state
+  (`SupportPolicyConfig::self_declared_support`). The free Play app has none: a user there
+  either bought CalcCraft Pro or didn't (section 8).
 
 Pure API: `policy::menu_entry(stats, cfg, now) -> MenuEntry` (`SupportButton` or
 `SupporterThanks`).
@@ -182,6 +185,7 @@ values above, so they can be tuned in one place:
 | `donate_pause_days` | 180 | 180 |
 | `already_supported_pause_days` | 365 | 365 |
 | `thank_you_ms` | 1500 | 1500 |
+| `self_declared_support` | true (false in `play-free`, section 8) | same |
 
 Launches before `min_launches` are the silent stage: launches 1–3, so the 4th may show the dot.
 
@@ -192,7 +196,8 @@ pub fn evaluate(stats: &SupportStats, cfg: &SupportPolicyConfig, now: Timestamp,
                 moment: MomentContext) -> SupportDecision;          // Nothing | ShowDot | ShowPopup
 pub fn on_event(stats: &SupportStats, cfg: &SupportPolicyConfig, event: SupportEvent,
                 now: Timestamp) -> SupportStats;
-pub fn show_already_supported_button(stats: &SupportStats) -> bool;
+pub fn show_already_supported_button(stats: &SupportStats,
+                                     cfg: &SupportPolicyConfig) -> bool;
 pub fn menu_entry(stats: &SupportStats, cfg: &SupportPolicyConfig,
                   now: Timestamp) -> MenuEntry;                     // SupportButton | SupporterThanks
 ```
@@ -349,11 +354,20 @@ the donate URL included, isn't compiled into a build at all:
 | Channel | Features | Support prompt |
 | --- | --- | --- |
 | Default: GitHub releases, F-Droid, desktops, web | `support-prompt` (the default) | Unchanged: Donate opens `DONATE_URL` with its parameters (section 7). |
-| Google Play, free app | `play-free` (turns on `support-prompt`) | The same staged policy, dots, calm moment, backoff and reactions. The green button reads **"Get CalcCraft Pro"** and opens the paid app's listing: `market://details?id=<PAID_ID>` (an `ACTION_VIEW` intent, which the Play Store app takes), or `https://play.google.com/store/apps/details?id=<PAID_ID>` where nothing takes `market://`. No query parameters. The body says "… Get CalcCraft Pro, the supporter edition on Google Play, …". "I already supported" (after a click on the button; 365 days) and "Tell a friend" stay. |
+| Google Play, free app | `play-free` (turns on `support-prompt`) | The same staged policy, dots, calm moment, backoff and reactions. The green button reads **"Get CalcCraft Pro"** and opens the paid app's listing: `market://details?id=<PAID_ID>` (an `ACTION_VIEW` intent, which the Play Store app takes), or `https://play.google.com/store/apps/details?id=<PAID_ID>` where nothing takes `market://`. No query parameters. The body says "… Get CalcCraft Pro, the supporter edition on Google Play, …". A tap on it pauses like a Donate click (180 days). "Tell a friend" and Close stay. **No "I already supported"** and no supporter state: a user either bought Pro or didn't (Konst, 2026-11-19), so the menu never shows "Supported by you" there. |
 | Google Play, free app, no `PAID_ID` | `play-free` | **Hidden**: no dot, no popup, no menu button (`PromptMode::Hidden`). The first free release ships like this, before the paid app exists. |
 | Google Play, paid app | `play-paid` (turns on `support-prompt`) | **No prompt**: no dot, no popup, no amber button. The menu always shows "Supported by you" with the green heart, as plain text with no popup behind it, and its share glyph (`PromptMode::Supporter`). |
 
 - `play-free` and `play-paid` together are a compile error.
+- No self-declared support in `play-free`. 1.4.4 as first built showed "I already supported"
+  after a "Get CalcCraft Pro" tap, and pressing it gave the green "Supported by you" menu line
+  (a button that opened the popup again) for 365 days. Now `channel::self_declared_support()`
+  is false there, and the policy gets it as `SupportPolicyConfig::self_declared_support`:
+  `show_already_supported_button` is false at every step, `on_event(AlreadySupported)` changes
+  nothing, and `menu_entry` ignores a stored `supporter_until_day`, so a 1.4.4 user who pressed
+  it sees the amber button again. The stored record is kept as it is: `supporter_until_day` and
+  the pause it set are not deleted, and that pause still holds the automatic reminders back
+  until it ends.
 - `PAID_ID`, the paid app's application ID, is the environment variable `CALCCRAFT_PAID_ID` at
   compile time (`option_env!`, which Cargo tracks: a new value rebuilds). It is unset by
   default. It must be a valid Android package name (at least two dot-separated parts of ASCII
