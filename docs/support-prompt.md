@@ -608,7 +608,15 @@ calm moment (at least 3 days after their first launch, which is already behind t
 
 ### 13.6 The Play review library
 
-`ReviewRequester` is the seam (`NoReview` for builds without it). On Android the request goes
-through JNI to `com.rapalon.calccraft.ReviewHelper`, which uses `ReviewManager`. See
-`android/README.md` for how the library is built in. The dialog shows only for builds installed
-from Google Play (internal testing included); for other builds `ReviewHelper` does nothing.
+`ReviewRequester` is the seam (`NoReview` off Android). On Android the request goes through JNI
+to the static `com.rapalon.calccraft.ReviewHelper.request(Activity)`, found through the
+activity's class loader; where that class doesn't exist the call fails quietly and nothing
+happens. The dialog shows only for builds installed from Google Play (internal testing
+included).
+
+**Open (not in this change):** `ReviewHelper` needs Google's `com.google.android.play:review`
+library (and its `play-core-common` and `play-services-tasks` dependencies), proprietary AARs
+that this Gradle-less build (`android/build-apk.ps1`: javac, d8, aapt2) doesn't have. Until the
+build takes them (play channels only, pinned by SHA-256, with PRIVACY.md and
+docs/play-data-safety.md updated: Google Play does its own network I/O, the app none), the
+rating requests are sent to nothing, while every counter and cool-down still runs as above.
