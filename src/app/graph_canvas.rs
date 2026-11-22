@@ -813,6 +813,11 @@ impl CalculatorApp {
         if !share::show(self.title_bar.hwnd(), content) {
             self.graphing.popup = Some(Popup::ShareError);
             ctx.memory_mut(|m| m.request_focus(Id::new("share-error-ok")));
+        } else {
+            // The share sheet is open: when the app gets the focus back, the thank-you and the
+            // rating request follow (Android only; docs/support-prompt.md, 13.3).
+            #[cfg(feature = "support-prompt")]
+            self.support.note_share_started();
         }
     }
 }

@@ -925,3 +925,37 @@ pub(crate) fn copy_text(text: &str) -> bool {
     })
     .unwrap_or(false)
 }
+
+/// The Play In-App Review request (docs/support-prompt.md, section 13.6): the app's own
+/// `ReviewHelper` Java class, present only in the Play channels' builds, which holds the Play
+/// library. Elsewhere there is no such class, and the request does nothing. The API decides
+/// whether its dialog shows and returns nothing the app reads.
+pub(crate) struct PlayReview;
+
+impl crate::support::asks::ReviewRequester for PlayReview {
+    fn request(&self) {
+        with_activity(|env, activity| {
+            // The app's classes aren't visible to `FindClass` on this native thread: go through
+            // the activity's class loader.
+            let loader = env
+                .call_method(activity, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])?
+                .l()?;
+            let name = env.new_string("com.rapalon.calccraft.ReviewHelper")?;
+            let class = env
+                .call_method(
+                    &loader,
+                    "loadClass",
+                    "(Ljava/lang/String;)Ljava/lang/Class;",
+                    &[JValue::Object(&name)],
+                )?
+                .l()?;
+            env.call_static_method(
+                jni::objects::JClass::from(class),
+                "request",
+                "(Landroid/app/Activity;)V",
+                &[JValue::Object(activity)],
+            )?;
+            Ok(())
+        });
+    }
+}

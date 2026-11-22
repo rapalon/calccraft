@@ -19,6 +19,7 @@ use crate::app::strings::tr;
 use crate::brand;
 use crate::engine::Command;
 
+use super::asks::{self, Ask, AskConfig, ReviewRequester};
 use super::channel::{self, PromptMode};
 use super::clock::Clock;
 use super::donate::{self, DonateContext, DonateSource, DonationChannel, platform};
@@ -27,9 +28,11 @@ use super::policy::{
     self, MenuEntry, MomentContext, SupportDecision, SupportEvent, SupportPolicyConfig, Timestamp,
 };
 use super::share::{
-    SHARE_URL, ShareChannel, ShareContext, platform_channel, share_text, share_url,
+    SHARE_URL, ShareChannel, ShareContext, ShareOutcome, platform_channel, share_text, share_url,
 };
 use super::stats::SupportStats;
+
+mod ask_card;
 
 /// The red dot's colors (Windows' critical red in light, its brighter red in dark).
 const DOT_LIGHT: Color32 = Color32::from_rgb(196, 43, 28);
@@ -103,6 +106,20 @@ pub struct SupportState {
     /// The company's logo and the size in pixels it was drawn at, made when the popup first
     /// shows and again when the display's scale changes.
     logo: Option<(u32, TextureHandle)>,
+    /// The Android asks are on (section 13): only on Android, tests switch them on.
+    pub(crate) asks_on: bool,
+    pub(crate) ask_cfg: AskConfig,
+    pub(crate) review: &'static dyn ReviewRequester,
+    /// The share-with-three-friends card is open since this moment.
+    pub(crate) share_card: Option<u64>,
+    /// A share sheet is open: the app has lost the focus to it (`left`), and gets it back.
+    pub(crate) share_pending: Option<bool>,
+    /// "Thanks for sharing! …" shows until this time, and the review is requested at
+    /// `review_at_ms`.
+    pub(crate) thanks_until_ms: Option<u64>,
+    pub(crate) review_at_ms: Option<u64>,
+    /// A rating was requested in this session.
+    pub(crate) rated_this_session: bool,
 }
 
 impl SupportState {
@@ -143,6 +160,11 @@ impl SupportState {
         cfg.prompt = mode;
         cfg.self_declared_support = self_declared_support;
         let stats = SupportStats::load(storage, clock.is_fast(), |secs| clock.day_of(secs));
+        let ask_cfg = if clock.is_fast() {
+            AskConfig::fast()
+        } else {
+            AskConfig::default()
+        };
         let mut state = Self {
             stats,
             cfg,
@@ -158,6 +180,14 @@ impl SupportState {
             seen_in_menu: false,
             demo_menu: false,
             logo: None,
+            asks_on: cfg!(target_os = "android"),
+            ask_cfg,
+            review: asks::platform_requester(),
+            share_card: None,
+            share_pending: None,
+            thanks_until_ms: None,
+            review_at_ms: None,
+            rated_this_session: false,
         };
         state.apply(SupportEvent::AppLaunched);
         // Developer aids for screenshots: the popup open at start (as if from the menu), and
@@ -238,7 +268,7 @@ impl SupportState {
         self.stats.save(storage);
     }
 
-    fn now(&self) -> Timestamp {
+    pub(crate) fn now(&self) -> Timestamp {
         self.clock.now()
     }
 
@@ -283,6 +313,13 @@ impl SupportState {
             .is_some_and(|until| now.millis >= until)
         {
             self.copied_until_ms = None;
+        }
+
+        self.follow_share(ctx, now);
+        if self.share_card.is_some()
+            && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape))
+        {
+            self.share_card = None;
         }
 
         // Any input cancels the calm moment of the last calculation; the calculation of this
@@ -330,16 +367,41 @@ impl SupportState {
         self.menu_open = menu_open;
 
         self.decision = self.evaluate(ctx, now, calculator_mode && !covered);
-        if self.decision == SupportDecision::ShowPopup {
-            self.popup = Some(OpenPopup {
-                automatic: true,
-                opened_at_ms: now.millis,
-                thank_you_since_ms: None,
-            });
+        let mut ask = (self.decision == SupportDecision::ShowPopup).then_some(Ask::Support);
+        if self.asks_on {
+            ask = asks::next_ask(
+                &self.stats,
+                &self.ask_cfg,
+                now,
+                self.moment(ctx, calculator_mode && !covered),
+                self.decision == SupportDecision::ShowPopup,
+                &self.cfg,
+            );
+            // The queue held the popup back (a gap, or a rating or share ask came first):
+            // the dot stays.
+            if self.decision == SupportDecision::ShowPopup && ask != Some(Ask::Support) {
+                self.decision = SupportDecision::ShowDot;
+            }
+        }
+        if let Some(ask) = ask {
             self.popup_shown_this_session = true;
             self.calculation_at_ms = None;
-            self.apply(SupportEvent::PopupShown);
             self.decision = SupportDecision::Nothing;
+            match ask {
+                Ask::Support => {
+                    self.popup = Some(OpenPopup {
+                        automatic: true,
+                        opened_at_ms: now.millis,
+                        thank_you_since_ms: None,
+                    });
+                    self.apply(SupportEvent::PopupShown);
+                }
+                Ask::Rate => self.request_review(),
+                Ask::ShareThree => self.share_card = Some(now.millis),
+            }
+            if self.asks_on {
+                self.stats = asks::on_ask_shown(&self.stats, ask, now);
+            }
         } else if let Some(at) = self.calculation_at_ms
             && self.decision == SupportDecision::ShowDot
         {
@@ -349,17 +411,91 @@ impl SupportState {
         }
     }
 
-    fn evaluate(&self, ctx: &Context, now: Timestamp, calculator_idle: bool) -> SupportDecision {
+    /// This moment, as the calm-moment rule sees it.
+    fn moment(&self, ctx: &Context, calculator_idle: bool) -> MomentContext {
         // Visible and focused: egui reports a minimized window, a background app or a hidden
         // browser tab as unfocused or minimized.
         let app_focused = ctx.input(|i| i.focused && i.viewport().minimized != Some(true));
-        let moment = MomentContext {
+        MomentContext {
             calculation_at_ms: self.calculation_at_ms,
             app_focused,
-            calculator_idle: calculator_idle && self.popup.is_none(),
+            calculator_idle: calculator_idle
+                && self.popup.is_none()
+                && self.share_card.is_none()
+                && self.share_pending.is_none(),
             popup_shown_this_session: self.popup_shown_this_session,
-        };
-        policy::evaluate(&self.stats, &self.cfg, now, moment)
+        }
+    }
+
+    fn evaluate(&self, ctx: &Context, now: Timestamp, calculator_idle: bool) -> SupportDecision {
+        policy::evaluate(
+            &self.stats,
+            &self.cfg,
+            now,
+            self.moment(ctx, calculator_idle),
+        )
+    }
+
+    /// Asks Google Play's In-App Review API for its dialog. The API decides whether it shows and
+    /// returns nothing the app reads (section 13.4).
+    fn request_review(&mut self) {
+        self.rated_this_session = true;
+        self.review.request();
+    }
+
+    /// A share sheet was opened: when the app gets the focus back, the thank-you and the rating
+    /// request follow (section 13.3). Only Android's asks have it.
+    pub(crate) fn note_share_started(&mut self) {
+        if self.asks_on {
+            self.share_pending = Some(false);
+        }
+    }
+
+    /// Follows a share: the sheet takes the focus (`Some(true)`), and when the app has it
+    /// again, the thank-you shows and the review is requested a moment later. Also fires the
+    /// review that waits for the thank-you.
+    fn follow_share(&mut self, ctx: &Context, now: Timestamp) {
+        if let Some(left) = self.share_pending {
+            let focused = ctx.input(|i| i.focused);
+            if !focused {
+                self.share_pending = Some(true);
+            } else if left {
+                self.share_pending = None;
+                if asks::rate_after_share(&self.stats, &self.ask_cfg, now, self.rated_this_session)
+                {
+                    self.stats = asks::on_rate_after_share(&self.stats, now);
+                    self.rated_this_session = true;
+                    self.thanks_until_ms = Some(now.millis + THANKS_MS);
+                    self.review_at_ms = Some(now.millis + self.ask_cfg.after_share_delay_ms);
+                }
+            }
+        }
+        if self
+            .thanks_until_ms
+            .is_some_and(|until| now.millis >= until)
+        {
+            self.thanks_until_ms = None;
+        }
+        if let Some(at) = self.review_at_ms {
+            if now.millis >= at {
+                self.review_at_ms = None;
+                self.review.request();
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_millis(at - now.millis));
+            }
+        }
+        if let Some(until) = self.thanks_until_ms {
+            ctx.request_repaint_after(std::time::Duration::from_millis(
+                until.saturating_sub(now.millis).max(1),
+            ));
+        }
+    }
+
+    /// Share was pressed on the share card: the same share as everywhere, and the card goes.
+    pub(crate) fn share_from_card(&mut self, ctx: &Context) {
+        self.stats = asks::on_share_ask_done(&self.stats);
+        self.share_card = None;
+        self.share(ctx);
     }
 
     /// Opens the popup from the menu (no stacking: an open one stays as it is).
@@ -424,9 +560,14 @@ impl SupportState {
         if super::clock::fast_mode() {
             eprintln!("support: share text {text}");
         }
-        if self.share_channel.share(ctx, &text).shows_note() {
+        let outcome = self.share_channel.share(ctx, &text);
+        if outcome.shows_note() {
             self.copied_until_ms = Some(self.now().millis + COPIED_MS);
             ctx.request_repaint_after(std::time::Duration::from_millis(COPIED_MS));
+        }
+        // A system share sheet takes the focus and gives it back: the thank-you follows.
+        if outcome == ShareOutcome::Sheet {
+            self.note_share_started();
         }
         self.apply(SupportEvent::ShareClicked);
     }
@@ -563,6 +704,7 @@ impl SupportState {
     /// The popup, if open, under the display noted in this pass (`note_display`) and inside
     /// `window`.
     pub(crate) fn draw_overlay(&mut self, ui: &mut Ui, window: Rect, p: &Palette) {
+        self.draw_share_card(ui, window, p);
         let Some(popup) = self.popup else {
             return;
         };
@@ -600,10 +742,13 @@ impl SupportState {
     /// region. Call it once per frame, after everything else is drawn. It has no fade, which
     /// also is what reduced motion asks for.
     pub(crate) fn draw_toast(&self, ctx: &Context, p: &Palette) {
-        if self.copied_until_ms.is_none() {
+        let text = if self.copied_until_ms.is_some() {
+            tr("CalcCraft.Support.LinkCopied")
+        } else if self.thanks_until_ms.is_some() {
+            tr("CalcCraft.Ask.ThanksRate")
+        } else {
             return;
-        }
-        let text = tr("CalcCraft.Support.LinkCopied");
+        };
         egui::Area::new(Id::new("support-link-copied-area"))
             .order(egui::Order::Tooltip)
             .interactable(false)
@@ -635,6 +780,8 @@ impl SupportState {
 
 /// How long "Link copied" shows.
 const COPIED_MS: u64 = 2000;
+/// How long "Thanks for sharing! …" shows.
+const THANKS_MS: u64 = 5000;
 /// How long the `share` demo stage keeps it (long enough to take a screenshot).
 const SHARE_DEMO_MS: u64 = 60_000;
 /// The note's distance from the window's bottom edge.

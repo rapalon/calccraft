@@ -44,6 +44,16 @@ pub struct SupportStats {
     pub popups_shown: u32,
     /// Written in fast mode, whose day numbers are minutes.
     pub fast: bool,
+    /// The day any ask (rating, share, support popup) last showed (docs/support-prompt.md, 13).
+    pub last_ask_day: Option<i64>,
+    /// Rating requests made, and the day of the last.
+    pub rate_asks: u32,
+    pub last_rate_day: Option<i64>,
+    /// Share asks shown, and the day of the last.
+    pub share_asks: u32,
+    pub last_share_ask_day: Option<i64>,
+    /// The user pressed Share on the last share ask.
+    pub share_ask_done: bool,
 }
 
 /// One `name=value` field per `;`; an empty value is `None`.
@@ -83,6 +93,12 @@ impl SupportStats {
             calculations: field(&fields, "calculations").unwrap_or(0),
             popups_shown: field(&fields, "popups_shown").unwrap_or(0),
             fast: field(&fields, "fast").unwrap_or(false),
+            last_ask_day: field(&fields, "last_ask_day"),
+            rate_asks: field(&fields, "rate_asks").unwrap_or(0),
+            last_rate_day: field(&fields, "last_rate_day"),
+            share_asks: field(&fields, "share_asks").unwrap_or(0),
+            last_share_ask_day: field(&fields, "last_share_ask_day"),
+            share_ask_done: field(&fields, "share_ask_done").unwrap_or(false),
         })
     }
 
@@ -95,7 +111,8 @@ impl SupportStats {
             "v={VERSION};launches={};active_days={};last_active_day={};first_day={};cycles={};\
              ladder_step={};last_cycle_day={};next_cycle_day={};dot_since_day={};\
              pause_until_day={};supporter_until_day={};donate_clicked_ever={};calculations={};\
-             popups_shown={};fast={};shares={};last_share_cycle={}",
+             popups_shown={};fast={};shares={};last_share_cycle={};last_ask_day={};rate_asks={};\
+             last_rate_day={};share_asks={};last_share_ask_day={};share_ask_done={}",
             self.launches,
             self.active_days,
             day(self.last_active_day),
@@ -113,6 +130,12 @@ impl SupportStats {
             self.fast,
             self.shares,
             day(self.last_share_cycle.map(i64::from)),
+            day(self.last_ask_day),
+            self.rate_asks,
+            day(self.last_rate_day),
+            self.share_asks,
+            day(self.last_share_ask_day),
+            self.share_ask_done,
         )
     }
 
@@ -220,6 +243,12 @@ pub(crate) mod tests {
             calculations: 123,
             popups_shown: 2,
             fast: false,
+            last_ask_day: Some(20_395),
+            rate_asks: 1,
+            last_rate_day: Some(20_390),
+            share_asks: 2,
+            last_share_ask_day: Some(20_395),
+            share_ask_done: true,
         };
         let mut storage = MemoryStorage::default();
         stats.save(&mut storage);

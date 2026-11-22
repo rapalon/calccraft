@@ -68,6 +68,11 @@ CalcCraft.Support.Share=Tell a friend
 CalcCraft.Support.ShareTooltip=Share CalcCraft
 CalcCraft.Support.ShareMessage=CalcCraft — a free, precise calculator:
 CalcCraft.Support.LinkCopied=Link copied
+CalcCraft.Ask.ShareTitle=Share CalcCraft with three friends
+CalcCraft.Ask.ShareBody=Telling friends is the best way to support CalcCraft. It's free and takes a moment.
+CalcCraft.Ask.ShareButton=Share
+CalcCraft.Ask.NotNow=Not now
+CalcCraft.Ask.ThanksRate=Thanks for sharing! If you have a minute, rate CalcCraft
 
 [en-GB]
 CalcCraft.Language=Language

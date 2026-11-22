@@ -581,7 +581,7 @@ gets the focus back after having lost it, it shows the note **"Thanks for sharin
 minute, rate CalcCraft"** (a toast, also read as a live region) and requests the review after
 `after_share_delay_ms`. It is skipped when the rating cool-downs say no (`rate_max`, or the last
 request is newer than `after_share_rate_gap_days`) or when a rating was already requested in
-this session. It doesn't need the engagement gate: a share is the signal. It still sets
+this session. It doesn't need the whole engagement gate (a share is the signal), but never on the first day: it needs `now.day > first_day`. It still sets
 `last_ask_day`, so the gap holds for the asks that follow.
 
 ### 13.4 Google Play policy

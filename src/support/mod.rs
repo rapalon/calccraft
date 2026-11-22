@@ -10,6 +10,7 @@
 
 /// The whole build's channel (`crate::channel`), which the prompt's code names from here.
 pub use crate::channel;
+pub mod asks;
 pub mod clock;
 pub mod donate;
 mod logo;
@@ -690,6 +691,251 @@ mod tests {
         let mut state = full(None, Clock::fixed(at(0, 0)));
         state.start_demo("share");
         assert!(state.is_open() && state.copied_until_ms.is_some());
+    }
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    macro_rules! counting_review {
+        ($name:ident) => {{
+            static CALLS: AtomicU32 = AtomicU32::new(0);
+            struct Counter;
+            impl asks::ReviewRequester for Counter {
+                fn request(&self) {
+                    CALLS.fetch_add(1, Ordering::SeqCst);
+                }
+            }
+            static COUNTER: Counter = Counter;
+            ($name.review = &COUNTER, &CALLS)
+        }};
+    }
+
+    /// A regular user whose first launch was day 0, now at `day`, with the asks on.
+    fn asking(day: i64) -> SupportState {
+        let mut state = regular();
+        state.asks_on = true;
+        state.stats.first_day = Some(0);
+        set_time(&mut state, at(day, 0));
+        state
+    }
+
+    /// A calculation, then the 3 s of calm.
+    fn calm_moment(ctx: &Context, state: &mut SupportState, day: i64) {
+        set_time(state, at(day, 1000));
+        state.after_command(Command::Equals, false);
+        set_time(state, at(day, 4000));
+        frame(ctx, state, vec![], false);
+    }
+
+    #[test]
+    fn the_asks_are_off_outside_android() {
+        let ctx = Context::default();
+        let mut state = regular();
+        let (_, calls) = counting_review!(state);
+        assert_eq!(state.asks_on, cfg!(target_os = "android"));
+        state.asks_on = false;
+        state.stats.first_day = Some(0);
+        calm_moment(&ctx, &mut state, 10);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert!(state.share_card.is_none());
+    }
+
+    #[test]
+    fn nothing_on_the_first_day_and_the_rating_when_the_gate_is_met() {
+        let ctx = Context::default();
+        let mut state = asking(0);
+        let (_, calls) = counting_review!(state);
+        calm_moment(&ctx, &mut state, 0);
+        calm_moment(&ctx, &mut state, 2);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        calm_moment(&ctx, &mut state, 3);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(state.stats.rate_asks, 1);
+        assert_eq!(state.stats.last_ask_day, Some(3));
+        // One ask a session: more calm moments change nothing.
+        calm_moment(&ctx, &mut state, 20);
+        calm_moment(&ctx, &mut state, 40);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(state.share_card.is_none() && !state.is_open());
+    }
+
+    #[test]
+    fn never_mid_input() {
+        let ctx = Context::default();
+        let mut state = asking(5);
+        let (_, calls) = counting_review!(state);
+        state.after_command(Command::Equals, false);
+        set_time(&mut state, at(5, 4000));
+        frame(&ctx, &mut state, vec![key(Key::Num1)], false);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn the_next_sessions_bring_the_share_card_then_the_support_popup() {
+        let ctx = fonts_context();
+        let mut storage = MemoryStorage::default();
+        let mut state = asking(3);
+        let (_, calls) = counting_review!(state);
+        calm_moment(&ctx, &mut state, 3);
+        state.save(&mut storage);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+        // A week later, a new session.
+        let mut state = full(Some(&storage), Clock::fixed(at(10, 0)));
+        state.asks_on = true;
+        let (_, calls2) = counting_review!(state);
+        calm_moment(&ctx, &mut state, 10);
+        assert_eq!(calls2.load(Ordering::SeqCst), 0);
+        assert_eq!(state.share_card, Some(at(10, 4000).millis));
+        assert_eq!(state.stats.share_asks, 1);
+        // The card is drawn with its two buttons, and Esc is "Not now".
+        let window = egui::Rect::from_min_size(pos2(0.0, 0.0), vec2(480.0, 640.0));
+        let mut output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(window),
+                ..Default::default()
+            },
+            |ui| state.draw_overlay(ui, window, &crate::app::palette::LIGHT),
+        );
+        output.textures_delta.clear();
+        for id in ["support-ask-share", "support-ask-not-now"] {
+            assert!(ctx.read_response(egui::Id::new(id)).is_some(), "{id}");
+        }
+        frame(&ctx, &mut state, vec![key(Key::Escape)], false);
+        assert!(state.share_card.is_none());
+        state.save(&mut storage);
+
+        // The support popup is next, a week after that.
+        let mut state = full(Some(&storage), Clock::fixed(at(17, 0)));
+        state.asks_on = true;
+        state.stats.dot_since_day = Some(9);
+        calm_moment(&ctx, &mut state, 17);
+        assert!(state.is_open());
+    }
+
+    #[test]
+    fn the_support_popup_waits_for_the_gap_and_keeps_its_dot() {
+        let ctx = fonts_context();
+        let mut state = asking(10);
+        state.stats.rate_asks = 3;
+        state.stats.share_asks = 3;
+        state.stats.dot_since_day = Some(0);
+        state.stats.last_ask_day = Some(8);
+        calm_moment(&ctx, &mut state, 10);
+        assert!(!state.is_open());
+        assert!(state.dot_visible());
+        let mut state = asking(15);
+        state.stats.rate_asks = 3;
+        state.stats.share_asks = 3;
+        state.stats.dot_since_day = Some(0);
+        state.stats.last_ask_day = Some(8);
+        calm_moment(&ctx, &mut state, 15);
+        assert!(state.is_open());
+        assert_eq!(state.stats.last_ask_day, Some(15));
+    }
+
+    #[test]
+    fn share_from_the_card_shares_and_thanks_when_the_app_returns() {
+        struct Sheet;
+        impl ShareChannel for Sheet {
+            fn share(&self, _: &Context, _: &str) -> ShareOutcome {
+                ShareOutcome::Sheet
+            }
+        }
+        let ctx = fonts_context();
+        let mut state = asking(3);
+        let (_, calls) = counting_review!(state);
+        state.share_channel = &Sheet;
+        state.share_card = Some(0);
+        state.share_from_card(&ctx);
+        assert!(state.stats.share_ask_done);
+        assert!(state.share_card.is_none());
+        assert_eq!(state.stats.shares, 1);
+        assert_eq!(state.share_pending, Some(false));
+        // The sheet is up: the app is out of focus; nothing yet, no ask meanwhile.
+        let blur = |state: &mut SupportState, focused: bool, ms: u64| {
+            set_time(state, at(3, ms));
+            let mut output = ctx.run_ui(
+                RawInput {
+                    focused,
+                    ..Default::default()
+                },
+                |ui| state.begin_frame(ui.ctx(), true, false, false),
+            );
+            output.textures_delta.clear();
+        };
+        blur(&mut state, false, 5000);
+        assert_eq!(state.share_pending, Some(true));
+        assert_eq!(state.thanks_until_ms, None);
+        // Back: the thank-you shows, the review follows after the delay.
+        blur(&mut state, true, 9000);
+        assert_eq!(state.share_pending, None);
+        assert_eq!(state.thanks_until_ms, Some(at(3, 14_000).millis));
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        blur(&mut state, true, 10_499);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        blur(&mut state, true, 10_500);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        blur(&mut state, true, 14_000);
+        assert_eq!(state.thanks_until_ms, None);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn no_rating_after_a_share_on_the_first_day_or_twice_in_a_session() {
+        let ctx = Context::default();
+        let mut state = asking(0);
+        let (_, calls) = counting_review!(state);
+        state.note_share_started();
+        let run = |state: &mut SupportState, focused: bool, ms: u64| {
+            set_time(state, at(state.now().day, ms));
+            let mut output = ctx.run_ui(
+                RawInput {
+                    focused,
+                    ..Default::default()
+                },
+                |ui| state.begin_frame(ui.ctx(), true, false, false),
+            );
+            output.textures_delta.clear();
+        };
+        run(&mut state, false, 1000);
+        run(&mut state, true, 2000);
+        run(&mut state, true, 9000);
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "first day");
+
+        let mut state = asking(4);
+        let (_, calls) = counting_review!(state);
+        for round in 0..2u64 {
+            state.note_share_started();
+            run(&mut state, false, 1000 + round * 20_000);
+            run(&mut state, true, 2000 + round * 20_000);
+            run(&mut state, true, 9000 + round * 20_000);
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 1, "once a session");
+    }
+
+    #[test]
+    fn the_new_counters_persist_and_old_records_still_read() {
+        let mut storage = MemoryStorage::default();
+        let mut state = asking(3);
+        state.stats.rate_asks = 2;
+        state.stats.last_rate_day = Some(3);
+        state.stats.share_asks = 1;
+        state.stats.last_share_ask_day = Some(10);
+        state.stats.last_ask_day = Some(10);
+        state.stats.share_ask_done = true;
+        state.save(&mut storage);
+        let again = full(Some(&storage), Clock::fixed(at(20, 0)));
+        assert_eq!(again.stats.rate_asks, 2);
+        assert_eq!(again.stats.last_rate_day, Some(3));
+        assert_eq!(again.stats.share_asks, 1);
+        assert_eq!(again.stats.last_share_ask_day, Some(10));
+        assert_eq!(again.stats.last_ask_day, Some(10));
+        assert!(again.stats.share_ask_done);
+        let old = stats::SupportStats::parse("v=2;launches=5;active_days=3").unwrap();
+        assert_eq!(
+            (old.rate_asks, old.share_asks, old.last_ask_day),
+            (0, 0, None)
+        );
     }
 
     #[test]
