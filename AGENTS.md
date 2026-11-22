@@ -35,6 +35,11 @@ what only it uses gets `#[cfg_attr(not(windows), allow(dead_code))]`, or clippy 
 others; code for the browser alone goes under `#[cfg(target_arch = "wasm32")]` the same way, and
 code for the Android app alone under `#[cfg(target_os = "android")]` (see `android/README.md`).
 
+The toolchain is pinned: `rust-toolchain.toml` (1.100.0, rustfmt and clippy), the same version
+in every `dtolnay/rust-toolchain` step of the workflows, and `rust-version = "1.100"` in
+`Cargo.toml`. Raise all of them together. `[lints.cargo] unused_dependencies = "warn"` flags a
+dependency nothing uses (check it for the wasm32 and Android targets too).
+
 ## Architecture
 
 ```

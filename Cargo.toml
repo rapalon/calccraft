@@ -2,10 +2,13 @@
 name = "calculator"
 version = "1.4.5"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.100"
 description = "A clone of the Windows 11 Calculator (Standard, Scientific, Graphing, Programmer, Date calculation and unit converters) built with egui"
 readme = "README.md"
 publish = false
+
+[lints.cargo]
+unused_dependencies = "warn"
 
 [features]
 default = ["support-prompt"]

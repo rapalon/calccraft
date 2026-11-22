@@ -372,7 +372,8 @@ architecture, the Windows behaviors that the tests pin down, and known pitfalls.
 
 You need:
 
-- **Rust 1.95 or newer** (edition 2024; eframe 0.36 needs at least 1.95).
+- **Rust 1.100 or newer** (edition 2024). `rust-toolchain.toml` pins 1.100.0 with rustfmt and
+  clippy, and rustup installs it on the first `cargo` call.
 - **On Windows,** the Windows SDK for `rc.exe`, which embeds the icon into the executable. It comes
   with the Visual Studio C++ build tools that Rust on Windows needs anyway.
 - **On Linux,** eframe's build dependencies:

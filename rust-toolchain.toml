@@ -1,0 +1,6 @@
+# One toolchain for every runner and CI job (decision #0397c917). Keep it in step with
+# `rust-version` in Cargo.toml. The wasm32 and Android targets are added per job.
+[toolchain]
+channel = "1.100.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

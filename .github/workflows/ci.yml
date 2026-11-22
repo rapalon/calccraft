@@ -23,9 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Stable must be at least 1.95, the crate's rust-version.
+      # The toolchain is pinned (rust-toolchain.toml and every job here): the crate's
+      # rust-version is 1.100.
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.100.0
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
@@ -87,6 +89,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.100.0
           targets: wasm32-unknown-unknown
           components: clippy
 
@@ -120,6 +123,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.100.0
           targets: aarch64-linux-android
           components: clippy
 
