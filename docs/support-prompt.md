@@ -517,3 +517,98 @@ clicks.
 `CALCCRAFT_SUPPORT_DEMO=popup` and `popup-supported` show "Tell a friend"; `supporter` shows the
 glyph on the thank-you line. `CALCCRAFT_SUPPORT_DEMO=share` is the popup with the "Link copied"
 note already showing (for screenshots).
+
+---
+
+## 13. Android asks: rating, "share with three friends", and the one-ask queue
+
+Android only (compiled everywhere so the pure rules are tested everywhere, but switched on only
+with `cfg!(target_os = "android")`; desktop and web builds never show these). Same behavior in
+the free and the Pro app; Pro only lacks the upsell (its support popup is already off,
+`PromptMode::Supporter`). No network, no telemetry: the counters are fields of the same local
+`SupportStatsV2` record.
+
+### 13.1 Asks and the queue
+
+| Ask | What the user sees |
+| --- | --- |
+| `Rate` | Google Play's own In-App Review dialog (`ReviewManager`). CalcCraft draws nothing: Play decides whether the dialog shows (it has its own quota) and returns no result. |
+| `ShareThree` | A small card under the display: "Help CalcCraft grow: share it with three friends." with **Share** and **Not now**. Share opens the system share sheet with the existing text and link (`rapalon.com/calccraft`, no store link). |
+| `Support` | The existing support popup (sections 2 and 8). Unchanged, except for the queue's two rules below. |
+
+One queue (`src/support/asks.rs`, pure, time passed in) decides. The rules:
+
+1. **One unsolicited ask per session.** Once any of the three was shown, no other one is in this
+   session (`popup_shown_this_session`, now "an ask was shown").
+2. **A gap between asks.** No ask starts less than `ask_gap_days` after the last one of any kind
+   (`last_ask_day`, set when `Rate`, `ShareThree` or the `Support` popup shows). The dot is not an
+   ask and is not held back.
+3. **Calm moment only**, the one of section 2.5: focused, a calculator mode with nothing open,
+   3 s after a successful `=` with no input since. Never mid-input.
+4. **Priority** when several are due: `Rate`, then `ShareThree`, then `Support`. With the gap
+   below this puts them about a week apart, in that order.
+5. **Never on the first open or the first day.**
+
+### 13.2 The engagement gate (defaults, `AskConfig::default()`)
+
+All of these hold before `Rate` or `ShareThree` may show:
+
+- at least **4 launches** (`min_launches`),
+- on at least **3 distinct days with a calculation** (`min_active_days`),
+- at least **3 days after the first launch** (`min_days_since_first`).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `ask_gap_days` | 7 | between any two asks |
+| `rate_gap_days` | 90 | between two rating requests |
+| `rate_max` | 3 | rating requests ever (Play also limits them itself) |
+| `share_gap_days` | 60 | between two share asks, after "Not now" or ignoring it |
+| `share_max` | 3 | share asks ever |
+| `share_done_gap_days` | 180 | before the next share ask once the user shared from it |
+| `after_share_rate_gap_days` | 30 | rating after a share needs this long since the last request |
+| `after_share_delay_ms` | 1500 | the thank-you shows this long before Play's dialog is requested |
+
+Fast mode (section 6) uses 2 launches, 2 active days and 1 day since first, all other values as
+they are, with its day numbers being minutes.
+
+### 13.3 Rating after a share
+
+A share is user-initiated, so it isn't an unsolicited ask and doesn't use the session's slot.
+Whenever the user shares (the app link from the share ask, the support popup's "Tell a friend",
+the Pro thank-you glyph, or a graph from the Graphing mode), the app can't know whether the share
+was sent. So it only notes that a share sheet is open (`share_pending`), and when the activity
+gets the focus back after having lost it, it shows the note **"Thanks for sharing! If you have a
+minute, rate CalcCraft"** (a toast, also read as a live region) and requests the review after
+`after_share_delay_ms`. It is skipped when the rating cool-downs say no (`rate_max`, or the last
+request is newer than `after_share_rate_gap_days`) or when a rating was already requested in
+this session. It doesn't need the engagement gate: a share is the signal. It still sets
+`last_ask_day`, so the gap holds for the asks that follow.
+
+### 13.4 Google Play policy
+
+- No review gating: there is no "Do you like the app?" step, and nobody is sorted into happy and
+  unhappy. Everyone who reaches the gate gets the same request.
+- Neutral wording: never "five stars", "good rating" or similar. No rewards, no unlocks for
+  sharing or rating.
+- The API's result isn't read: the app doesn't know whether a dialog showed or a rating was
+  given, and counts a request as made when it was sent.
+
+### 13.5 Stored fields (in `SupportStatsV2`)
+
+| Field | Meaning |
+| --- | --- |
+| `last_ask_day` | the day any ask last showed |
+| `rate_asks`, `last_rate_day` | rating requests and the day of the last |
+| `share_asks`, `last_share_ask_day` | share asks shown and the day of the last |
+| `share_ask_done` | the user pressed Share on the ask (until the next one is shown) |
+
+Old records lack them and read as 0 / empty, so nobody is asked right after the update: the
+gate's launches and days are already there for regular users, who get their first ask at the next
+calm moment (at least 3 days after their first launch, which is already behind them).
+
+### 13.6 The Play review library
+
+`ReviewRequester` is the seam (`NoReview` for builds without it). On Android the request goes
+through JNI to `com.rapalon.calccraft.ReviewHelper`, which uses `ReviewManager`. See
+`android/README.md` for how the library is built in. The dialog shows only for builds installed
+from Google Play (internal testing included); for other builds `ReviewHelper` does nothing.
