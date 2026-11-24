@@ -1,7 +1,7 @@
-# CalcCraft Pro: Google Play listing (1.4.5)
+# CalcCraft Pro: Google Play listing (1.4.6)
 
 The store text for the paid app, `com.rapalon.calccraft.pro` (US$4.99, set in the Play
-Console), and the 1.4.4 and 1.4.5 release notes for both apps. English only (en-US). Play's limits: title
+Console), and the 1.4.4, 1.4.5 and 1.4.6 release notes for both apps. English only (en-US). Play's limits: title
 30 characters, short description 80, full description 4000, release notes 500. US spelling
 ("Color theme"), as the app's en-US text has it. The texts in
 the code blocks are ready to paste: their lines aren't wrapped, so each line is a paragraph or
@@ -78,6 +78,30 @@ Welcome to CalcCraft Pro!
 ### CalcCraft, the free app (344 characters)
 
 ```
+• Numbers and dates follow your phone's regional format: decimal separator, digit grouping, date formats and the first day of the week. Settings → Regional format picks another.
+• About links the Terms of Service.
+• The support reminder no longer has an "I already supported" button.
+• Two more Pro color themes: AMOLED Black and High Contrast.
+```
+
+## Release notes, 1.4.6
+
+Google Play rejected 1.4.5 (`docs/play-rejection-1.4.5.md`), so no Play user got it: 1.4.6 is
+the first Play release with 1.4.5's changes, and its notes carry them after the fix.
+
+### CalcCraft Pro (454 characters)
+
+```
+• Fixed: the app could close or freeze after a system change such as Bold text, or when opened again.
+• Two new color themes: AMOLED Black (pure black, easy on OLED screens) and High Contrast (white on black with yellow keys, for low vision).
+• Numbers and dates follow your phone's regional format: decimal separator, digit grouping, date formats and the first day of the week.
+• About thanks you for supporting CalcCraft and links the Terms of Service.
+```
+
+### CalcCraft, the free app (446 characters)
+
+```
+• Fixed: the app could close or freeze after a system change such as Bold text, or when opened again.
 • Numbers and dates follow your phone's regional format: decimal separator, digit grouping, date formats and the first day of the week. Settings → Regional format picks another.
 • About links the Terms of Service.
 • The support reminder no longer has an "I already supported" button.
