@@ -49,7 +49,7 @@ own `NOT_STARTED` entry.
 | **Phase 8: Application Shell, UX & Accessibility** | 13 | 12 | 0 | 1 | 0 |
 | **TOTAL** | **69** | **67** | **0** | **1** | **1** |
 
-*Last updated: 2026-11-19 (CalcCraft 1.4.5: regional formats on Android, AMOLED Black and High Contrast, Terms link)*
+*Last updated: 2026-11-24 (CalcCraft 1.4.6: the Android lifecycle fix behind Play's rejection of 1.4.5)*
 
 ---
 
@@ -1579,3 +1579,4 @@ Windows source in `../win-calculator`.
 | 2026-11-19 | Claude Code | `FEAT-SHELL-014` | Two Pro colour themes, AMOLED Black (pure black everywhere, graphs included) and High Contrast (white on black with yellow, 7:1 for all text, 2 px key borders, semibold labels, its own graph colours); About links the Terms of Service in every build, and CalcCraft Pro's About says "Thank you for supporting CalcCraft" |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-008` | Android follows the phone's regional format: separators and grouping, the first day of the week, the calendar's month and weekday names and the date formats come from Java's locale classes through JNI (`android::region_source`, read once per region), turned into `Formats` by the pure `region/java.rs` (a Java date pattern formatter, host-tested with de-DE and ru-RU values), with en-US when a call fails; the Regional format card is back on Android with the translations' regions named by `Locale.getDisplayName`, which also names the Language list; the converters' default units follow the region's country there (`docs/regional-formats.md`, with the Linux and macOS proposal) |
 | 2026-11-19 | Claude Code | `FEAT-SHELL-007`, `FEAT-SHELL-012`, `FEAT-SHELL-014` | CalcCraft 1.4.5 (versionCode 10405), one release for the free Play app and CalcCraft Pro: Android regional formats, AMOLED Black and High Contrast, the Terms link and Pro's thank-you in About, no "I already supported" in `play-free`; release notes in `docs/store/pro-listing.md` |
+| 2026-11-24 | Claude Code | Android app | CalcCraft 1.4.6 (versionCode 10406), after Google Play rejected 1.4.5 (Broken Functionality, `docs/play-rejection-1.4.5.md`): one activity per process on Android. `configChanges` names every declarable change (Bold text no longer restarts the activity), `launchMode="singleTask"` sends a second launch to the running activity, and `onDestroy` ends the process instead of freezing it (winit allows one event loop per process); pinned by `tests/android_manifest.rs` and the device runner's `lifecycle` scenario. Release notes in `docs/store/pro-listing.md` |
