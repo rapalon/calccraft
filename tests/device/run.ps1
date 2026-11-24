@@ -53,7 +53,9 @@ $dumpHere = Join-Path ([IO.Path]::GetTempPath()) "calccraft-window-dump-$PID.xml
 $recordedDump = $null
 $knownSteps = 'launch', 'open', 'tap', 'taps', 'tap_if_present', 'expect', 'expect_prefix',
     'expect_contains', 'expect_absent', 'display', 'expression', 'edition', 'scroll_to',
-    'expect_checked'
+    'expect_checked', 'start_again', 'same_process'
+# The app's process after the last `launch`, for `same_process`.
+$launchedPid = $null
 # The app's edition for `edition` steps: CalcCraft Pro (an application ID ending in .pro) has
 # every colour theme unlocked; the other Play builds are the free app.
 function Get-Edition([string] $Id) { if ($Id -clike '*.pro') { 'pro' } else { 'free' } }
@@ -155,6 +157,22 @@ function Invoke-Step([string] $Op, $Arg) {
             Invoke-Adb shell am start -W -n "$Package/android.app.NativeActivity" | Out-Null
             if (-not (Find-Node { $_.Name -ceq 'Open Navigation' } ($Retries * 3))) {
                 throw 'the app showed no "Open Navigation" after its start'
+            }
+            $script:launchedPid = (Invoke-Adb shell pidof $Package) -join ' '
+        }
+        'start_again' {
+            # The running activity started again by its component, as a test crawler does
+            # (docs/play-rejection-1.4.5.md): it must take the intent, not stack a second one.
+            $output = (Invoke-Adb shell am start -W -n "$Package/android.app.NativeActivity") -join ' '
+            if ($output -notmatch 'delivered to currently running|brought to the front') {
+                throw "Android started another activity: $output"
+            }
+            Start-Sleep -Milliseconds ($DelayMs * 3)
+        }
+        'same_process' {
+            $now = (& $Adb -s $Serial shell pidof $Package 2>&1) -join ' '
+            if (-not $script:launchedPid -or $now -cne $script:launchedPid) {
+                throw "the app's process was $($script:launchedPid) after launch and is now `"$now`""
             }
         }
         'open' {

@@ -899,6 +899,12 @@ by the tests in `locale.rs`, `region.rs` and `dates.rs`:
   and MPL included. Before adding a dependency, check its license (and its own dependencies')
   with `cargo deny check licenses`. Don't widen the allow-list for one library: an exception
   for it (as for egui's fonts) needs a reason in `deny.toml`.
+- **One Android activity per process.** winit allows one event loop per process and ignores
+  `onDestroy`, so the Android activity must never restart or be created twice: the manifest
+  declares every `configChanges`, `launchMode="singleTask"`, and `android.app.func_name`
+  points at `calccraft_on_create` (`src/lib.rs`), which ends the process on a destroy. In 1.4.5
+  Bold text froze the app and `am start -n` ended it, and Google Play rejected it
+  (`docs/play-rejection-1.4.5.md`, `tests/android_manifest.rs`).
 - **`num-bigint` must stay on 0.4.x.** `num-rational` 0.4 depends on it, and `BigRational`'s
   integer type has to match ours. `cargo add num-bigint` without a version picks 0.5 and breaks the build.
 - **egui 0.36 API:** the app implements `App::ui(&mut self, ui, frame)` (not `update`).

@@ -812,6 +812,10 @@ fn run_scenario(scenario: &Json, screen: &Screen) -> Result<(), String> {
                 app = settled(&ctx, Mode::Standard, screen);
                 Ok(())
             }
+            // Android-only lifecycle steps (the `lifecycle` scenario): starting the running
+            // activity again must leave it as it is, in the same process. The app here has
+            // no activity, so it stays as it is.
+            "start_again" | "same_process" => Ok(()),
             "open" => tap_named(&ctx, &mut app, "Open Navigation").and_then(|()| {
                 for _ in 0..4 {
                     if present(&ctx, &mut app, text) || !swipe_navigation(&ctx, &mut app, screen) {

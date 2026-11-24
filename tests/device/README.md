@@ -24,6 +24,7 @@ result table to the release (AGENTS.md, "Git and pull requests").
 | `token-edit` | the expression line's parts as nodes: `Number 7` tapped at its centre (the caret goes after the 7), ⌫ and 9 give 39, `Operator +` changed into − gives −15 |
 | `graphing-three-equations` | x^2, sin(x) and 2x+1 typed on the Graphing keypad (its Trigonometry menu too) and submitted; the graph's node says `displaying 3 equations` |
 | `length-converter` | a typed value in the Length converter |
+| `lifecycle` | the running app started again by its component (`am start -n`, as a test crawler does) keeps its activity, its process and the number typed: in 1.4.5 a second activity ended the app (`docs/play-rejection-1.4.5.md`). adb runner only: Marionet's `launch_app` can't start a running activity without clearing it, so an agent leaves this scenario out |
 | `mode-switching` | the navigation menu opens every kind of page, and the Standard mode still calculates after them |
 | `support-popup` | the free app only: the support popup opened from the menu's `Please Support!` has no `I already supported`, and nothing is named `Supported by you` (docs/support-prompt.md, section 8). `Get CalcCraft Pro` is never tapped (that opens Google Play); its pause is pinned by the host tests. A free build without a paid app ID has no prompt, and the steps only check that none of it shows |
 | `themes` | Settings → Color theme (docs/color-themes.md). The free app: Classic checked, the Pro themes named `Gold, Pro theme, locked, opens CalcCraft Pro on Google Play` and so on, never tapped (that opens Google Play), AMOLED Black and High Contrast among them. CalcCraft Pro: Night, then High Contrast picked, 7 × 6 = 42 still on the display, Gold picked back |
@@ -45,6 +46,8 @@ Each step is an object with one key:
 | `{ "expression": "12 + 7 × 3 =" }` | the expression line's node starts with `Expression is 12 + 7 × 3 =`, loosely |
 | `{ "scroll_to": "Night" }` | until a node is named so: a finger drawn up the middle of the screen, from 65 % of its height to 35 %, up to 6 times (Settings on a low screen) |
 | `{ "expect_checked": "Classic" }` | a node is named so and is checked (a radio button: uiautomator's `checked="true"`) |
+| `{ "start_again": true }` | starts the running activity again by its component (`am start -W -n <package>/android.app.NativeActivity`, without stopping it), which must go to the running activity, not start another one (adb runner only) |
+| `{ "same_process": true }` | the app runs in the process the last `launch` started (`pidof`): it hasn't ended and come back (adb runner only) |
 | `{ "edition": "free" }` | the steps up to the next `edition` are only for that edition: `free` (the free Play app and its test builds) or `pro` (CalcCraft Pro, an application ID ending in `.pro`); `any` ends the part. The other edition's steps are left out, not failed |
 
 A node's name is its `content-desc`, else its `text`. **Loosely** means without `,` `.` `'` `’`,
