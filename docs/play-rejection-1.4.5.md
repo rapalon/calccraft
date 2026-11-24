@@ -89,6 +89,12 @@ vanish or freeze in the Standard mode.
   (frames #01–#04 are in the stripped `libcalculator.so`; by the call chain they are
   android-activity's `on_destroy` → `notify_destroyed`, waiting on its condition variable for
   the app's thread to stop).
+- **What the user sees:** the Standard mode as in Google's first screenshot (dark, display 0,
+  MC and MR disabled), keys that don't react, then Android's "CalcCraft isn't responding"
+  (Close app / Wait). Reproduced deterministically: Bold text toggled while CalcCraft is in
+  front (`Config changes=10000000`, `fontWeightAdjustment`), one tap on a key, an ANR 10 s later
+  (`Input dispatching timed out … Waited 5006ms for MotionEvent`). Even `adb shell input tap`
+  blocks then.
 - **Root cause:** `configChanges` lacked `mcc`, `mnc`, `touchscreen`, `colorMode`,
   `fontWeightAdjustment` and `grammaticalGender`; and nothing handled a destroy that can't be
   avoided.
@@ -117,6 +123,27 @@ vanish or freeze in the Standard mode.
 3. `android.app.func_name` points NativeActivity at `calccraft_on_create` (`src/lib.rs`), which
    runs android-activity's `ANativeActivity_onCreate` and wraps `onDestroy`: a destroy (an
    overlay change, Don't keep activities) ends the process at once instead of freezing it.
+
+## Verified on the Pixel
+
+The fixed build, installed as `com.rapalon.calccraft.lifecycle` (`play-free`, debug key; the
+installed `.test` has another signature and wasn't removed):
+
+| Case | 1.4.5 (`.test`) | Fixed |
+| --- | --- | --- |
+| `am start -n …/android.app.NativeActivity` while running | second activity, process ends (`EXIT_SELF`) | "intent has been delivered to currently running top-most instance", same pid, `sz=1` |
+| Bold text on while in front | relaunch, ANR dialog | no relaunch (handled config change), same pid, keys work |
+| Colour style changed (an overlay change) | relaunch, ANR (seen under monkey) | `CalcCraft ends: Android destroyed the activity`, process exits in 30 ms, no ANR |
+| Monkey seeds 3, 4, 5 (ANRs before) | ANR, monkey aborted | finished |
+
+Seed 6 left the app for the launcher and opened the old 1.4.5 `.pro.test`, which froze on its
+pending relaunch (finding 2 again), so it says nothing about the fix.
+
+A limit that stays: on a destroy that can't be avoided (overlay change, Don't keep activities),
+the fixed app closes instead of freezing, and Android shows the home screen ("app died, no
+saved state"); the next start restores the saved state. Coming back as it was would need
+winit to allow a second event loop per process (a patched winit, or upstream support for
+`onDestroy`), which is more than this fix.
 
 ## Not covered
 
