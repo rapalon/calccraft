@@ -19,6 +19,17 @@ arm64-v8a, built by `android/build-apk.ps1` like the release (the library is alw
 depends on the build type: they come from the manifest and from how winit and android-activity
 handle the activity's lifecycle.
 
+Both findings were then reproduced on `com.rapalon.calccraft` itself: 1.4.5 rebuilt from
+`c197fba` (main at 1.4.5) with the release's command, `build-apk.ps1 -Channel play-free
+-PaidApplicationId com.rapalon.calccraft.pro`, signed with the debug key (the signing key
+changes nothing in how the app runs). bundletool couldn't be downloaded on this runner for the
+universal APK of the bundle, but that APK has the same library and manifest. `am start -n`
+while it ran ended the process (`EventLoop can't be recreated`, `has died: fg TOP`); Bold text
+then a tap gave "CalcCraft isn't responding" on exactly the screen of Google's first evidence
+(`IN_APP_EXPERIENCE-8641.png`). Two such ANRs in a row, each closed with "Close app" and the app
+started again, didn't bring up the "Clear cache for CalcCraft?" dialog of the second evidence
+(`IN_APP_EXPERIENCE-3527.png`) on the Pixel.
+
 ## Findings
 
 Neither failure needs an unusual button: both are lifecycle events that a crawler (Robo,
