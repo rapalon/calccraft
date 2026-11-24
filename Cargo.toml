@@ -58,7 +58,12 @@ eframe = { version = "0.36.2", default-features = false, features = [
     "persistence",
 ] }
 jni = "0.21"
+# `calccraft_on_create` (src/lib.rs) wraps NativeActivity's onDestroy callback and ends the
+# process with `_exit` (android/README.md, "One activity, one process"); the versions
+# android-activity uses.
+libc = "0.2"
 log = "0.4"
+ndk-sys = "0.6"
 # The graph's Share writes a PNG for the share sheet (src/app/share.rs).
 png = "0.18"
 # eframe's `NativeOptions::android_app` is winit's `AndroidApp`; the version eframe uses.

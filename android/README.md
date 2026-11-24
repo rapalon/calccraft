@@ -286,6 +286,29 @@ is valid from then on. Then redo steps 2 and 4 with the new keystore. Without Pl
   below); the keyboard pans the screen instead of shrinking it; and the app opts out of
   predictive back (`enableOnBackInvokedCallback="false"`), without which Android 16 and later
   handle the back button themselves and the app never sees it.
+- **One activity, one process** (after Google Play's rejection of 1.4.5:
+  `docs/play-rejection-1.4.5.md`). winit runs one event loop per process, and its Android
+  backend ignores `onDestroy`, so the activity can neither be created twice in a process nor be
+  destroyed and created again. Three rules keep it that way:
+  - `configChanges` names every configuration change an app can declare (`mcc`, `mnc`,
+    `touchscreen`, `colorMode`, `fontWeightAdjustment` and `grammaticalGender` too), so none
+    of them restarts the activity: before, Bold text (`fontWeightAdjustment`) did, and the app
+    froze.
+  - `launchMode="singleTask"`: an intent for the activity while it runs (`am start -n`, a test
+    crawler, a shortcut) goes to the running one instead of stacking a second one, whose
+    `android_main` found winit's event loop taken and ended the process.
+  - What still destroys the activity (a resource overlay change such as new wallpaper colours,
+    which no app can declare; Developer options → Don't keep activities; the system finishing
+    it) ends the process: the manifest's `android.app.func_name` makes NativeActivity call
+    `calccraft_on_create` (`src/lib.rs`), which runs android-activity's
+    `ANativeActivity_onCreate` and then wraps the `onDestroy` callback. android-activity's
+    `onDestroy` waits for `android_main` to return, which never happens (winit doesn't leave
+    its loop on `Destroy`), so it froze the app's main thread: an ANR. The wrapper logs
+    `CalcCraft ends: Android destroyed the activity` and ends the process with `_exit` before
+    that wait. The state is already saved then: eframe saves when the window goes
+    (`Suspended`), which Android does before `onDestroy`. The next start is a new process.
+  `tests/android_manifest.rs` checks the three on every system, and the device runner's
+  `lifecycle` scenario repeats the cases on a phone (`tests/device/README.md`).
 - Screen orientation (1.4.1): Settings → Screen orientation offers Auto (the default:
   `SCREEN_ORIENTATION_USER`, which follows the system's auto-rotate, or stays in the
   orientation it's locked in), Portrait and Landscape (`SENSOR_PORTRAIT` and

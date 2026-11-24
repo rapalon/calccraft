@@ -1,0 +1,18 @@
+{
+  "name": "lifecycle",
+  "description": "The running app started again by its component (am start -n, as a test crawler does) keeps its activity, its process and the number typed: Google Play rejected 1.4.5 because a second activity ended the app (docs/play-rejection-1.4.5.md).",
+  "steps": [
+    { "launch": true },
+    { "open": "Standard Calculator" },
+    { "taps": ["Clear", "Four", "Two"] },
+    { "display": "42" },
+    { "start_again": true },
+    { "same_process": true },
+    { "display": "42" },
+    { "taps": ["Plus", "One", "Equals"] },
+    { "display": "43" },
+    { "start_again": true },
+    { "same_process": true },
+    { "display": "43" }
+  ]
+}

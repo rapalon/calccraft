@@ -24,19 +24,32 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/CalcCraft">
 
-        <!-- The app handles every configuration change itself: a restarted activity would
-             start a second winit event loop, which winit doesn't allow. A rotation only
-             changes the window's size. The orientation is Settings → Screen orientation's
-             (android.rs set_orientation), so none is fixed here. The keyboard pans the screen
-             instead of shrinking it, for the same reason. -->
+        <!-- One activity, one process (README.md, "One activity, one process"): winit allows
+             one event loop per process and ignores onDestroy, so the activity must neither be
+             restarted nor created twice.
+             - configChanges names every configuration change an app can declare: a restarted
+               activity froze the app (Bold text, fontWeightAdjustment, did). A rotation only
+               changes the window's size. The orientation is Settings → Screen orientation's
+               (android.rs set_orientation), so none is fixed here. The keyboard pans the screen
+               instead of shrinking it, for the same reason.
+             - singleTask: an intent for the running activity (am start -n, a test crawler)
+               goes to it instead of stacking a second one, which ended the app.
+             - func_name: NativeActivity calls calccraft_on_create (src/lib.rs), which ends the
+               process on a destroy that can't be avoided (an overlay change) instead of
+               freezing.
+             tests/android_manifest.rs checks all three. -->
         <activity
             android:name="android.app.NativeActivity"
-            android:configChanges="density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+            android:configChanges="colorMode|density|fontScale|fontWeightAdjustment|grammaticalGender|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustPan">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="calculator" />
+            <meta-data
+                android:name="android.app.func_name"
+                android:value="calccraft_on_create" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

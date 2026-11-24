@@ -139,3 +139,53 @@ fn android_main(android_app: winit::platform::android::activity::AndroidApp) {
         }
     }
 }
+
+/// NativeActivity's entry point, named by `android.app.func_name` in
+/// `android/AndroidManifest.xml` in place of android-activity's `ANativeActivity_onCreate`,
+/// which it runs first and whose `onDestroy` callback it then replaces with
+/// [`end_on_destroy`] (android/README.md, "One activity, one process").
+///
+/// # Safety
+///
+/// Only NativeActivity calls it, on Android's main thread, with its `ANativeActivity`.
+#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+unsafe extern "C" fn calccraft_on_create(
+    activity: *mut ndk_sys::ANativeActivity,
+    saved_state: *mut std::ffi::c_void,
+    saved_state_size: usize,
+) {
+    unsafe extern "C" {
+        /// android-activity's entry point (`native_activity/glue.rs`): it sets the activity's
+        /// callbacks and starts `android_main` on the app's thread.
+        fn ANativeActivity_onCreate(
+            activity: *mut ndk_sys::ANativeActivity,
+            saved_state: *mut std::ffi::c_void,
+            saved_state_size: usize,
+        );
+    }
+    // SAFETY: NativeActivity's arguments, passed on as it would have; `callbacks` points at the
+    // activity's callback table, which lives as long as the activity.
+    unsafe {
+        ANativeActivity_onCreate(activity, saved_state, saved_state_size);
+        if let Some(callbacks) = activity.as_ref().and_then(|a| a.callbacks.as_mut()) {
+            callbacks.onDestroy = Some(end_on_destroy);
+        }
+    }
+}
+
+/// The activity's `onDestroy`: ends the process.
+///
+/// android-activity's own callback sends `Destroy` to the app's thread and waits for
+/// `android_main` to return, but winit 0.30 ignores `Destroy` and never leaves its event loop,
+/// so Android's main thread waited forever (an ANR, when Bold text or new wallpaper colours
+/// restarted the activity). And a new activity couldn't run in this process anyway: winit
+/// allows one event loop per process. The app's state is already saved: Android destroys the
+/// window first, and eframe saves when it goes (`Suspended`). `_exit`, not `exit`: the app's
+/// and the GL driver's threads still run, and `exit` would run the destructors under them.
+#[cfg(target_os = "android")]
+unsafe extern "C" fn end_on_destroy(_activity: *mut ndk_sys::ANativeActivity) {
+    log::warn!("CalcCraft ends: Android destroyed the activity");
+    // SAFETY: `_exit` takes no pointers and doesn't return.
+    unsafe { libc::_exit(0) }
+}
